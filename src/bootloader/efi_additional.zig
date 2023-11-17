@@ -1,0 +1,8 @@
+pub const efi_page_mask: usize = 0xfff;
+pub const efi_page_shift: usize = 12;
+
+pub inline fn efiSizeToPages(value: anytype) @TypeOf(value) {
+    const addition: @TypeOf(value) = if (value & efi_page_mask != 0) 1 else 0;
+    const ret = (value >> efi_page_shift) + addition;
+    return ret;
+}
