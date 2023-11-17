@@ -14,4 +14,7 @@ Further Information
 -------------------
 
 Contact me at <samuel.fiedler@proton.me>.  
-Licensed under GPLv3. Read it in the `LICENSE` file. 
+Licensed under GPLv3. Read it in the `LICENSE` file.  
+The version scheme is MAJOR.MINOR.PATCH.  
+**Currently, the code does not work. It will exit with "err: integer overflow". I will add the
+version tags after the first working version**
