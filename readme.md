@@ -8,7 +8,8 @@ Building and Running
 --------------------
 
 Just execute `run.sh`. Parameters for "zig build" can just be specified in the command, so
-`./run.sh --help` produces `zig build --help`. 
+`./run.sh --help` produces `zig build --help`.  
+Depends on zig (of course) and on QEMU. 
 
 Further Information
 -------------------
