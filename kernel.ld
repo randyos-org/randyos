@@ -1,17 +1,30 @@
+KERNEL_PHYS_START = 1M;
+KERNEL_STACK_SIZE = 0x4000;
+
 ENTRY(kmain)
 
 SECTIONS {
-    . = 1M;
+    . = KERNEL_PHYS_START;
 
-    .text : {
-        *(.text)
+    .text : ALIGN(4K) {
+        *(.text*)
     }
 
-    .data : {
-        *(.data)
+    .rodata : ALIGN(4K) {
+        *(.rodata*)
     }
 
-    .bss : {
-        *(.bss)
+    .data : ALIGN(4K) {
+        *(.data*)
+    }
+
+    .bss : ALIGN(4K) {
+        *(COMMON)
+        *(.bss*)
+        . = ALIGN(16);
+        stack_bottom = .;
+        . += KERNEL_STACK_SIZE;
+        stack_top = .;
+        kernel_end = .;
     }
 }

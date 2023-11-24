@@ -91,7 +91,7 @@ pub const Elf64_Phdr = struct {
     p_align: u64,
 };
 
-pub fn printElfFileInfo(header_ptr: ?*anyopaque, program_headers_ptr: ?*anyopaque) void {
+pub fn printElfFileInfo(header_ptr: ?*anyopaque, program_headers_ptr: ?*anyopaque, elf_file_class: ElfFileClass) void {
     const header: *Elf32_Ehdr = @as(*Elf32_Ehdr, @ptrCast(@alignCast(header_ptr)));
     const header64: *Elf64_Ehdr = @as(*Elf64_Ehdr, @ptrCast(@alignCast(header_ptr)));
     puts("Debug: ELF Header Info: \r\n");
@@ -159,15 +159,15 @@ pub fn printElfFileInfo(header_ptr: ?*anyopaque, program_headers_ptr: ?*anyopaqu
         0xf3 => "RISC-V",
         else => "Unknown",
     };
-    printf("  Machine Type:              {s}\r\n", .{machtype});
-    if (header.e_ident[EI_CLASS] == @intFromEnum(ElfFileClass.ElfFileClass32)) {
-        printf("  Entry point:             0x{x}\r\n", .{header.e_entry});
-        printf("  Program header offset:   0x{x}\r\n", .{header.e_phoff});
-        printf("  Section header offset:   0x{x}\r\n", .{header.e_shoff});
-        printf("  Program header count:    {}\r\n", .{header.e_phnum});
-        printf("  Section header count:    {}\r\n", .{header.e_shnum});
+    printf("  Machine Type:             {s}\r\n", .{machtype});
+    if (elf_file_class == ElfFileClass.ElfFileClass32) {
+        printf("  Entry point:              0x{x}\r\n", .{header.e_entry});
+        printf("  Program header offset:    0x{x}\r\n", .{header.e_phoff});
+        printf("  Section header offset:    0x{x}\r\n", .{header.e_shoff});
+        printf("  Program header count:     {}\r\n", .{header.e_phnum});
+        printf("  Section header count:     {}\r\n", .{header.e_shnum});
         const program_headers: [*]Elf32_Phdr = @as([*]Elf32_Phdr, @ptrCast(@alignCast(program_headers_ptr)));
-        puts("\r\nProgram Headers: \r\n");
+        puts("\r\nDebug: Program Headers: \r\n");
         var p: usize = 0;
         while (p < header.e_phnum) : (p += 1) {
             printf("[{}]: \r\n", .{p});
@@ -181,12 +181,12 @@ pub fn printElfFileInfo(header_ptr: ?*anyopaque, program_headers_ptr: ?*anyopaqu
             printf("  p_align:                  0x{x}\r\n", .{program_headers[p].p_align});
             puts("\r\n");
         }
-    } else if (header.e_ident[EI_CLASS] == @intFromEnum(ElfFileClass.ElfFileClass64)) {
-        printf("  Entry point:             0x{x}\r\n", .{header64.e_entry});
-        printf("  Program header offset:   0x{x}\r\n", .{header64.e_phoff});
-        printf("  Section header offset:   0x{x}\r\n", .{header64.e_shoff});
-        printf("  Program header count:    {}\r\n", .{header64.e_phnum});
-        printf("  Section header count:    {}\r\n", .{header64.e_shnum});
+    } else if (elf_file_class == ElfFileClass.ElfFileClass64) {
+        printf("  Entry point:              0x{x}\r\n", .{header64.e_entry});
+        printf("  Program header offset:    0x{x}\r\n", .{header64.e_phoff});
+        printf("  Section header offset:    0x{x}\r\n", .{header64.e_shoff});
+        printf("  Program header count:     {}\r\n", .{header64.e_phnum});
+        printf("  Section header count:     {}\r\n", .{header64.e_shnum});
         const program_headers: [*]Elf64_Phdr = @as([*]Elf64_Phdr, @ptrCast(@alignCast(program_headers_ptr)));
         puts("\r\nProgram Headers: \r\n");
         var p: usize = 0;
@@ -207,8 +207,8 @@ pub fn printElfFileInfo(header_ptr: ?*anyopaque, program_headers_ptr: ?*anyopaqu
 
 pub fn readElfFile(kernel_img_file: *uefi.protocol.File, file_class: ElfFileClass, kernel_header_buffer: *?*anyopaque, kernel_program_headers_buffer: *?*anyopaque) uefi.Status {
     const boot_services = uefi.system_table.boot_services.?;
-    var buffer_read_size: usize = 0;
-    var program_headers_offset: usize = 0;
+    var buffer_read_size: u64 = 0;
+    var program_headers_offset: u64 = 0;
     var status: uefi.Status = uefi.Status.Success;
     if (config.debug == true) {
         puts("Debug: Setting file pointer to read executable header\r\n");
@@ -241,13 +241,15 @@ pub fn readElfFile(kernel_img_file: *uefi.protocol.File, file_class: ElfFileClas
     if (status != uefi.Status.Success) {
         puts("Error: Failed to read kernel header\r\n");
         return status;
+    } else {
+        puts("Debug: Reading kernel executable header worked\r\n");
     }
     if (file_class == ElfFileClass.ElfFileClass32) {
         program_headers_offset = @as(*Elf32_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phoff;
-        buffer_read_size = @sizeOf(Elf32_Phdr) * @as(*Elf32_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phnum;
+        buffer_read_size = @sizeOf(Elf32_Phdr) *% @as(*Elf32_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phnum;
     } else if (file_class == ElfFileClass.ElfFileClass64) {
         program_headers_offset = @as(*Elf64_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phoff;
-        buffer_read_size = @sizeOf(Elf64_Phdr) * @as(*Elf64_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phnum;
+        buffer_read_size = @sizeOf(Elf64_Phdr) *% @as(*Elf64_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phnum;
     }
     if (config.debug == true) {
         printf("Debug: Setting file offset to '0x{x}' to read program headers\r\n", .{program_headers_offset});
@@ -309,7 +311,6 @@ pub fn readElfIdentity(kernel_img_file: *uefi.protocol.File, elf_identity_buffer
 }
 
 pub fn validateElfIdentity(elf_identity_buffer: [*]u8) uefi.Status {
-    var status = uefi.Status.Success;
     if ((elf_identity_buffer[EI_MAG0] != 0x7f) or (elf_identity_buffer[EI_MAG1] != 0x45) or (elf_identity_buffer[EI_MAG2] != 0x4c) or (elf_identity_buffer[EI_MAG3] != 0x46)) {
         puts("Error: Invalid ELF header\r\n");
         return uefi.Status.InvalidParameter;
@@ -330,5 +331,5 @@ pub fn validateElfIdentity(elf_identity_buffer: [*]u8) uefi.Status {
         puts("Error: Only LSB ELF executables currently supported\r\n");
         return uefi.Status.IncompatibleVersion;
     }
-    return status;
+    return uefi.Status.Success;
 }

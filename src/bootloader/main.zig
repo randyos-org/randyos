@@ -40,15 +40,15 @@ pub fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_si
 
 pub fn bootloader() uefi.Status {
     const boot_services = uefi.system_table.boot_services.?;
-    var kernel_executable_path: [*:0]const u16 = std.unicode.utf8ToUtf16LeStringLiteral("\\kernel.elf");
+    const kernel_executable_path: [*:0]const u16 = std.unicode.utf8ToUtf16LeStringLiteral("\\kernel.elf");
     var status: uefi.Status = uefi.Status.Success;
     var root_file_system: *uefi.protocol.File = undefined;
-    var kernel_entry_point: *u64 = undefined;
     var memory_map: ?[*]uefi.tables.MemoryDescriptor = undefined;
     var memory_map_key: usize = 0;
     var memory_map_size: usize = 0;
     var descriptor_size: usize = undefined;
     var descriptor_version: u32 = undefined;
+    var kernel_entry_point: u64 = undefined;
     var kernel_entry: ?*const fn (*const boot_info.KernelBootInfo) void = undefined;
     var kernel_boot_info: boot_info.KernelBootInfo = undefined;
     var file_system: *uefi.protocol.SimpleFileSystem = undefined;
@@ -89,13 +89,13 @@ pub fn bootloader() uefi.Status {
     if (config.debug == true) {
         puts("Debug: Loading kernel image\r\n");
     }
-    status = loader.loadKernelImage(root_file_system, kernel_executable_path, kernel_entry_point);
+    status = loader.loadKernelImage(root_file_system, kernel_executable_path, &kernel_entry_point);
     if (status != uefi.Status.Success) {
         puts("Error: Loading kernel image failed\r\n");
         return status;
     }
     if (config.debug == true) {
-        printf("Debug: Set Kernel Entry Point to: '0x{x}'\r\n", .{kernel_entry_point.*});
+        printf("Debug: Set Kernel Entry Point to: '0x{x}'\r\n", .{kernel_entry_point});
     }
     kernel_boot_info.video_mode_info.framebuffer_pointer = @as(*anyopaque, @ptrFromInt(graphics_output.mode.frame_buffer_base));
     kernel_boot_info.video_mode_info.horizontal_resolution = video_mode_info.horizontal_resolution;
@@ -117,7 +117,7 @@ pub fn bootloader() uefi.Status {
     kernel_boot_info.memory_map = @as(*uefi.tables.MemoryDescriptor, @ptrCast(memory_map));
     kernel_boot_info.memory_map_size = memory_map_size;
     kernel_boot_info.memory_map_descriptor_size = descriptor_size;
-    kernel_entry = @as(*const fn (*const boot_info.KernelBootInfo) void, @ptrCast(kernel_entry_point));
+    kernel_entry = @as(*const fn (*const boot_info.KernelBootInfo) void, @ptrCast(&kernel_entry_point));
     kernel_entry.?(&kernel_boot_info);
     return uefi.Status.LoadError;
 }

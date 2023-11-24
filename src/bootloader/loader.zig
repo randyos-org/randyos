@@ -11,7 +11,7 @@ pub fn loadSegment(kernel_img_file: *uefi.protocol.File, segment_file_offset: u6
     var status: uefi.Status = uefi.Status.Success;
     var program_data: ?*anyopaque = undefined;
     var buffer_read_size: usize = 0;
-    var segment_page_count = efi_additional.efiSizeToPages(segment_memory_size);
+    const segment_page_count = efi_additional.efiSizeToPages(segment_memory_size);
     var zero_fill_start: u64 = 0;
     var zero_fill_count: usize = 0;
     const boot_services = uefi.system_table.boot_services.?;
@@ -26,7 +26,7 @@ pub fn loadSegment(kernel_img_file: *uefi.protocol.File, segment_file_offset: u6
     if (config.debug == true) {
         printf("Debug: Allocating {} pages at address '0x{x}'\r\n", .{ segment_page_count, segment_physical_address });
     }
-    status = boot_services.allocatePages(uefi.tables.AllocateType.AllocateAddress, uefi.tables.MemoryType.LoaderData, segment_page_count, @as(*[*]align(4096) u8, @ptrCast(@alignCast(@constCast(&&segment_physical_address)))));
+    status = boot_services.allocatePages(uefi.tables.AllocateType.AllocateAnyPages, uefi.tables.MemoryType.LoaderData, segment_page_count, @as(*[*]align(4096) u8, @ptrCast(@alignCast(@constCast(&&segment_physical_address)))));
     if (status != uefi.Status.Success) {
         puts("Error: Allocating pages for ELF segment failed\r\n");
         return status;
@@ -171,7 +171,7 @@ pub fn loadKernelImage(root_file_system: *uefi.protocol.File, kernel_image_filen
         return status;
     }
     if (config.debug == true) {
-        elf.printElfFileInfo(kernel_header, kernel_program_headers);
+        elf.printElfFileInfo(kernel_header, kernel_program_headers, file_class);
     }
     if (file_class == .ElfFileClass32) {
         kernel_entry_point.* = @as(*elf.Elf32_Ehdr, @ptrCast(@alignCast(kernel_header))).e_entry;
