@@ -21,6 +21,7 @@ pub fn puts(msg: []const u8) void {
     }
 }
 
+/// Put out any formatted string
 pub fn printf(comptime fmt: []const u8, args: anytype) void {
     var buf: [256]u8 = undefined;
     var msg: []u8 = undefined;

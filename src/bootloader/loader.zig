@@ -1,13 +1,16 @@
+//! Core image loading functionality
+//! 2023 by Samuel Fiedler
+
 const std = @import("std");
 const uefi = std.os.uefi;
 const config = @import("./config.zig");
 const text_out = @import("./text_out.zig");
-// const elf = @import("./elf.zig");
 const elf = std.elf;
 const efi_additional = @import("./efi_additional.zig");
 const puts = text_out.puts;
 const printf = text_out.printf;
 
+/// Read a UEFI file
 pub fn readFile(file: *uefi.protocol.File, position: u64, size: usize, buffer: *[*]align(8) u8) uefi.Status {
     var status: uefi.Status = uefi.Status.Success;
     status = file.setPosition(position);
@@ -18,6 +21,7 @@ pub fn readFile(file: *uefi.protocol.File, position: u64, size: usize, buffer: *
     return file.read(@as(*usize, @constCast(&size)), buffer.*);
 }
 
+/// Read a UEFI file and allocate free memory for it
 pub fn readAndAllocate(file: *uefi.protocol.File, position: u64, size: usize, buffer: *[*]align(8) u8) uefi.Status {
     const boot_services = uefi.system_table.boot_services.?;
     var status: uefi.Status = uefi.Status.Success;
@@ -29,6 +33,7 @@ pub fn readAndAllocate(file: *uefi.protocol.File, position: u64, size: usize, bu
     return readFile(file, position, size, buffer);
 }
 
+/// Load an ELF program segment
 pub fn loadSegment(
     file: *uefi.protocol.File,
     segment_file_offset: u64,
@@ -36,9 +41,8 @@ pub fn loadSegment(
     segment_memory_size: usize,
     segment_virtual_address: u64,
 ) uefi.Status {
+    // set some variables
     var status: uefi.Status = uefi.Status.Success;
-    // var segment_buffer: [*]align(4096) u8 = @as([*]align(4096) u8, @alignCast(@as([*]u8, @ptrFromInt(segment_virtual_address))));
-    // var segment_buffer: [*]align(4096) u8 = @as([*]align(4096) u8, @ptrCast(@alignCast(@constCast(&segment_virtual_address))));
     if (segment_virtual_address & 4095 != 0) {
         puts("Warning: segment_virtual_address is not well aligned, returning with Success\r\n");
         return status;
@@ -48,6 +52,7 @@ pub fn loadSegment(
     var zero_fill_start: u64 = 0;
     var zero_fill_count: usize = 0;
     const boot_services = uefi.system_table.boot_services.?;
+    // allocate pages at right physical address
     if (config.debug == true) {
         printf("Debug: Allocating {} pages at address '0x{x}'\r\n", .{ segment_page_count, segment_virtual_address });
     }
@@ -61,6 +66,7 @@ pub fn loadSegment(
         puts("Error: Allocating pages for ELF segment failed\r\n");
         return status;
     }
+    // read ELF segment data from file
     if (segment_file_size > 0) {
         if (config.debug == true) {
             printf("Debug: Reading segment data with file size '0x{x}'\r\n", .{segment_file_size});
@@ -71,19 +77,20 @@ pub fn loadSegment(
             return status;
         }
     }
+    // zero-fill free bytes, as according to the ELF spec
     zero_fill_start = segment_virtual_address + segment_file_size;
     zero_fill_count = segment_memory_size - segment_file_size;
     if (zero_fill_count > 0) {
         if (config.debug == true) {
             printf("Debug: Zero-filling {} bytes at address '0x{x}'\r\n", .{ zero_fill_count, zero_fill_start });
         }
-        // boot_services.setMem(@as([*]u8, @ptrCast(@alignCast(@constCast(&zero_fill_start)))), zero_fill_count, 0);
         boot_services.setMem(@as([*]u8, @ptrFromInt(zero_fill_start)), zero_fill_count, 0);
         puts("Debug: Zero-filling bytes succeeded\r\n");
     }
     return status;
 }
 
+/// Load all ELF program segments
 pub fn loadProgramSegments(
     file: *uefi.protocol.File,
     header: *elf.Header,
@@ -91,6 +98,7 @@ pub fn loadProgramSegments(
     base_physical_address: u64,
     kernel_start_address: *u64,
 ) uefi.Status {
+    // set variables
     var status: uefi.Status = uefi.Status.Success;
     const n_program_headers = header.phnum;
     var n_segments_loaded: u64 = 0;
@@ -104,11 +112,13 @@ pub fn loadProgramSegments(
     if (config.debug == true) {
         printf("Debug: Loading {} segments\r\n", .{n_program_headers});
     }
+    // iterate over all program segments
     while (index < n_program_headers) : (index += 1) {
         if (program_headers[index].p_type == elf.PT_LOAD) {
             if (config.debug == true) {
                 printf("Debug: Loading program segment {}\r\n", .{index});
             }
+            // seg kernel start address (but only one time)
             if (set_start_address) {
                 set_start_address = false;
                 kernel_start_address.* = program_headers[index].p_vaddr;
@@ -117,6 +127,7 @@ pub fn loadProgramSegments(
                     printf("Debug: Set kernel start address to 0x{x} and base address difference to 0x{x}\r\n", .{ kernel_start_address.*, base_address_difference });
                 }
             }
+            // the actual loading logic is in a dedicated function
             status = loadSegment(
                 file,
                 program_headers[index].p_offset,
@@ -151,6 +162,7 @@ pub fn loadKernelImage(
     kernel_entry_point: *u64,
     kernel_start_address: *u64,
 ) uefi.Status {
+    // set variables
     const boot_services = uefi.system_table.boot_services.?;
     var status: uefi.Status = uefi.Status.Success;
     var kernel_img_file: *uefi.protocol.File = undefined;
@@ -158,6 +170,7 @@ pub fn loadKernelImage(
     if (config.debug == true) {
         puts("Debug: Opening kernel image\r\n");
     }
+    // open the kernel image file
     status = root_file_system.open(
         &kernel_img_file,
         kernel_image_filename,
@@ -168,6 +181,7 @@ pub fn loadKernelImage(
         puts("Error: Opening kernel file failed\r\n");
         return status;
     }
+    // check ELF identity
     if (config.debug == true) {
         puts("Debug: Checking ELF identity\r\n");
     }
@@ -200,6 +214,7 @@ pub fn loadKernelImage(
     if (config.debug == true) {
         puts("Debug: ELF identity is good; continuing loading\r\n");
     }
+    // load ELF header
     if (config.debug == true) {
         puts("Debug: Loading ELF header\r\n");
     }
@@ -228,10 +243,12 @@ pub fn loadKernelImage(
             },
         }
     };
+    // save kernel entry point
     if (config.debug == true) {
         printf("Debug: Loading ELF header succeeded; entry point is {x}\r\n", .{header.entry});
     }
     kernel_entry_point.* = header.entry;
+    // load program headers
     if (config.debug == true) {
         puts("Debug: Loading program headers\r\n");
     }
@@ -243,6 +260,7 @@ pub fn loadKernelImage(
     }
     const program_headers = @as([*]const elf.Elf64_Phdr, @ptrCast(program_headers_buffer));
     status = loadProgramSegments(kernel_img_file, &header, program_headers, base_physical_address, kernel_start_address);
+    // close and free everything
     _ = kernel_img_file.close();
     _ = boot_services.freePool(header_buffer);
     _ = boot_services.freePool(program_headers_buffer);

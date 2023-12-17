@@ -1,4 +1,5 @@
-//! UEFI ELF bootloader
+//! UEFI ELF Bootloader
+//! 2023 by Samuel Fiedler
 
 const std = @import("std");
 const uefi = std.os.uefi;
@@ -12,10 +13,12 @@ const printf = text_out.printf;
 /// Get a memory map
 ///   - all arguments are pointers to the arguments needed by std.os.uefi.system_table.boot_services.?.getMemoryMap
 pub fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_size: *usize, memory_map_key: *usize, descriptor_size: *usize, descriptor_version: *u32) uefi.Status {
+    // set variables
     const boot_services = uefi.system_table.boot_services.?;
     var status: uefi.Status = uefi.Status.Success;
+    // get memory map size
     if (config.debug == true) {
-        puts("Debug: Allocating memory map\r\n");
+        puts("Debug: Getting memory map size\r\n");
     }
     status = boot_services.getMemoryMap(memory_map_size, memory_map.*, memory_map_key, descriptor_size, descriptor_version);
     if (status != uefi.Status.Success) {
@@ -24,11 +27,19 @@ pub fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_si
             return status;
         }
     }
+    // allocate memory map
     memory_map_size.* += 2 * (descriptor_size.*);
+    if (config.debug == true) {
+        puts("Debug: Allocating memory map\r\n");
+    }
     status = boot_services.allocatePool(uefi.tables.MemoryType.LoaderData, memory_map_size.*, @as(*[*]align(8) u8, @ptrCast(@alignCast(memory_map))));
     if (status != uefi.Status.Success) {
         puts("Error: Allocating memory map failed\r\n");
         return status;
+    }
+    // get memory map
+    if (config.debug == true) {
+        puts("Debug: Gettimg memory map (again)\r\n");
     }
     status = boot_services.getMemoryMap(memory_map_size, memory_map.*, memory_map_key, descriptor_size, descriptor_version);
     if (status != uefi.Status.Success) {
@@ -38,7 +49,11 @@ pub fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_si
     return status;
 }
 
+/// Main bootloader function
+/// This function is not in the main function to do some separation and to process the resulting status.
+/// I know I could do that also in other ways, but I decided to use one thing for everything here.
 pub fn bootloader() uefi.Status {
+    // declare the variables
     const boot_services = uefi.system_table.boot_services.?;
     const runtime_services = uefi.system_table.runtime_services;
     const kernel_executable_path: [*:0]const u16 = std.unicode.utf8ToUtf16LeStringLiteral("\\kernel.elf");
@@ -91,7 +106,7 @@ pub fn bootloader() uefi.Status {
         return status;
     }
     // get memory map the first time
-    // necessary to find right virtual address for kernel
+    // necessary to find free memory for the kernel
     if (config.debug == true) {
         puts("Debug: Getting memory map to find free addresses\r\n");
     }
