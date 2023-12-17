@@ -16,8 +16,9 @@ Further Information
 
 Contact me at <samuel.fiedler@proton.me>.  
 Licensed under GPLv3. Read it in the `LICENSE` file.  
+Read the project history in the `history.md` file.  
 The version scheme is MAJOR.MINOR.PATCH.  
-Thanks a lot to the two following GitHub repos:
+Thanks a lot to the following two GitHub repos:
 
   - <https://github.com/ajxs/uefi-elf-bootloader>
   - <https://github.com/stakach/uefi-bootstrap>
