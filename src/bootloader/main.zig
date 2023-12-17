@@ -149,13 +149,21 @@ pub fn bootloader() uefi.Status {
     kernel_boot_info.video_mode_info.horizontal_resolution = video_mode_info.horizontal_resolution;
     kernel_boot_info.video_mode_info.vertical_resolution = video_mode_info.vertical_resolution;
     kernel_boot_info.video_mode_info.pixels_per_scanline = video_mode_info.pixels_per_scan_line;
+    if (config.debug == true) {
+        puts("Debug: Disabling watchdog timer\r\n");
+    }
+    status = boot_services.setWatchdogTimer(0, 0, 0, null);
+    if (status != uefi.Status.Success) {
+        puts("Error: Disabling watchdog timer failed\r\n");
+        return status;
+    }
     // get memory map to exit boot services
     status = getMemoryMap(&memory_map, &memory_map_size, &memory_map_key, &descriptor_size, &descriptor_version);
     if (status != uefi.Status.Success) {
         puts("Error: Getting memory map failed\r\n");
         return status;
     } else {
-        puts("Getting memory map succeeded; exiting boot services NOW\r\n");
+        puts("Getting memory map succeeded; exiting boot services now\r\n");
     }
     status = boot_services.exitBootServices(uefi.handle, memory_map_key);
     if (status != uefi.Status.Success) {
