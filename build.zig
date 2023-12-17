@@ -36,9 +36,4 @@ pub fn build(b: *Builder) void {
     });
     b.installArtifact(bootloader);
     b.installArtifact(kernel);
-    b.installDirectory(.{
-        .source_dir = bootloader.getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "doc",
-    });
 }

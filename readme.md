@@ -17,7 +17,7 @@ Further Information
 Contact me at <samuel.fiedler@proton.me>.  
 Licensed under GPLv3. Read it in the `LICENSE` file.  
 The version scheme is MAJOR.MINOR.PATCH.  
-**Currently, the code does not work. It will have problems with physical addresses. I will add
-the version tags after the first working version. Any help is appreciated. "**  
-This is, as of the current version, basically <https://github.com/ajxs/uefi-elf-bootloader>
-written in ZIG. 
+Thanks a lot to the two following GitHub repos:
+
+  - <https://github.com/ajxs/uefi-elf-bootloader>
+  - <https://github.com/stakach/uefi-bootstrap>

@@ -1,3 +1,4 @@
+/* KERNEL_PHYS_START = 0xffffffff80200000; */
 KERNEL_PHYS_START = 1M;
 KERNEL_STACK_SIZE = 0x4000;
 
@@ -21,10 +22,11 @@ SECTIONS {
     .bss : ALIGN(4K) {
         *(COMMON)
         *(.bss*)
+
         . = ALIGN(16);
         stack_bottom = .;
         . += KERNEL_STACK_SIZE;
         stack_top = .;
-        kernel_end = .;
     }
+    kernel_end = .;
 }

@@ -1,3 +1,5 @@
+const std = @import("std");
+const uefi = std.os.uefi;
 pub const efi_page_mask: usize = 0xfff;
 pub const efi_page_shift: usize = 12;
 

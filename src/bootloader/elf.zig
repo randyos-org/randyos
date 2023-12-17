@@ -188,19 +188,21 @@ pub fn printElfFileInfo(header_ptr: ?*anyopaque, program_headers_ptr: ?*anyopaqu
         printf("  Program header count:     {}\r\n", .{header64.e_phnum});
         printf("  Section header count:     {}\r\n", .{header64.e_shnum});
         const program_headers: [*]Elf64_Phdr = @as([*]Elf64_Phdr, @ptrCast(@alignCast(program_headers_ptr)));
-        puts("\r\nProgram Headers: \r\n");
+        puts("\r\nDebug: Program Headers: \r\n");
         var p: usize = 0;
-        while (p < header.e_phnum) : (p += 1) {
-            printf("[{}]: \r\n", .{p});
-            printf("  p_type:                   0x{x}\r\n", .{program_headers[p].p_type});
-            printf("  p_offset:                 0x{x}\r\n", .{program_headers[p].p_offset});
-            printf("  p_vaddr:                  0x{x}\r\n", .{program_headers[p].p_vaddr});
-            printf("  p_paddr:                  0x{x}\r\n", .{program_headers[p].p_paddr});
-            printf("  p_filesz:                 0x{x}\r\n", .{program_headers[p].p_filesz});
-            printf("  p_memsz:                  0x{x}\r\n", .{program_headers[p].p_memsz});
-            printf("  p_flags:                  0x{x}\r\n", .{program_headers[p].p_flags});
-            printf("  p_align:                  0x{x}\r\n", .{program_headers[p].p_align});
-            puts("\r\n");
+        while (p < header64.e_phnum) : (p += 1) {
+            if ((program_headers[p].p_type == PT_LOAD and config.print_usable_progheaders == true) or config.print_progheaders == true) {
+                printf("[{}]: \r\n", .{p});
+                printf("  p_type:                   0x{x}\r\n", .{program_headers[p].p_type});
+                printf("  p_offset:                 0x{x}\r\n", .{program_headers[p].p_offset});
+                printf("  p_vaddr:                  0x{x}\r\n", .{program_headers[p].p_vaddr});
+                printf("  p_paddr:                  0x{x}\r\n", .{program_headers[p].p_paddr});
+                printf("  p_filesz:                 0x{x}\r\n", .{program_headers[p].p_filesz});
+                printf("  p_memsz:                  0x{x}\r\n", .{program_headers[p].p_memsz});
+                printf("  p_flags:                  0x{x}\r\n", .{program_headers[p].p_flags});
+                printf("  p_align:                  0x{x}\r\n", .{program_headers[p].p_align});
+                puts("\r\n");
+            }
         }
     }
 }
@@ -245,11 +247,21 @@ pub fn readElfFile(kernel_img_file: *uefi.protocol.File, file_class: ElfFileClas
         puts("Debug: Reading kernel executable header worked\r\n");
     }
     if (file_class == ElfFileClass.ElfFileClass32) {
-        program_headers_offset = @as(*Elf32_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phoff;
-        buffer_read_size = @sizeOf(Elf32_Phdr) *% @as(*Elf32_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phnum;
+        const hdr = @as(*Elf32_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*)));
+        program_headers_offset = hdr.e_phoff;
+        // buffer_read_size = hdr.e_phentsize *% hdr.e_phnum;
+        buffer_read_size = @sizeOf(Elf32_Phdr) *% hdr.e_phnum;
+        printf("Debug: hdr.e_phentsize:          {}\r\n", .{hdr.e_phentsize});
+        printf("Debug: @sizeOf(Elf32_Phdr):      {}\r\n", .{@sizeOf(Elf32_Phdr)});
+        printf("Debug: buffer_read_size:         {}\r\n", .{buffer_read_size});
     } else if (file_class == ElfFileClass.ElfFileClass64) {
-        program_headers_offset = @as(*Elf64_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phoff;
-        buffer_read_size = @sizeOf(Elf64_Phdr) *% @as(*Elf64_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*))).e_phnum;
+        const hdr = @as(*Elf64_Ehdr, @ptrCast(@alignCast(kernel_header_buffer.*)));
+        program_headers_offset = hdr.e_phoff;
+        // buffer_read_size = hdr.e_phentsize *% hdr.e_phnum;
+        buffer_read_size = @sizeOf(Elf64_Phdr) *% hdr.e_phnum;
+        printf("Debug: hdr.e_phentsize:          {}\r\n", .{hdr.e_phentsize});
+        printf("Debug: @sizeOf(Elf64_Phdr):      {}\r\n", .{@sizeOf(Elf64_Phdr)});
+        printf("Debug: buffer_read_size:         {}\r\n", .{buffer_read_size});
     }
     if (config.debug == true) {
         printf("Debug: Setting file offset to '0x{x}' to read program headers\r\n", .{program_headers_offset});
@@ -264,7 +276,7 @@ pub fn readElfFile(kernel_img_file: *uefi.protocol.File, file_class: ElfFileClas
     }
     status = boot_services.allocatePool(uefi.tables.MemoryType.LoaderData, buffer_read_size, @as(*[*]align(8) u8, @ptrCast(@alignCast(kernel_program_headers_buffer))));
     if (status != uefi.Status.Success) {
-        puts("Error: Allocating program header buffer failed\r\n");
+        puts("Error: Allocating program headers buffer failed\r\n");
         return status;
     }
     if (config.debug == true) {
