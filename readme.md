@@ -7,8 +7,10 @@ programming language ZIG.
 Building and Running
 --------------------
 
-Just execute `run.sh`. Parameters for "zig build" can just be specified in the command, so
+Linux: Just execute `run.sh`. Parameters for "zig build" can just be specified in the command, so
 `./run.sh --help` produces `zig build --help`.  
+Windows: Just execute `.\run.cmd`. Parameters for "zig build" are not supported right now
+because I am a Linux guy and not a Windows one...  
 Depends on zig (of course) and on QEMU. 
 
 Further Information
