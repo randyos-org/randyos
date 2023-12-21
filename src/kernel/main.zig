@@ -15,9 +15,10 @@ export fn kmain(kernel_boot_info: boot_info.KernelBootInfo) void {
     uart.uart_puts("\x1b[2J");
     // put out something
     uart.uart_puts("Hello World from kernel!\n");
-    @panic("Test Panic");
+    // do some panics
+    // @panic("Test Panic");
     // hang
-    // while (true) {}
+    while (true) {}
 }
 
 /// Handle kernel panics
