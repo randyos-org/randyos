@@ -39,7 +39,7 @@ pub fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_si
     }
     // get memory map
     if (config.debug == true) {
-        puts("Debug: Gettimg memory map (again)\r\n");
+        puts("Debug: Getting memory map (again)\r\n");
     }
     status = boot_services.getMemoryMap(memory_map_size, memory_map.*, memory_map_key, descriptor_size, descriptor_version);
     if (status != uefi.Status.Success) {
