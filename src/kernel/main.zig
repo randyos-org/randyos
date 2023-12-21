@@ -24,9 +24,8 @@ export fn kmain(kernel_boot_info: boot_info.KernelBootInfo) void {
 pub fn panic(msg: []const u8, stack_trace: ?*builtin.StackTrace, return_address: ?usize) noreturn {
     _ = stack_trace;
     _ = return_address;
-    uart.puts("\n=============\n");
-    uart.puts("Kernel Panic!\n");
-    uart.puts(msg);
-    uart.puts("\n");
+    uart.uart_puts("\n !!! Kernel Panic !!! \n");
+    uart.uart_puts(msg);
+    uart.uart_puts("\n");
     while (true) {}
 }
