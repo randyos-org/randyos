@@ -118,7 +118,7 @@ pub fn loadProgramSegments(
             if (config.debug == true) {
                 printf("Debug: Loading program segment {}\r\n", .{index});
             }
-            // seg kernel start address (but only one time)
+            // set kernel start address (but only one time)
             if (set_start_address) {
                 set_start_address = false;
                 kernel_start_address.* = program_headers[index].p_vaddr;
