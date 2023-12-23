@@ -32,7 +32,7 @@ pub fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_si
     if (config.debug == true) {
         puts("Debug: Allocating memory map\r\n");
     }
-    status = boot_services.allocatePool(uefi.tables.MemoryType.LoaderData, memory_map_size.*, @as(*[*]align(8) u8, @ptrCast(@alignCast(memory_map))));
+    status = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size.*, @as(*[*]align(8) u8, @ptrCast(@alignCast(memory_map))));
     if (status != uefi.Status.Success) {
         puts("Error: Allocating memory map failed\r\n");
         return status;
@@ -181,9 +181,16 @@ pub fn bootloader() uefi.Status {
         puts("Getting memory map succeeded; exiting boot services now\r\n");
     }
     status = boot_services.exitBootServices(uefi.handle, memory_map_key);
-    if (status != uefi.Status.Success) {
-        puts("Error: Exiting boot services failed\r\n");
-        return status;
+    while (status != uefi.Status.Success) {
+        puts("Debug: Exiting boot services failed; trying another time\r\n");
+        status = getMemoryMap(&memory_map, &memory_map_size, &memory_map_key, &descriptor_size, &descriptor_version);
+        if (status != uefi.Status.Success) {
+            puts("Error: Getting memory map failed\r\n");
+            return status;
+        } else {
+            puts("Getting memory map succeeded; exiting boot services now\r\n");
+        }
+        status = boot_services.exitBootServices(uefi.handle, memory_map_key);
     }
     // make memory map available to kernel params
     kernel_boot_info.memory_map = @as(*uefi.tables.MemoryDescriptor, @ptrCast(memory_map));
