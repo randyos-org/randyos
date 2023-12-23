@@ -15,6 +15,11 @@ pub fn build(b: *Builder) void {
         .abi = Target.Abi.none,
     };
     const optimize = b.standardOptimizeOption(.{});
+    const boot_info = b.addModule("boot_info", .{
+        .source_file = .{
+            .path = "src/shared/boot_info.zig",
+        },
+    });
     const bootloader = b.addExecutable(.{
         .name = "bootx64",
         .root_source_file = .{
@@ -34,6 +39,8 @@ pub fn build(b: *Builder) void {
     kernel.setLinkerScriptPath(.{
         .path = "kernel.ld",
     });
+    kernel.addModule("boot_info", boot_info);
+    bootloader.addModule("boot_info", boot_info);
     b.installArtifact(bootloader);
     b.installArtifact(kernel);
 }

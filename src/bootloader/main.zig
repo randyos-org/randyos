@@ -3,16 +3,16 @@
 
 const std = @import("std");
 const uefi = std.os.uefi;
-pub const text_out = @import("./text_out.zig");
-pub const config = @import("./config.zig");
-pub const boot_info = @import("./boot_info.zig");
-pub const loader = @import("./loader.zig");
+const boot_info = @import("boot_info");
+const text_out = @import("./text_out.zig");
+const config = @import("./config.zig");
+const loader = @import("./loader.zig");
 const puts = text_out.puts;
 const printf = text_out.printf;
 
 /// Get a memory map
 ///   - all arguments are pointers to the arguments needed by std.os.uefi.system_table.boot_services.?.getMemoryMap
-pub fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_size: *usize, memory_map_key: *usize, descriptor_size: *usize, descriptor_version: *u32) uefi.Status {
+fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_size: *usize, memory_map_key: *usize, descriptor_size: *usize, descriptor_version: *u32) uefi.Status {
     // set variables
     const boot_services = uefi.system_table.boot_services.?;
     var status: uefi.Status = uefi.Status.Success;
@@ -52,7 +52,7 @@ pub fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_si
 /// Main bootloader function
 /// This function is not in the main function to do some separation and to process the resulting status.
 /// I know I could do that also in other ways, but I decided to use one thing for everything here.
-pub fn bootloader() uefi.Status {
+fn bootloader() uefi.Status {
     // declare the variables
     const boot_services = uefi.system_table.boot_services.?;
     const runtime_services = uefi.system_table.runtime_services;

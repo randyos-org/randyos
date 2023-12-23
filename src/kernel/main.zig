@@ -2,7 +2,7 @@
 //! 2023 by Samuel Fiedler
 
 const builtin = @import("std").builtin;
-const boot_info = @import("./boot_info.zig");
+const boot_info = @import("boot_info");
 const uart = @import("./uart.zig");
 
 /// The kernel main function
