@@ -13,11 +13,6 @@ Windows: Just execute `.\run.cmd`. Parameters for "zig build" are not supported 
 because I am a Linux guy and not a Windows one...  
 Depends on zig (of course) and on QEMU. 
 
-Comments
---------
-
-  - exitBootServices may fail, then you just have to quit QEMU and restart it
-
 Further Information
 -------------------
 

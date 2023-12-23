@@ -10,45 +10,6 @@ const loader = @import("./loader.zig");
 const puts = text_out.puts;
 const printf = text_out.printf;
 
-/// Get a memory map
-///   - all arguments are pointers to the arguments needed by std.os.uefi.system_table.boot_services.?.getMemoryMap
-fn getMemoryMap(memory_map: *?[*]uefi.tables.MemoryDescriptor, memory_map_size: *usize, memory_map_key: *usize, descriptor_size: *usize, descriptor_version: *u32) uefi.Status {
-    // set variables
-    const boot_services = uefi.system_table.boot_services.?;
-    var status: uefi.Status = uefi.Status.Success;
-    // get memory map size
-    if (config.debug == true) {
-        puts("Debug: Getting memory map size\r\n");
-    }
-    status = boot_services.getMemoryMap(memory_map_size, memory_map.*, memory_map_key, descriptor_size, descriptor_version);
-    if (status != uefi.Status.Success) {
-        if (status != uefi.Status.BufferTooSmall) {
-            puts("Fatal: Error getting memory map size\r\n");
-            return status;
-        }
-    }
-    // allocate memory map
-    memory_map_size.* += 2 * (descriptor_size.*);
-    if (config.debug == true) {
-        puts("Debug: Allocating memory map\r\n");
-    }
-    status = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size.*, @as(*[*]align(8) u8, @ptrCast(@alignCast(memory_map))));
-    if (status != uefi.Status.Success) {
-        puts("Error: Allocating memory map failed\r\n");
-        return status;
-    }
-    // get memory map
-    if (config.debug == true) {
-        puts("Debug: Getting memory map (again)\r\n");
-    }
-    status = boot_services.getMemoryMap(memory_map_size, memory_map.*, memory_map_key, descriptor_size, descriptor_version);
-    if (status != uefi.Status.Success) {
-        puts("Error: Getting memory map failed\r\n");
-        return status;
-    }
-    return status;
-}
-
 /// Main bootloader function
 /// This function is not in the main function to do some separation and to process the resulting status.
 /// I know I could do that also in other ways, but I decided to use one thing for everything here.
@@ -110,9 +71,12 @@ fn bootloader() uefi.Status {
     if (config.debug == true) {
         puts("Debug: Getting memory map to find free addresses\r\n");
     }
-    status = getMemoryMap(&memory_map, &memory_map_size, &memory_map_key, &descriptor_size, &descriptor_version);
-    if (status != uefi.Status.Success) {
-        puts("Error: Getting memory map failed\r\n");
+    while (uefi.Status.BufferTooSmall == boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version)) {
+        status = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @as(*[*]align(8) u8, @ptrCast(@alignCast(&memory_map))));
+        if (status != uefi.Status.Success) {
+            puts("Error: Getting memory map failed\r\n");
+            return status;
+        }
     }
     // find free address
     if (config.debug == true) {
@@ -173,22 +137,15 @@ fn bootloader() uefi.Status {
         return status;
     }
     // get memory map to exit boot services
-    status = getMemoryMap(&memory_map, &memory_map_size, &memory_map_key, &descriptor_size, &descriptor_version);
-    if (status != uefi.Status.Success) {
-        puts("Error: Getting memory map failed\r\n");
-        return status;
-    } else {
-        puts("Getting memory map succeeded; exiting boot services now\r\n");
-    }
-    status = boot_services.exitBootServices(uefi.handle, memory_map_key);
+    status = uefi.Status.NoResponse;
     while (status != uefi.Status.Success) {
-        puts("Debug: Exiting boot services failed; trying another time\r\n");
-        status = getMemoryMap(&memory_map, &memory_map_size, &memory_map_key, &descriptor_size, &descriptor_version);
-        if (status != uefi.Status.Success) {
-            puts("Error: Getting memory map failed\r\n");
-            return status;
-        } else {
-            puts("Getting memory map succeeded; exiting boot services now\r\n");
+        puts("Getting memory map and trying to exit boot services\r\n");
+        while (uefi.Status.BufferTooSmall == boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version)) {
+            status = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @as(*[*]align(8) u8, @ptrCast(@alignCast(&memory_map))));
+            if (status != uefi.Status.Success) {
+                puts("Error: Getting memory map failed\r\n");
+                return status;
+            }
         }
         status = boot_services.exitBootServices(uefi.handle, memory_map_key);
     }
