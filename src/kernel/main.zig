@@ -2,13 +2,10 @@
 //! 2023 by Samuel Fiedler
 
 const builtin = @import("std").builtin;
-const boot_info = @import("boot_info");
 const uart = @import("./uart.zig");
 
 /// The kernel main function
-export fn kmain(kernel_boot_info: boot_info.KernelBootInfo) void {
-    // discard the boot info
-    _ = kernel_boot_info;
+export fn kmain() void {
     // initialize the UART service
     uart.uart_initialize();
     // clear the screen

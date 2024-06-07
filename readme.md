@@ -4,6 +4,9 @@ Simple Operating System in ZIG
 This is a (very simple) example on how to write a bootloader that loads a kernel in the
 programming language ZIG. 
 
+It is designed to help starters understand how an operating system works, so sources are
+explained well (TODO).  
+
 Building and Running
 --------------------
 
@@ -16,11 +19,6 @@ Depends on zig (of course) and on QEMU.
 Further Information
 -------------------
 
-Contact me at <samuel.fiedler@proton.me>.  
 Licensed under GPLv3. Read it in the `LICENSE` file.  
-Read the project history in the `history.md` file.  
-The version scheme is MAJOR.MINOR.PATCH.  
-Thanks a lot to the following two GitHub repos:
-
-  - <https://github.com/ajxs/uefi-elf-bootloader>
-  - <https://github.com/stakach/uefi-bootstrap>
+This repository was previously the place of development for the so-called "Loup OS", for which I
+have now created a separate organisation: <https://codeberg.org/loup-os>. 

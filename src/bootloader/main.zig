@@ -3,7 +3,6 @@
 
 const std = @import("std");
 const uefi = std.os.uefi;
-const boot_info = @import("boot_info");
 const text_out = @import("./text_out.zig");
 const config = @import("./config.zig");
 const loader = @import("./loader.zig");
@@ -27,8 +26,7 @@ fn bootloader() uefi.Status {
     var descriptor_version: u32 = undefined;
     var kernel_entry_point: u64 = undefined;
     var kernel_start_address: u64 = undefined;
-    var kernel_entry: ?*const fn (*const boot_info.KernelBootInfo) void = undefined;
-    var kernel_boot_info: boot_info.KernelBootInfo = undefined;
+    var kernel_entry: ?*const fn () void = undefined;
     var file_system: *uefi.protocol.SimpleFileSystem = undefined;
     var video_mode_info: *uefi.protocol.GraphicsOutput.Mode.Info = undefined;
     var graphics_output: *uefi.protocol.GraphicsOutput = undefined;
@@ -123,11 +121,6 @@ fn bootloader() uefi.Status {
     if (config.debug == true) {
         printf("Debug: Set Kernel Entry Point to: '0x{x}'\r\n", .{kernel_entry_point});
     }
-    // set kernel boot info
-    kernel_boot_info.video_mode_info.framebuffer_pointer = @as(*anyopaque, @ptrFromInt(graphics_output.mode.frame_buffer_base));
-    kernel_boot_info.video_mode_info.horizontal_resolution = video_mode_info.horizontal_resolution;
-    kernel_boot_info.video_mode_info.vertical_resolution = video_mode_info.vertical_resolution;
-    kernel_boot_info.video_mode_info.pixels_per_scanline = video_mode_info.pixels_per_scan_line;
     if (config.debug == true) {
         puts("Debug: Disabling watchdog timer\r\n");
     }
@@ -149,10 +142,6 @@ fn bootloader() uefi.Status {
         }
         status = boot_services.exitBootServices(uefi.handle, memory_map_key);
     }
-    // make memory map available to kernel params
-    kernel_boot_info.memory_map = @as(*uefi.tables.MemoryDescriptor, @ptrCast(memory_map));
-    kernel_boot_info.memory_map_size = memory_map_size;
-    kernel_boot_info.memory_map_descriptor_size = descriptor_size;
     // prepare memory map for virtual memory
     mem_index = 0;
     mem_count = memory_map_size / descriptor_size;
@@ -169,8 +158,8 @@ fn bootloader() uefi.Status {
         return uefi.Status.LoadError;
     }
     // jump into kernel
-    kernel_entry = @as(*const fn (*const boot_info.KernelBootInfo) void, @ptrFromInt(kernel_entry_point));
-    kernel_entry.?(&kernel_boot_info);
+    kernel_entry = @as(*const fn () void, @ptrFromInt(kernel_entry_point));
+    kernel_entry.?();
     return uefi.Status.LoadError;
 }
 
