@@ -19,6 +19,6 @@ Depends on zig (of course) and on QEMU.
 Further Information
 -------------------
 
-Licensed under GPLv3. Read it in the `LICENSE` file.  
+This work is licensed under the MIT License. Read it in the `LICENSE` file.  
 This repository was previously the place of development for the so-called "Loup OS", for which I
 have now created a separate organisation: <https://codeberg.org/loup-os>. 
