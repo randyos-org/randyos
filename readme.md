@@ -5,7 +5,8 @@ This is a (very simple) example on how to write a bootloader that loads a kernel
 programming language ZIG. 
 
 It is designed to help starters understand how an operating system works, so sources are
-explained well (TODO).  
+explained well.  
+If you want to improve the explanations, feel free to open an issue or a pull request!
 
 Building and Running
 --------------------
