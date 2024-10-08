@@ -126,14 +126,18 @@ pub fn loadSegment(
             return status;
         }
     }
-    // Now, as you might have read above, we will zero-fill all unused space, but only if we have to zero-fill something
-    // (if zero_fill_count is bigger than 0).
+    // Now, as you might have read above, we will zero-fill all unused space.
+
+    // We zero-fill everything after our segment, so it will be the segment virtual address plus the segment file size.
     zero_fill_start = segment_virtual_address + segment_file_size;
+    // How much we will zero-fill is the memory size minus the file size.
     zero_fill_count = segment_memory_size - segment_file_size;
+    // And if zero_fill_count is bigger than 0 (so we have to zero-fill something)…
     if (zero_fill_count > 0) {
         if (config.debug == true) {
             printf("Debug: Zero-filling {} bytes at address '0x{x}'\r\n", .{ zero_fill_count, zero_fill_start });
         }
+        // We set the memory from zero_fill_start to zero_fill_count to 0.
         boot_services.setMem(@ptrFromInt(zero_fill_start), zero_fill_count, 0);
         puts("Debug: Zero-filling bytes succeeded\r\n");
     }
