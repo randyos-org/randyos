@@ -28,7 +28,7 @@ fn bootloader() uefi.Status {
     // we return the status.
     var status: uefi.Status = .Success;
     // The root file system is a FAT filesystem, in our case it's the emulated one with systemroot as root folder.
-    var root_file_system: *uefi.protocol.File = undefined;
+    var root_file_system: *const uefi.protocol.File = undefined;
     // The memory map is important to find free memory. We will use it later.
     var memory_map: [*]uefi.tables.MemoryDescriptor = undefined;
     // Some other memory map variables...

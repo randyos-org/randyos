@@ -69,7 +69,7 @@ pub fn build(b: *Build) void {
     // Here, we set the linker script path. For normal executables (and UEFI ones), such linker scripts
     // are provided by the linker. However, this is OUR kernel, so WE want to specify what we want
     // to get in the kernel.
-    kernel.setLinkerScriptPath(b.path("src/kernel/kernel.ld"));
+    kernel.setLinkerScript(b.path("src/kernel/kernel.ld"));
     // This line of code installs the bootloader.
     b.installArtifact(bootloader);
     // This line of code installs the kernel.

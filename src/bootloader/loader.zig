@@ -14,7 +14,7 @@ const printf = text_out.printf;
 /// Read a UEFI file
 pub fn readFile(
     /// This is our file we want to read
-    file: *uefi.protocol.File,
+    file: *const uefi.protocol.File,
     /// This is the start position we want to read from
     position: u64,
     /// How much we want to read
@@ -41,7 +41,7 @@ pub fn readFile(
 /// Read a UEFI file and allocate free memory for it
 pub fn readAndAllocate(
     /// This is our file we want to read
-    file: *uefi.protocol.File,
+    file: *const uefi.protocol.File,
     /// This is the start position we want to read from
     position: u64,
     /// How much we want to read
@@ -67,7 +67,7 @@ pub fn readAndAllocate(
 /// Load an ELF program segment
 pub fn loadSegment(
     /// This is the ELF file
-    file: *uefi.protocol.File,
+    file: *const uefi.protocol.File,
     /// This is the offset of the program segment we want to load
     segment_file_offset: u64,
     /// How big the segment is (in the file)
@@ -120,7 +120,7 @@ pub fn loadSegment(
         if (config.debug == true) {
             printf("Debug: Reading segment data with file size '0x{x}'\r\n", .{segment_file_size});
         }
-        status = readFile(file, segment_file_offset, segment_file_size, &segment_buffer);
+        status = readFile(file, segment_file_offset, segment_file_size, @ptrCast(&segment_buffer));
         if (status != .Success) {
             puts("Error: Reading segment data failed\r\n");
             return status;
@@ -147,7 +147,7 @@ pub fn loadSegment(
 /// Load all ELF program segments
 pub fn loadProgramSegments(
     /// Our Kernel file
-    file: *uefi.protocol.File,
+    file: *const uefi.protocol.File,
     /// The ELF Program Headers (where we will get information about the program segments from)
     /// This is a slice, which is basically a pointer associated with a length.
     /// Because the information in a slice is not only the pointer, but also the length, it is basically the "safe many-item pointer".
@@ -230,7 +230,7 @@ pub fn loadProgramSegments(
 /// Load the kernel image
 pub fn loadKernelImage(
     /// Pointer pointing to the root file system
-    root_file_system: *uefi.protocol.File,
+    root_file_system: *const uefi.protocol.File,
     /// UEFI (16-bit) string with the file name of the kernel
     kernel_image_filename: [*:0]const u16,
     /// Physical base address to load the bootloader
@@ -245,7 +245,7 @@ pub fn loadKernelImage(
     // You are probably tired of seeing this: Our status :-)
     var status: uefi.Status = .Success;
     // The kernel executable file.
-    var kernel_img_file: *uefi.protocol.File = undefined;
+    var kernel_img_file: *const uefi.protocol.File = undefined;
     // And a buffer for the ELF Executable header, not to be confused with the program headers:
     //   - The Executable Header holds metadata for the entire executable
     //   - The Program Header holds (or the program headers hold) metadata for a program segment
