@@ -5,7 +5,7 @@ This is a (very simple) example on how to write a bootloader that loads a kernel
 programming language ZIG.
 
 It is designed to help starters understand how an operating system works, so sources are
-explained well.
+explained well.  
 If you want to improve the explanations, feel free to open an issue or a pull request!
 
 Building and Running
@@ -18,6 +18,6 @@ in the build cache to use as the emulated FAT disk and runs QEMU using it.
 Further Information
 -------------------
 
-This work is licensed under the MIT License. Read it in the `LICENSE` file.
+This work is licensed under the MIT License. Read it in the `LICENSE` file.  
 This repository was previously the place of development for the so-called "Loup OS", for which I
 have now created a separate organisation: <https://codeberg.org/loup-os>.
