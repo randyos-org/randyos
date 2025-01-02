@@ -69,7 +69,7 @@ pub fn build(b: *Build) void {
         // We just name it "kernel", because we can specify the path in the bootloader.
         // However, how executables are named here isn't important because in the building and
         // running scripts, the executables are copied to the final destination, the emulated FAT disk.
-        .name = "kernel",
+        .name = "kernel.elf",
         // The root module is the kernel module, as created above.
         .root_module = kernel_mod,
     });
@@ -90,7 +90,7 @@ pub fn build(b: *Build) void {
     _ = boot_dir.addCopyFile(bootloader_exe.getEmittedBin(), b.pathJoin(&.{"efi/boot", bootloader_exe.out_filename}));
     // Here, we copy the kernel executable to a custom location, and make sure it has the `.elf`
     // extension that the bootloader expects.
-    _ = boot_dir.addCopyFile(kernel_exe.getEmittedBin(), b.fmt("{s}.elf", .{kernel_exe.out_filename}));
+    _ = boot_dir.addCopyFile(kernel_exe.getEmittedBin(), kernel_exe.out_filename);
     // With this command, we start QEMU (a computer emulator)…
     const qemu_cmd = b.addSystemCommand(&.{"qemu-system-x86_64"});
     // …that depends on the bootloader and kernel install steps we defined above…
