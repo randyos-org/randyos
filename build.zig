@@ -86,8 +86,7 @@ pub fn build(b: *Build) void {
     const boot_dir = b.addWriteFiles();
     // Now, we copy the bootloader executable into a folder that will be recognized by UEFI.
     _ = boot_dir.addCopyFile(bootloader_exe.getEmittedBin(), b.pathJoin(&.{"efi/boot", bootloader_exe.out_filename}));
-    // Here, we copy the kernel executable to a custom location, and make sure it has the `.elf`
-    // extension that the bootloader expects.
+    // Here, we copy the kernel executable to a custom location.
     _ = boot_dir.addCopyFile(kernel_exe.getEmittedBin(), kernel_exe.out_filename);
     // With this command, we start QEMU (a computer emulator)…
     const qemu_cmd = b.addSystemCommand(&.{"qemu-system-x86_64"});
