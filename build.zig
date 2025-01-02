@@ -66,9 +66,7 @@ pub fn build(b: *Build) void {
     });
     // This registers the kernel executable.
     const kernel_exe = b.addExecutable(.{
-        // We just name it "kernel", because we can specify the path in the bootloader.
-        // However, how executables are named here isn't important because in the building and
-        // running scripts, the executables are copied to the final destination, the emulated FAT disk.
+        // We name it "kernel.elf" since that is what the bootloader expects.
         .name = "kernel.elf",
         // The root module is the kernel module, as created above.
         .root_module = kernel_mod,
