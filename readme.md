@@ -19,5 +19,6 @@ Further Information
 -------------------
 
 This work is licensed under the MIT License. Read it in the `LICENSE` file.  
+You can read the license for the `OVMF.fd` BLOB in the `OVMF.fd.LICENSE.txt` file.  
 This repository was previously the place of development for the so-called "Loup OS", for which I
 have now created a separate organisation: <https://codeberg.org/loup-os>.
