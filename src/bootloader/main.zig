@@ -26,7 +26,7 @@ fn bootloader() uefi.Status {
     const kernel_executable_path: [*:0]const u16 = std.unicode.utf8ToUtf16LeStringLiteral("\\kernel.elf");
     // In this variable, we capture the status of each function we call. In case that function fails,
     // we return the status.
-    var status: uefi.Status = .Success;
+    var status: uefi.Status = .success;
     // The root file system is a FAT filesystem, in our case it's the emulated one with systemroot as root folder.
     var root_file_system: *const uefi.protocol.File = undefined;
     // The memory map is important to find free memory. We will use it later.
@@ -57,7 +57,7 @@ fn bootloader() uefi.Status {
     // Then, we locate the protocol.
     status = boot_services.locateProtocol(&uefi.protocol.SimpleFileSystem.guid, null, @as(*?*anyopaque, @ptrCast(&file_system)));
     // And finally, we handle errors.
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Locating simple file system protocol failed\r\n");
         return status;
     }
@@ -69,7 +69,7 @@ fn bootloader() uefi.Status {
     }
     status = file_system.openVolume(&root_file_system);
     // Again, error handling.
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Opening root volume failed\r\n");
         return status;
     }
@@ -79,17 +79,17 @@ fn bootloader() uefi.Status {
         puts("Debug: Getting memory map to find free addresses\r\n");
     }
     // This needs to repeated some times because the memory map size is unknown the first time, so the buffer the memory map is stored in is too small.
-    while (boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version) == .BufferTooSmall) {
+    while (boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version) == .buffer_too_small) {
         // After we called getMemoryMap once, we know the size of the memory map, so we can allocate the exact size.
-        status = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @as(*[*]align(8) u8, @ptrCast(@alignCast(&memory_map))));
+        status = boot_services.allocatePool(.boot_services_data, memory_map_size, @as(*[*]align(8) u8, @ptrCast(@alignCast(&memory_map))));
         // But, if allocating fails, it is an error.
-        if (status != .Success) {
+        if (status != .success) {
             puts("Error: Allocating memory map failed\r\n");
             return status;
         }
     }
     // There is also an error if getMemoryMap doesn't return BufferTooSmall but something else that is not Success.
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Getting memory map failed\r\n");
         return status;
     }
@@ -123,7 +123,7 @@ fn bootloader() uefi.Status {
         mem_point = @ptrFromInt(@intFromPtr(memory_map) + (mem_index * descriptor_size));
         // Now, we need to ensure that the memory described in that part of the memory map is free memory (ConventionalMemory)
         // and that the start of that region is bigger than our base address.
-        if (mem_point.type == .ConventionalMemory and mem_point.physical_start >= base_address) {
+        if (mem_point.type == .conventional_memory and mem_point.physical_start >= base_address) {
             // And if all those conditions are fulfilled, we can set the base address to our new base address,
             // say how many free pages we have and break the loop because we don't have to search more free memory.
             base_address = mem_point.physical_start;
@@ -151,7 +151,7 @@ fn bootloader() uefi.Status {
         &kernel_entry_point,
         &kernel_start_address,
     );
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Loading kernel image failed\r\n");
         return status;
     }
@@ -167,7 +167,7 @@ fn bootloader() uefi.Status {
         puts("Debug: Disabling watchdog timer\r\n");
     }
     status = boot_services.setWatchdogTimer(0, 0, 0, null);
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Disabling watchdog timer failed\r\n");
         return status;
     }
@@ -179,13 +179,13 @@ fn bootloader() uefi.Status {
 
     // Probably exitBootServices will fail, so we will retry it. This first "status = .NoResponse" is basically the same as
     // a "do {} while ()"…
-    status = .NoResponse;
-    while (status != .Success) {
+    status = .no_response;
+    while (status != .success) {
         puts("Getting memory map and trying to exit boot services\r\n");
         // Now, we will get the memory map as described above.
-        while (boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version) == .BufferTooSmall) {
-            status = boot_services.allocatePool(.BootServicesData, memory_map_size, @as(*[*]align(8) u8, @ptrCast(@alignCast(&memory_map))));
-            if (status != .Success) {
+        while (boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version) == .buffer_too_small) {
+            status = boot_services.allocatePool(.boot_services_data, memory_map_size, @as(*[*]align(8) u8, @ptrCast(@alignCast(&memory_map))));
+            if (status != .success) {
                 puts("Error: Getting memory map failed\r\n");
                 return status;
             }
@@ -206,7 +206,7 @@ fn bootloader() uefi.Status {
         // So, in loadSegment in loader.zig, we allocated some pages for the kernel code and data.
         // That region is marked with LoaderData, so we can check that our current segment of the memory map
         // is LoaderData as type.
-        if (mem_point.type == .LoaderData) {
+        if (mem_point.type == .loader_data) {
             // If the type is LoaderData, then we set the virtual start to the kernel start address,
             mem_point.virtual_start = kernel_start_address;
         } else {
@@ -216,7 +216,7 @@ fn bootloader() uefi.Status {
     }
     // After we manipulated the memory map, we will set the memory map with virtual addressing as virtual address map.
     status = runtime_services.setVirtualAddressMap(memory_map_size, descriptor_size, descriptor_version, memory_map);
-    if (status != .Success) {
+    if (status != .success) {
         return status;
     }
     // And finally, we can jump into the kernel.
@@ -226,12 +226,12 @@ fn bootloader() uefi.Status {
     // The only thing we can't do is passing arguments to that function.
     kernel_entry = @ptrFromInt(kernel_entry_point);
     kernel_entry();
-    return .LoadError;
+    return .load_error;
 }
 
 /// This is a wrapper to call the bootloader function.
 pub fn main() void {
-    var status: uefi.Status = .Success;
+    var status: uefi.Status = .success;
     status = bootloader();
     // The computer should never get here because everything should succeed.
     // But just in case anything happens, we print out the tag name of the status (for .LoadError it will be "LoadError").

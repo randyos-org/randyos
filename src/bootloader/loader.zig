@@ -23,10 +23,10 @@ pub fn readFile(
     buffer: *[*]align(8) u8,
 ) uefi.Status {
     // Here we save the status
-    var status: uefi.Status = .Success;
+    var status: uefi.Status = .success;
     // And we set the position in the file we want to read from
     status = file.setPosition(position);
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Setting file position failed\r\n");
         return status;
     }
@@ -52,11 +52,11 @@ pub fn readAndAllocate(
     // We need the boot services to do that.
     const boot_services = uefi.system_table.boot_services.?;
     // Again, the status variable for saving each function's status.
-    var status: uefi.Status = .Success;
+    var status: uefi.Status = .success;
     // Then, we allocate some memory for the file. However, the memory "type" we give the allocate function is a bit special:
     // We will never free this memory, as it holds the data of the kernel.
-    status = boot_services.allocatePool(.LoaderData, size, buffer);
-    if (status != .Success) {
+    status = boot_services.allocatePool(.loader_data, size, buffer);
+    if (status != .success) {
         puts("Error: Allocating space for file failed\r\n");
         return status;
     }
@@ -78,7 +78,7 @@ pub fn loadSegment(
     segment_virtual_address: u64,
 ) uefi.Status {
     // Our status, as always
-    var status: uefi.Status = .Success;
+    var status: uefi.Status = .success;
     // A small thing that ensures the segment virtual address is aligned to a page (4KB)
     if (segment_virtual_address & 4095 != 0) {
         puts("Warning: segment_virtual_address is not well aligned, returning with Success\r\n");
@@ -102,12 +102,12 @@ pub fn loadSegment(
         printf("Debug: Allocating {} pages at address '0x{x}'\r\n", .{ segment_page_count, segment_virtual_address });
     }
     status = boot_services.allocatePages(
-        .AllocateAddress,
-        .LoaderData,
+        .allocate_address,
+        .loader_data,
         segment_page_count,
         &segment_buffer,
     );
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Allocating pages for ELF segment failed\r\n");
         return status;
     }
@@ -121,7 +121,7 @@ pub fn loadSegment(
             printf("Debug: Reading segment data with file size '0x{x}'\r\n", .{segment_file_size});
         }
         status = readFile(file, segment_file_offset, segment_file_size, @ptrCast(&segment_buffer));
-        if (status != .Success) {
+        if (status != .success) {
             puts("Error: Reading segment data failed\r\n");
             return status;
         }
@@ -160,7 +160,7 @@ pub fn loadProgramSegments(
     kernel_start_address: *u64,
 ) uefi.Status {
     // Our status (again)
-    var status: uefi.Status = .Success;
+    var status: uefi.Status = .success;
     // How many segments (described by program headers) we should load
     var n_segments_loaded: u64 = 0;
     // Used in the loop that iterates over the program headers
@@ -171,7 +171,7 @@ pub fn loadProgramSegments(
     // If the ELF file has no program headers, then the kernel is probably empty.
     if (program_headers.len == 0) {
         puts("Error: No program segments to load\r\n");
-        return .InvalidParameter;
+        return .invalid_parameter;
     }
     if (config.debug == true) {
         printf("Debug: Loading {} segments\r\n", .{program_headers.len});
@@ -209,7 +209,7 @@ pub fn loadProgramSegments(
                 prog_hdr.p_memsz,
                 prog_hdr.p_vaddr - base_address_difference,
             );
-            if (status != .Success) {
+            if (status != .success) {
                 printf("Error: Loading program segment {} failed\r\n", .{i});
                 return status;
             }
@@ -222,7 +222,7 @@ pub fn loadProgramSegments(
     // but also if we find no loadable segments.
     if (n_segments_loaded == 0) {
         puts("Error: No loadable program segments found in executable\r\n");
-        return .NotFound;
+        return .not_found;
     }
     return status;
 }
@@ -243,7 +243,7 @@ pub fn loadKernelImage(
     // The boot services
     const boot_services = uefi.system_table.boot_services.?;
     // You are probably tired of seeing this: Our status :-)
-    var status: uefi.Status = .Success;
+    var status: uefi.Status = .success;
     // The kernel executable file.
     var kernel_img_file: *const uefi.protocol.File = undefined;
     // And a buffer for the ELF Executable header, not to be confused with the program headers:
@@ -263,7 +263,7 @@ pub fn loadKernelImage(
         uefi.protocol.File.efi_file_mode_read,
         uefi.protocol.File.efi_file_read_only,
     );
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Opening kernel file failed\r\n");
         return status;
     }
@@ -273,7 +273,7 @@ pub fn loadKernelImage(
     }
     // So we read the identity bytes of the kernel executable (also called image).
     status = readAndAllocate(kernel_img_file, 0, elf.EI_NIDENT, &header_buffer);
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Reading ELF identity failed\r\n");
         return status;
     }
@@ -284,21 +284,21 @@ pub fn loadKernelImage(
         (header_buffer[3] != 0x46))
     {
         puts("Error: Invalid ELF magic\r\n");
-        return .InvalidParameter;
+        return .invalid_parameter;
     }
     // …and we ensure that the kernel image is a 64bit one, not a 32bit or whatever one.
     if (header_buffer[elf.EI_CLASS] != elf.ELFCLASS64) {
         puts("Error: Can only load 64-bit binaries\r\n");
-        return .Unsupported;
+        return .unsupported;
     }
     // Finally, we want to ensure that the kernel image is little-endian because that's how we are going to work with it.
     if (header_buffer[elf.EI_DATA] != elf.ELFDATA2LSB) {
         puts("Error: Can only load little-endian binaries\r\n");
-        return .IncompatibleVersion;
+        return .incompatible_version;
     }
     // After we checked everything, we free the header buffer, so that we can allocate memory for it another time.
     status = boot_services.freePool(header_buffer);
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Freeing ELF identity buffer failed\r\n");
         return status;
     }
@@ -311,7 +311,7 @@ pub fn loadKernelImage(
     }
     // At first, we have to read the header from the executable and allocate memory for it.
     status = readAndAllocate(kernel_img_file, 0, @sizeOf(elf.Elf64_Ehdr), &header_buffer);
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Reading ELF header failed\r\n");
         return status;
     }
@@ -322,19 +322,19 @@ pub fn loadKernelImage(
         switch (err) {
             error.InvalidElfMagic => {
                 puts("Error: Invalid ELF magic\r\n");
-                return .InvalidParameter;
+                return .invalid_parameter;
             },
             error.InvalidElfVersion => {
                 puts("Error: Invalid ELF version\r\n");
-                return .IncompatibleVersion;
+                return .incompatible_version;
             },
             error.InvalidElfEndian => {
                 puts("Error: Invalid ELF endianness\r\n");
-                return .IncompatibleVersion;
+                return .incompatible_version;
             },
             error.InvalidElfClass => {
                 puts("Error: Invalid ELF endianness\r\n");
-                return .IncompatibleVersion;
+                return .incompatible_version;
             },
         }
     };
@@ -354,7 +354,7 @@ pub fn loadKernelImage(
     var program_headers_buffer: [*]align(8) u8 = undefined;
     // And we read the program headers and allocate space for them.
     status = readAndAllocate(kernel_img_file, header.phoff, header.phentsize * header.phnum, &program_headers_buffer);
-    if (status != .Success) {
+    if (status != .success) {
         puts("Error: Reading ELF program headers failed\r\n");
         return status;
     }
