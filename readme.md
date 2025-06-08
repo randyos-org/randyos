@@ -15,6 +15,12 @@ Just run `zig build` to build the bootloader and kernel. If you have `qemu-syste
 installed, then you can also run `zig build qemu` to run the kernel. It sets up a directory
 in the build cache to use as the emulated FAT disk and runs QEMU using it.
 
+As of now, the tagged Zig releases are targeted. This project is known to work with the
+following Zig versions:
+
+  - 0.14.1
+  - 0.14.0
+
 Further Information
 -------------------
 
