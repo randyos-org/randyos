@@ -1,6 +1,8 @@
 //! This is our main kernel
 //! It is fairly minimal, but it is designed to be improved by *you*!
 
+// TODO: limit all explanation lines to 80 cols to make it even more readable
+
 // This time, we import the built-in data structures (like a stack trace).
 const builtin = @import("std").builtin;
 // And we import the UART module for serial logging. If you want to know what this means, take a look at that file.

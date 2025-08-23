@@ -18,8 +18,9 @@ in the build cache to use as the emulated FAT disk and runs QEMU using it.
 As of now, the tagged Zig releases are targeted. This project is known to work with the
 following Zig versions:
 
-  - 0.14.1
-  - 0.14.0
+  - 0.15.1 (current project status)
+  - 0.14.1 (commit 60034b0 in this project)
+  - 0.14.0 (commit 60034b0 in this project)
 
 Further Information
 -------------------

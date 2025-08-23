@@ -17,7 +17,7 @@ pub fn puts(msg: []const u8) void {
         // We save the console output protocol from the system table (so we don't have to locate it).
         con_out = uefi.system_table.con_out.?;
         // We reset the screen…
-        _ = con_out.reset(false);
+        con_out.reset(false) catch {};
         // And we set our variable to true, so we enter this condition only once.
         already_called_puts = true;
     }
@@ -26,7 +26,7 @@ pub fn puts(msg: []const u8) void {
         // For each character, we convert it to a null-terminated 16bit string.
         const c_ = [1:0]u16{c};
         // And then, we output that string.
-        _ = con_out.outputString(&c_);
+        _ = con_out.outputString(&c_) catch {};
     }
 }
 
