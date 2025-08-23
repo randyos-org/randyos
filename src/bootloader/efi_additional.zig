@@ -1,5 +1,4 @@
 //! Some additional EFI stuff
-//! 2023 by Samuel Fiedler
 
 const std = @import("std");
 const uefi = std.os.uefi;

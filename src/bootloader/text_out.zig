@@ -6,19 +6,23 @@ const uefi = std.os.uefi;
 
 // We want to have a global console output protocol.
 var con_out: *uefi.protocol.SimpleTextOutput = undefined;
-// But because that protocol is undefined at the beginning, we need to fill it (at runtime).
+// But because that protocol is undefined at the beginning, we need to fill it
+// (at runtime).
 // This is why we need this variable.
 var already_called_puts: bool = false;
 
 /// This function puts out any normal string.
 pub fn puts(msg: []const u8) void {
-    // If this is the first time this function was called, we will do some setup.
+    // If this is the first time this function was called, we will do some
+    // setup.
     if (already_called_puts == false) {
-        // We save the console output protocol from the system table (so we don't have to locate it).
+        // We save the console output protocol from the system table (so we
+        // don't have to locate it).
         con_out = uefi.system_table.con_out.?;
         // We reset the screen…
         con_out.reset(false) catch {};
-        // And we set our variable to true, so we enter this condition only once.
+        // And we set our variable to true, so we enter this condition only
+        // once.
         already_called_puts = true;
     }
     // Then, we iterate over the message we want to print out.
@@ -36,8 +40,9 @@ pub fn printf(comptime fmt: []const u8, args: anytype) void {
     var buf: [256]u8 = undefined;
     // This is where I save the message.
     var msg: []u8 = undefined;
-    // Now, we call a function from the standard library. It writes the string resulting from the format string and the arguments
-    // into the buffer, but also returns a slice pointing to everything useful.
+    // Now, we call a function from the standard library. It writes the string
+    // resulting from the format string and the arguments into the buffer, but
+    // also returns a slice pointing to everything useful.
     msg = std.fmt.bufPrint(&buf, fmt, args) catch unreachable;
     // And now, we just call our normal string output function.
     puts(msg);
