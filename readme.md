@@ -25,10 +25,29 @@ following Zig versions:
   - 0.14.1 (commit 60034b0 in this project)
   - 0.14.0 (commit 60034b0 in this project)
 
+What is OVMF?
+-----------------------
+
+[OVMF][OVMF] is an [EDK II][EDK II]-based project that enables UEFI support on Virtual
+Machines. In our case, this allows us to run our UEFI bootloader, which in turn loads our
+kernel, in QEMU for testing.
+
+There are two OVMF files that are needed to run QEMU with UEFI support:
+
+  1. OVMF_CODE contains the static firmware code; it is marked as a read-only drive.
+  2. OVMF_VARS contains the variables that may be changed whilst in use; it is marked as a
+     read-write drive.
+
+Both files are copied from the paths provided by the `-Dovmf-code` and `-Dovmf-vars`
+options, respectively, as to not modify their system versions. You can access the copied
+files in the build cache in the same directory used as the FAT32 boot drive.
+
 Further Information
 -------------------
 
 This work is licensed under the MIT License. Read it in the `LICENSE` file.  
-You can read the license for the `OVMF.fd` BLOB in the `OVMF.fd.LICENSE.txt` file.  
 This repository was previously the place of development for the so-called "Loup OS", for which I
 have now created a separate organisation: <https://codeberg.org/loup-os>.
+
+[OVMF]: https://github.com/tianocore/tianocore.github.io/wiki/OVMF
+[EDK II]: https://github.com/tianocore/tianocore.github.io/wiki/EDK-II
