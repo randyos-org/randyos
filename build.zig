@@ -110,82 +110,87 @@ pub fn build(b: *Build) void {
         "ovmf-vars",
         "The OVMF_VARS file to use",
     );
-    // With this command, we can start QEMU (a computer emulator).
+    // After that, we create a directory in the zig cache into which we can copy
+    // files…
+    const boot_dir = b.addWriteFiles();
+    // …including the bootloader executable into a folder that will be
+    // recognized by the UEFI firmware…
+    _ = boot_dir.addCopyFile(
+        bootloader_exe.getEmittedBin(),
+        b.pathJoin(&.{
+            "efi",
+            "boot",
+            bootloader_exe.out_filename,
+        }),
+    );
+    // …and the kernel executable to the location expected by the bootloader.
+    _ = boot_dir.addCopyFile(
+        kernel_exe.getEmittedBin(),
+        kernel_exe.out_filename,
+    );
+    // With this command, we can start QEMU (a computer emulator), with…
     const qemu_cmd = b.addSystemCommand(&.{"qemu-system-x86_64"});
+    // …the standard output mapped to COM1, allowing us to see messages from the
+    // operating system directly on our console…
+    qemu_cmd.addArg("-serial");
+    qemu_cmd.addArg("mon:stdio");
+    // …a GTK-based window for display…
+    qemu_cmd.addArg("-display");
+    qemu_cmd.addArg("gtk");
+    // …and a GDB (a debugger tool) remote-connection client available on
+    // localhost:1234 via TCP.
+    qemu_cmd.addArg("-s");
     // Check if the ovmf_code option was provided…
     if (ovmf_code) |ocp| {
-        // …and then if the ovmf_vars option was too.
+        // …and copy the OVMF_CODE file.
+        const oc = boot_dir.addCopyFile(
+            ocp,
+            ocp.basename(b, &boot_dir.step),
+        );
+        // Also check if the ovmf_vars option was too…
         if (ovmf_vars) |ovp| {
-            // After that, we create a directory in the zig cache into which we
-            // can copy files.
-            const boot_dir = b.addWriteFiles();
-            // We copy the OVMF_CODE file…
-            const oc = boot_dir.addCopyFile(
-                ocp,
-                ocp.basename(b, &boot_dir.step),
-            );
-            // …and the OVMF_VARS file so that we do not modify the system ones
-            // when in use.
+            // …and copy the OVMF_VARS file.
             const ov = boot_dir.addCopyFile(
                 ovp,
                 ovp.basename(b, &boot_dir.step),
             );
-            // Now, we copy the bootloader executable into a folder that will be
-            // recognized by UEFI.
-            _ = boot_dir.addCopyFile(
-                bootloader_exe.getEmittedBin(),
-                b.pathJoin(&.{
-                    "efi",
-                    "boot",
-                    bootloader_exe.out_filename,
-                }),
-            );
-            // Here, we copy the kernel executable to a custom location.
-            _ = boot_dir.addCopyFile(
-                kernel_exe.getEmittedBin(),
-                kernel_exe.out_filename,
-            );
-            // …with UEFI as firware using the OVMF_CODE file…
+            // Then add the OVMF_CODE file…
             qemu_cmd.addArg("-drive");
             qemu_cmd.addPrefixedFileArg(
                 "format=raw,if=pflash,readonly=on,file=",
                 oc,
             );
-            // …and OVMF_VARS file…
+            // …and OVMF_VARS file to be used as the UEFI firmware.
             qemu_cmd.addArg("-drive");
             qemu_cmd.addPrefixedFileArg("format=raw,if=pflash,file=", ov);
-            // …an emulated FAT drive using the directory we made above…
-            qemu_cmd.addArg("-drive");
-            qemu_cmd.addPrefixedDirectoryArg(
-                "format=raw,index=3,media=disk,file=fat:rw:",
-                boot_dir.getDirectory(),
-            );
-            // …the standard output mapped to the COM1, allowing us to see
-            // messages from the operating system directly on our console…
-            qemu_cmd.addArg("-serial");
-            qemu_cmd.addArg("mon:stdio");
-            // …a GTK-based window for display…
-            qemu_cmd.addArg("-display");
-            qemu_cmd.addArg("gtk");
-            // …and a GDB (a debugger tool) remote-connection client available
-            // on localhost:1234 via TCP.
-            qemu_cmd.addArg("-s");
         } else {
-            // If the ovmf_vars option was not provided, then tell the user it
-            // is required.
-            const fail = b.addFail(
-                "The -Dovmf-vars=... option is required for this step",
-            );
-            qemu_cmd.step.dependOn(&fail.step);
+            // Otherwise, add what is expected to be the combined OVMF file.
+            qemu_cmd.addArg("-drive");
+            qemu_cmd.addPrefixedFileArg("format=raw,if=pflash,file=", ocp);
         }
     } else {
-        // If the ovmf_code option was not provided, then tell the user it is
-        // required.
-        const fail = b.addFail(
-            "The -Dovmf-code=... option is required for this step",
+        // If no OVMF files were provided, get the path to the one provided
+        // alongside the code…
+        const ocp = b.path("OVMF.fd");
+        // …and copy that file…
+        const oc = boot_dir.addCopyFile(
+            ocp,
+            ocp.basename(b, &boot_dir.step),
         );
-        qemu_cmd.step.dependOn(&fail.step);
+        // …and finally use it as the UEFI firmware.
+        qemu_cmd.addArg("-drive");
+        qemu_cmd.addPrefixedFileArg(
+            "format=raw,if=pflash,file=",
+            oc,
+        );
     }
+    // Finally, add an emulated FAT drive using the boot directory we made
+    // above.
+    qemu_cmd.addArg("-drive");
+    qemu_cmd.addPrefixedDirectoryArg(
+        "format=raw,index=3,media=disk,file=fat:rw:",
+        boot_dir.getDirectory(),
+    );
     // Then we create a subcommand (`zig build qemu`) to run the above system
     // command…
     const qemu_step = b.step("qemu", "Run the kernel via QEMU");
