@@ -21,7 +21,7 @@ By default, it will use the combined OVMF file found in this repository. You can
 to provide your own OVMF files in two ways:
 
   1. Supply `-Dovmf-code` with a combined OVMF file.
-  2. Supply -`Dovmf-code` and `-Dovmf-vars` with separate OVMF_CODE and OVMF_VARS files,
+  2. Supply `-Dovmf-code` and `-Dovmf-vars` with separate OVMF_CODE and OVMF_VARS files,
      respectively.
 
 All OVMF files used by `zig build qemu` will be copied so that their original versions are
