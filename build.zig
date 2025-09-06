@@ -154,8 +154,9 @@ pub fn build(b: *Build) void {
                 ovp,
                 ovp.basename(b, &boot_dir.step),
             );
-            // Then add the OVMF_CODE file (you can see more information on what the `-drive` option
-            // is and how it relates to other block device options in the QEMU documentation at
+            // Then add the OVMF_CODE file (you can see more information on what
+            // the `-drive` option is and how it relates to other block device
+            // options in the QEMU documentation at
             // https://www.qemu.org/docs/master/system/qemu-manpage.html#hxtool-1)…
             qemu_cmd.addArg("-drive");
             qemu_cmd.addPrefixedFileArg(
