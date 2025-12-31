@@ -31,10 +31,10 @@ as the FAT boot drive.
 As of now, the tagged Zig releases are targeted. This project is known to work with the
 following Zig versions:
 
-  - 0.15.2 (current project status)
-  - 0.15.1 (current project status)
-  - 0.14.1 (commit 60034b0 in this project)
-  - 0.14.0 (commit 60034b0 in this project)
+  - 0.15.x (current project status)
+  - 0.14.x (commit 60034b0 in this project)
+
+Older Zig version 'cuts' will get tags too.
 
 What is OVMF?
 -----------------------
