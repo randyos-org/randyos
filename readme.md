@@ -31,7 +31,7 @@ as the FAT boot drive.
 As of now, the tagged Zig releases are targeted. This project is known to work with the
 following Zig versions:
 
-  - 0.15.x (current project status)
+  - 0.16.x, 0.15.x (current project status)
   - 0.14.x (commit 60034b0 in this project)
 
 Older Zig version 'cuts' will get tags too.
