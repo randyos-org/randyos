@@ -142,17 +142,17 @@ pub fn build(b: *Build) void {
     qemu_cmd.addArg("-s");
     // Check if the ovmf_code option was provided…
     if (ovmf_code) |ocp| {
-        // …and copy the OVMF_CODE file.
+        // …and copy the OVMF_CODE file (note that the destination is just a name, nothing special).
         const oc = boot_dir.addCopyFile(
             ocp,
-            ocp.basename(b, &boot_dir.step),
+            "ovmf_code.fd",
         );
         // Also check if the ovmf_vars option was too…
         if (ovmf_vars) |ovp| {
             // …and copy the OVMF_VARS file.
             const ov = boot_dir.addCopyFile(
                 ovp,
-                ovp.basename(b, &boot_dir.step),
+                "ovmf_vars.fd",
             );
             // Then add the OVMF_CODE file (you can see more information on what
             // the `-drive` option is and how it relates to other block device
@@ -178,7 +178,7 @@ pub fn build(b: *Build) void {
         // …and copy that file…
         const oc = boot_dir.addCopyFile(
             ocp,
-            ocp.basename(b, &boot_dir.step),
+            "ovmf.fd",
         );
         // …and finally use it as the UEFI firmware.
         qemu_cmd.addArg("-drive");
