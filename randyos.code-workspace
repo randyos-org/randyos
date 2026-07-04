@@ -17,5 +17,6 @@
       ".local-gitignore": "gitignore",
       ".github/workflows/exempt.txt": "gitignore"
     },
-	}
+		"zig.path": "C:/scratch/git/zig-build/build/stage4/bin/zig.exe"
+	},
 }
