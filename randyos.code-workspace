@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"claudeCode.allowDangerouslySkipPermissions": true,
+		"files.exclude": {
+			"**/node_modules/**": true,
+		},
+		"files.watcherExclude": {
+			"**/node_modules/**": true
+		},
+    "files.associations": {
+      "VERSION": "plaintext",
+      ".local-gitignore": "gitignore",
+      ".github/workflows/exempt.txt": "gitignore"
+    },
+	}
+}
