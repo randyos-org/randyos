@@ -1,0 +1,20 @@
+.{
+    // This is our package name.
+    // For all your own packages, DON'T PREFIX THE NAMES WITH 'zig'!!!
+    // I just did it because it shows people how to write a simple OS in Zig.
+    // You shouldn't do what I did. 
+    .name = .zig_os,
+    // This is the (hopefully) unique fingerprint of our package.
+    .fingerprint = 0x65216be1a7525378,
+    // We don't have any version as of now.
+    .version = "0.0.0",
+    // We also don't have any dependencies.
+    .dependencies = .{},
+    // And those files are important to us (so the package hash is computed from them).
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "LICENSE",
+        "src",
+    },
+}
