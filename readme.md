@@ -1,4 +1,4 @@
-# randyos
+# RandyOS
 
 Very basic OS for a very basic dude.
 

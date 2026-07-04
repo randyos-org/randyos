@@ -1,4 +1,12 @@
 DIRENV
 gofmt
+os
+OVMF
 pyproject
+qemu
 randyos
+RandyOS
+zig
+
+OVMF
+EDK

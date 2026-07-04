@@ -25,5 +25,10 @@
     "project-words"
   ],
   "allowCompoundWords": true,
-  "ignoreWords": []
+  "ignoreWords": [],
+  "ignoreRegExpList": [
+    "/-W.*/",
+    "/-D.*/",
+    "/-X.*/",
+  ]
 }
