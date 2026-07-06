@@ -1,9 +1,98 @@
-const Build = @import("std").Build;
-const Target = @import("std").Target;
+const std = @import("std");
+const Build = std.Build;
+const Target = std.Target;
+const Step = Build.Step;
+const Run = Step.Run;
+const OptimizeMode = std.builtin.OptimizeMode;
+const WriteFile = Step.WriteFile;
+const InstallDir = Step.InstallDir;
+const Module = Build.Module;
 
-pub fn build(b: *Build) void {
-    const optimize = b.standardOptimizeOption(.{});
+const LoggerScpIgn: type = []const []const u8;
+const Sysroot = struct {
+    build: *WriteFile,
+    install: *InstallDir,
+};
+const QemuCmds = struct {
+    run: *Run,
+    debug: *Run,
+};
 
+fn addCommon(
+    b: *Build,
+    optimize: OptimizeMode,
+) *Module {
+    // Default set of scopes to ignore in the logger. -Dno-log-scope adds a
+    // scope to the ignore list on top of this default and may be given
+    // multiple times (e.g. -Dno-log-scope=arch_paging -Dno-log-scope=acpi_madt).
+    // Passing it with no value (-Dno-log-scope=) clears the list, including
+    // the defaults. -Dlog-scope removes a scope from the ignore list,
+    // whitelisting it back out of the defaults or a -Dno-log-scope, and may
+    // likewise be given multiple times.
+    const default_no_log_scopes: LoggerScpIgn = &.{
+        "arch_paging",
+        "kp_alloc",
+        "acpi",
+        "arch_lapic",
+        "arch_ioapic",
+        "term_fbcon",
+    };
+    const no_log_scope_args = b.option(
+        LoggerScpIgn,
+        "no-log-scope",
+        "Add a scope to ignore in the logger, on top of the default list (repeatable; pass with no value to clear the list, including defaults)",
+    ) orelse &.{};
+    const log_scope_args = b.option(
+        LoggerScpIgn,
+        "log-scope",
+        "Remove a scope from the ignored-scope list, whitelisting it out of the defaults or -Dno-log-scope (repeatable)",
+    ) orelse &.{};
+
+    const reset_no_log_scopes = for (no_log_scope_args) |scope| {
+        if (scope.len == 0) break true;
+    } else false;
+
+    var no_log_scopes = std.array_list.Managed([]const u8).init(b.allocator);
+    if (!reset_no_log_scopes) no_log_scopes.appendSlice(default_no_log_scopes) catch @panic("OOM");
+    for (no_log_scope_args) |scope| {
+        if (scope.len == 0) continue;
+        no_log_scopes.append(scope) catch @panic("OOM");
+    }
+    for (log_scope_args) |scope| {
+        var i: usize = 0;
+        while (i < no_log_scopes.items.len) {
+            if (std.mem.eql(u8, no_log_scopes.items[i], scope)) {
+                _ = no_log_scopes.orderedRemove(i);
+            } else {
+                i += 1;
+            }
+        }
+    }
+    const logger_scopes_ignore: LoggerScpIgn = no_log_scopes.items;
+    // const use_llvm: bool = b.option(bool, "use-llvm", "Use the LLVM backend for code generation (instead of the in-house solution)") orelse true;
+    // const use_lld: bool = b.option(bool, "use-lld", "Use the LLD Linker for linking (instead of the in-house solution)") orelse true;
+    const debug_scheduler: bool = b.option(bool, "debug-scheduler", "Print out scheduler debug information") orelse false;
+
+    // options module
+    const options = b.addOptions();
+    options.addOption(LoggerScpIgn, "logger_scopes_ignore", logger_scopes_ignore);
+    options.addOption(bool, "debug_scheduler", debug_scheduler);
+
+    const common_mod = b.createModule(.{
+        .root_source_file = b.path("src/common/root.zig"),
+        // .target = b.resolveTargetQuery(bootloader_query),
+        .optimize = optimize,
+    });
+    common_mod.addOptions("build_options", options);
+    return common_mod;
+}
+
+fn addBootldr(
+    b: *Build,
+    sysroot: *WriteFile,
+    optimize: OptimizeMode,
+    common_mod: *Module,
+) void {
     // This is the bootloader target query. We need this special target because
     // bootloaders have a different executable format (and so on) than normal
     // native executables.
@@ -19,11 +108,14 @@ pub fn build(b: *Build) void {
         // and for EFI executables. We will need the latter for our bootloader.
         .ofmt = .coff,
     };
+
     const bootloader_mod = b.createModule(.{
         .root_source_file = b.path("src/bootloader/main.zig"),
         .target = b.resolveTargetQuery(bootloader_query),
         .optimize = optimize,
     });
+    bootloader_mod.addImport("common", common_mod);
+
     const bootloader_exe = b.addExecutable(.{
         // It will be named "bootx64", because that's the regular path that can
         // be found by UEFI.
@@ -31,7 +123,22 @@ pub fn build(b: *Build) void {
         .root_module = bootloader_mod,
     });
     b.installArtifact(bootloader_exe);
+    _ = sysroot.addCopyFile(
+        bootloader_exe.getEmittedBin(),
+        b.pathJoin(&.{
+            "efi",
+            "boot",
+            bootloader_exe.out_filename,
+        }),
+    );
+}
 
+fn addKernel(
+    b: *Build,
+    sysroot: *WriteFile,
+    optimize: OptimizeMode,
+    common_mod: *Module,
+) void {
     // This is the kernel target query. This one is also an x86_64 executable,
     // but freestanding. Normal executables communicate with an operating
     // system to do things. The kernel is one of the core parts for an
@@ -45,11 +152,15 @@ pub fn build(b: *Build) void {
         .abi = .none,
         .ofmt = .elf,
     };
+
     const kernel_mod = b.createModule(.{
         .root_source_file = b.path("src/kernel/main.zig"),
         .target = b.resolveTargetQuery(kernel_query),
+        .code_model = .kernel,
         .optimize = optimize,
     });
+    kernel_mod.addImport("common", common_mod);
+
     const kernel_exe = b.addExecutable(.{
         // We name it "kernel.elf" since that is what the bootloader expects.
         .name = "kernel.elf",
@@ -61,106 +172,303 @@ pub fn build(b: *Build) void {
         .use_llvm = true,
     });
     // Using this, we disable setting the entry function of the kernel
-    // automatically. We want our own entry function named "kmain", not
-    // "_start".
+    // automatically.
     kernel_exe.entry = .disabled;
     // Here, we set the linker script path. For normal executables (and UEFI
     // ones), such linker scripts are provided by the linker. However, this is
     // OUR kernel, so WE want to specify what we want to get in the kernel.
-    kernel_exe.setLinkerScript(b.path("src/kernel/kernel.ld"));
+    const arch = "x86_64";
+    kernel_exe.setLinkerScript(b.path(b.fmt("src/kernel/arch/{s}/kernel.ld", .{arch})));
     b.installArtifact(kernel_exe);
+    _ = sysroot.addCopyFile(
+        kernel_exe.getEmittedBin(),
+        kernel_exe.out_filename,
+    );
+}
 
-    // Add an option to supply the OVMF_CODE file…
+/// Roadmap descriptor for a not-yet-implemented arch stub. Unlike x86_64
+/// (wired into the default install step, the sysroot, and the QEMU
+/// pipeline), these are pure compile-and-link roadmap markers: `zig build
+/// kernel-<name>` (and `boot-<name>`, where applicable) just proves the stub
+/// arch module + linker script actually build, without touching the working
+/// x86_64 boot flow at all.
+const ArchStub = struct {
+    /// Used in step names (e.g. "aarch64" -> "kernel-aarch64") and to locate
+    /// `src/kernel/arch/<name>/kernel.ld`.
+    name: []const u8,
+    kernel_query: Target.Query,
+    kernel_code_model: std.builtin.CodeModel = .default,
+    /// `null` means this arch has no bootloader step yet -- either because
+    /// there's no UEFI firmware worth targeting at all (powerpc: classic
+    /// Macs use Open Firmware, see src/bootloader-ofw/), or because the
+    /// real target board's UEFI firmware doesn't actually help this
+    /// particular OS (arm: Pi 3 does have aarch64 UEFI via pftf, but that
+    /// firmware runs the board in 64-bit mode and doesn't boot a 32-bit OS;
+    /// aarch64's Raspberry Pi 5 case is similar but for a different reason
+    /// -- its UEFI effort was archived entirely. Both go through
+    /// src/bootloader-rpi/ instead; Pi 3/4 running aarch64 do have real
+    /// UEFI, hence aarch64 itself still has a `bootloader_query` below).
+    bootloader_query: ?Target.Query = null,
+};
+
+const arch_stubs = [_]ArchStub{
+    .{
+        .name = "aarch64",
+        .kernel_query = .{ .cpu_arch = .aarch64, .os_tag = .freestanding, .abi = .none, .ofmt = .elf },
+        // Real UEFI firmware -- correct for Raspberry Pi 3/4 (pftf). Does
+        // NOT apply to Raspberry Pi 5 (community UEFI effort archived Feb
+        // 2025 -- see src/bootloader-rpi/) or Apple Silicon Macs (no native
+        // UEFI at all -- see src/bootloader-asahi/). All three target
+        // machines share this same kernel-side stub since the CPU
+        // instruction set is identical across them.
+        .bootloader_query = .{ .cpu_arch = .aarch64, .os_tag = .uefi, .abi = .msvc, .ofmt = .coff },
+    },
+    .{
+        .name = "arm",
+        .kernel_query = .{ .cpu_arch = .arm, .os_tag = .freestanding, .abi = .eabi, .ofmt = .elf },
+        // Real target: Raspberry Pi 3 running a 32-bit OS. Its aarch64 UEFI
+        // firmware (pftf) boots the board in 64-bit mode only -- no path
+        // from there to a 32-bit OS -- so this goes through
+        // src/bootloader-rpi/ same as Pi 5, not a UEFI bootloader query.
+        .bootloader_query = null,
+    },
+    .{
+        .name = "powerpc",
+        .kernel_query = .{ .cpu_arch = .powerpc, .os_tag = .freestanding, .abi = .eabi, .ofmt = .elf },
+        .bootloader_query = null,
+    },
+};
+
+/// Builds (but does not install into the default step, sysroot, or QEMU
+/// pipeline) a stub kernel for one `ArchStub`. Every real function in it
+/// panics -- this only proves the arch module + linker script link.
+fn addStubKernel(b: *Build, optimize: OptimizeMode, common_mod: *Module, stub: ArchStub) void {
+    const kernel_mod = b.createModule(.{
+        .root_source_file = b.path("src/kernel/main.zig"),
+        .target = b.resolveTargetQuery(stub.kernel_query),
+        .code_model = stub.kernel_code_model,
+        .optimize = optimize,
+    });
+    kernel_mod.addImport("common", common_mod);
+
+    const kernel_exe = b.addExecutable(.{
+        .name = b.fmt("kernel-{s}.elf", .{stub.name}),
+        .root_module = kernel_mod,
+        .use_lld = true,
+        .use_llvm = true,
+    });
+    kernel_exe.entry = .disabled;
+    kernel_exe.setLinkerScript(b.path(b.fmt("src/kernel/arch/{s}/kernel.ld", .{stub.name})));
+
+    const install = b.addInstallArtifact(kernel_exe, .{});
+    const step = b.step(
+        b.fmt("kernel-{s}", .{stub.name}),
+        b.fmt("Build the (stub, not bootable) {s} kernel", .{stub.name}),
+    );
+    step.dependOn(&install.step);
+}
+
+/// Builds (but does not install into the default step, sysroot, or QEMU
+/// pipeline) a stub UEFI bootloader for one `ArchStub`, if it has a
+/// `bootloader_query` at all.
+fn addStubBootloader(b: *Build, optimize: OptimizeMode, common_mod: *Module, stub: ArchStub) void {
+    const query = stub.bootloader_query orelse return;
+    const bootloader_mod = b.createModule(.{
+        .root_source_file = b.path("src/bootloader/main.zig"),
+        .target = b.resolveTargetQuery(query),
+        .optimize = optimize,
+    });
+    bootloader_mod.addImport("common", common_mod);
+
+    const bootloader_exe = b.addExecutable(.{
+        .name = b.fmt("boot-{s}.efi", .{stub.name}),
+        .root_module = bootloader_mod,
+    });
+
+    const install = b.addInstallArtifact(bootloader_exe, .{});
+    const step = b.step(
+        b.fmt("boot-{s}", .{stub.name}),
+        b.fmt("Build the (stub, not wired to any boot flow) {s} UEFI bootloader", .{stub.name}),
+    );
+    step.dependOn(&install.step);
+}
+
+fn addQemuCmds(b: *Build) QemuCmds {
+    const base_cmd = &.{"qemu-system-x86_64"};
+    const base_args = &.{
+        "-s", // GDB connection available at localhost:1234 via TCP.
+
+        // standard output mapped to COM1
+        "-serial",
+        "mon:stdio",
+
+        // GTK-based window for display
+        "-display",
+        "gtk",
+
+        // add socat monitor socket
+        "-monitor",
+        "unix:qemu-monitor-socket,server,nowait",
+
+        // A triple fault normally makes QEMU silently reset the VM and
+        // re-run firmware/bootloader/kernel from scratch, which looks like
+        // an infinite bootloop. Halt instead so the failure is visible and
+        // the machine state can be inspected.
+        "-no-reboot",
+        "-no-shutdown",
+    };
+    const cmds = QemuCmds{
+        .run = b.addSystemCommand(base_cmd),
+        .debug = b.addSystemCommand(base_cmd),
+    };
+    cmds.run.addArgs(base_args);
+    cmds.debug.addArgs(base_args);
+    cmds.debug.addArg("-S"); // wait for GDB connection
+
+    const run_step = b.step("run", "Run the kernel via QEMU");
+    run_step.dependOn(&cmds.run.step);
+
+    const debug_step = b.step("debug", "Run the kernel via QEMU, wait for GDB connection");
+    debug_step.dependOn(&cmds.debug.step);
+
+    return cmds;
+}
+
+fn addOvmf(b: *Build, sysroot: *WriteFile, qemu_cmds: QemuCmds) void {
     const ovmf_code = b.option(
         Build.LazyPath,
         "ovmf-code",
         "The OVMF_CODE file to use",
     );
-    // …and the same for the OVMF_VARS file.
     const ovmf_vars = b.option(
         Build.LazyPath,
         "ovmf-vars",
         "The OVMF_VARS file to use",
     );
-
-    // After that, we create a directory in the zig cache into which we can copy
-    // files…
-    const boot_dir = b.addWriteFiles();
-    // …including the bootloader executable into a folder that will be
-    // recognized by the UEFI firmware…
-    _ = boot_dir.addCopyFile(
-        bootloader_exe.getEmittedBin(),
-        b.pathJoin(&.{
-            "efi",
-            "boot",
-            bootloader_exe.out_filename,
-        }),
-    );
-    // …and the kernel executable to the location expected by the bootloader.
-    _ = boot_dir.addCopyFile(
-        kernel_exe.getEmittedBin(),
-        kernel_exe.out_filename,
-    );
-
-    const qemu_cmd = b.addSystemCommand(&.{"qemu-system-x86_64"});
-    // standard output mapped to COM1
-    qemu_cmd.addArg("-serial");
-    qemu_cmd.addArg("mon:stdio");
-
-    // GTK-based window for display
-    qemu_cmd.addArg("-display");
-    qemu_cmd.addArg("gtk");
-
-    // GDB connection available at localhost:1234 via TCP.
-    qemu_cmd.addArg("-s");
-
     if (ovmf_code) |ocp| {
         // note that the destination is just a name, nothing special.
-        const oc = boot_dir.addCopyFile(
+        const oc = sysroot.addCopyFile(
             ocp,
             "ovmf_code.fd",
         );
         if (ovmf_vars) |ovp| {
-            const ov = boot_dir.addCopyFile(
+            const ov = sysroot.addCopyFile(
                 ovp,
                 "ovmf_vars.fd",
             );
 
-            // add OVMF_CODE file first as ro
-            qemu_cmd.addArg("-drive");
-            qemu_cmd.addPrefixedFileArg(
-                "format=raw,if=pflash,readonly=on,file=",
-                oc,
-            );
+            inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+                // add OVMF_CODE file first as ro
+                const cmd = @field(qemu_cmds, field_name);
+                cmd.addArg("-drive");
+                cmd.addPrefixedFileArg(
+                    "format=raw,if=pflash,readonly=on,file=",
+                    oc,
+                );
 
-            // then add OVMF_VARS file
-            qemu_cmd.addArg("-drive");
-            qemu_cmd.addPrefixedFileArg("format=raw,if=pflash,file=", ov);
+                // then add OVMF_VARS file
+                cmd.addArg("-drive");
+                cmd.addPrefixedFileArg("format=raw,if=pflash,file=", ov);
+            }
         } else {
             // Otherwise, add what is expected to be the combined OVMF file.
-            qemu_cmd.addArg("-drive");
-            qemu_cmd.addPrefixedFileArg("format=raw,if=pflash,file=", ocp);
+            inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+                const cmd = @field(qemu_cmds, field_name);
+                cmd.addArg("-drive");
+                cmd.addPrefixedFileArg("format=raw,if=pflash,file=", ocp);
+            }
         }
     } else {
         //  use the default from the repo
         const ocp = b.path("OVMF.fd");
-        const oc = boot_dir.addCopyFile(
+        const oc = sysroot.addCopyFile(
             ocp,
             "ovmf.fd",
         );
-        qemu_cmd.addArg("-drive");
-        qemu_cmd.addPrefixedFileArg(
-            "format=raw,if=pflash,file=",
-            oc,
-        );
+        inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+            const cmd = @field(qemu_cmds, field_name);
+            cmd.addArg("-drive");
+            cmd.addPrefixedFileArg(
+                "format=raw,if=pflash,file=",
+                oc,
+            );
+        }
     }
-    // Finally, add an emulated FAT drive using the boot directory we made
-    // above (UEFI requires FAT)
-    qemu_cmd.addArg("-drive");
-    qemu_cmd.addPrefixedDirectoryArg(
-        "format=raw,index=3,media=disk,file=fat:rw:",
-        boot_dir.getDirectory(),
+}
+
+// fn addQemuSysroot(sysroot_install: *InstallDir, qemu_cmds: QemuCmds) void {
+//     inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+//         const cmd = @field(qemu_cmds, field_name);
+//         cmd.addArg("-drive");
+//         cmd.addPrefixedDirectoryArg("format=raw,index=3,media=disk,file=fat:rw:", .{
+//             .relative = .{
+//                 .base = .install_prefix,
+//                 .sub_path = "systemroot",
+//             },
+//         });
+//         cmd.step.dependOn(&sysroot_install.step);
+//     }
+// }
+
+fn addQemuSysroot(b: *Build, sysroot_install: *InstallDir, qemu_cmds: QemuCmds) void {
+    const sysroot_path = b.getInstallPath(
+        sysroot_install.options.install_dir,
+        sysroot_install.options.install_subdir,
     );
-    const qemu_step = b.step("qemu", "Run the kernel via QEMU");
-    qemu_step.dependOn(&qemu_cmd.step);
+    inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+        const cmd = @field(qemu_cmds, field_name);
+        cmd.addArg("-drive");
+        cmd.addPrefixedDirectoryArg(
+            "format=raw,index=3,media=disk,file=fat:rw:",
+            .{ .cwd_relative = sysroot_path },
+        );
+        cmd.step.dependOn(&sysroot_install.step);
+    }
+}
+
+fn addMonitorCmd(b: *Build) void {
+    const monitor = b.addSystemCommand(&.{"socat"});
+    monitor.addArgs(&.{
+        "-,echo=0,icanon=0",
+        "unix-connect:qemu-monitor-socket",
+    });
+    const monitor_step = b.step("monitor", "Launch socat to interact with qemu-monitor");
+    monitor_step.dependOn(&monitor.step);
+}
+
+fn addSysroot(b: *Build) Sysroot {
+    const sysroot_build = b.addWriteFiles();
+    const sysroot_install = b.addInstallDirectory(.{
+        .source_dir = sysroot_build.getDirectory(),
+        .install_dir = .{ .custom = "systemroot" },
+        .install_subdir = "",
+    });
+    b.getInstallStep().dependOn(&sysroot_install.step);
+    return .{
+        .build = sysroot_build,
+        .install = sysroot_install,
+    };
+}
+
+pub fn build(b: *Build) void {
+    const optimize = b.standardOptimizeOption(.{});
+
+    const sysroot = addSysroot(b);
+    const qemu_cmds = addQemuCmds(b);
+    addOvmf(b, sysroot.build, qemu_cmds);
+    addQemuSysroot(b, sysroot.install, qemu_cmds);
+    addMonitorCmd(b);
+
+    const common_mod = addCommon(b, optimize);
+    addBootldr(b, sysroot.build, optimize, common_mod);
+    addKernel(b, sysroot.build, optimize, common_mod);
+    // addBootldr(b, sysroot.build, optimize);
+    // addKernel(b, sysroot.build, optimize);
+
+    // Roadmap stubs -- see ArchStub's doc comment. None of these touch the
+    // default install step, the sysroot, or the QEMU pipeline above.
+    for (arch_stubs) |stub| {
+        addStubKernel(b, optimize, common_mod, stub);
+        addStubBootloader(b, optimize, common_mod, stub);
+    }
 }

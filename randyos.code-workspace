@@ -8,15 +8,19 @@
 		"claudeCode.allowDangerouslySkipPermissions": true,
 		"files.exclude": {
 			"**/node_modules/**": true,
+			"**/.zig-cache/**": true,
 		},
 		"files.watcherExclude": {
-			"**/node_modules/**": true
+			"**/node_modules/**": true,
+			"**/.zig-cache/**": true,
 		},
     "files.associations": {
       "VERSION": "plaintext",
       ".local-gitignore": "gitignore",
       ".github/workflows/exempt.txt": "gitignore"
     },
-		"zig.path": "C:/scratch/git/zig-build/build/stage4/bin/zig.exe"
+		// "zig.path": "C:/scratch/git/zig-build/build/stage4/bin/zig.exe",
+    "zig.path": "C:/scratch/git/zig-build/devkit-0.17.0-dev.203+073889523/bin/zig.exe",
+    "zig.zls.path": "C:/scratch/git/zig-build/build/zls/bin/zls.exe",
 	},
 }

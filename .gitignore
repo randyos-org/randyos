@@ -8,3 +8,5 @@ zig-out/
 !.pixi/config.toml
 
 systemroot/**
+.zigversion
+qemu-monitor-socket
