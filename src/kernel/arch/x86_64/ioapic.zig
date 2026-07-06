@@ -116,7 +116,8 @@ pub const Info = packed struct(u32) {
     version: u8,
     /// 8 reserved bits
     res1: u8,
-    /// Maximal amount of redirection entries
+    /// Maximal amount of redirection entries, zero-based (actual entry
+    /// count is `max_entries + 1`, see `IOApic.init`)
     max_entries: u8,
     /// 8 reserved bits
     res2: u8,
@@ -128,6 +129,11 @@ pub const IOApic = struct {
     base: usize,
     /// Global System Interrupt Base
     glob_sys_int_base: u32,
+    /// The vector `init()` was given for GSI/IRQ 0 on this chip (`offset`
+    /// param) -- stashed here so `redEntryMADT`, a plain function-pointer
+    /// callback with no access to `init`'s locals, can still compute the
+    /// same `irq + offset` vector scheme it uses for everything else.
+    vector_offset: u8 = 0,
 
     /// Enable interrupt vector
     pub fn enableVector(self: *IOApic, irq: u8, vector: u8) void {
@@ -135,7 +141,8 @@ pub const IOApic = struct {
         const lapic_id = lapic.global_apic.read(.local_apic_id);
         var red_entry = self.indirectRead(.{ .redirection = irq }).redirection_entry;
         red_entry.vector = vector;
-        red_entry.destination = @truncate(lapic_id & 0xf);
+        // xAPIC ID lives in bits 24-31 of the raw LAPIC ID register value.
+        red_entry.destination = @truncate((lapic_id >> 24) & 0xff);
         red_entry.masked = false;
         self.indirectWrite(.{ .redirection = irq }, .{
             .redirection_entry = red_entry,
@@ -148,7 +155,8 @@ pub const IOApic = struct {
         const lapic_id = lapic.global_apic.read(.local_apic_id);
         var red_entry = self.indirectRead(.{ .redirection = irq }).redirection_entry;
         red_entry.vector = vector;
-        red_entry.destination = @truncate(lapic_id & 0xf);
+        // xAPIC ID lives in bits 24-31 of the raw LAPIC ID register value.
+        red_entry.destination = @truncate((lapic_id >> 24) & 0xff);
         red_entry.masked = true;
         self.indirectWrite(.{ .redirection = irq }, .{
             .redirection_entry = red_entry,
@@ -211,20 +219,31 @@ pub const IOApic = struct {
     }
 };
 
-/// Send EOI (End of Interrupt) to the interrupt source
+/// Send EOI (End of Interrupt) to the interrupt source. Unlike the Local
+/// APIC's EOI register, the I/O APIC's EOIR is matched against the
+/// interrupt *vector*, not the IRQ pin -- so the pin's currently-programmed
+/// vector is read back out of its redirection entry first.
 pub inline fn eoi(irq: u8) void {
-    log.debug("Sending EOI to IRQ {}", .{irq});
-    global_ioapic.directWrite(.eoi, irq);
+    const vector = global_ioapic.indirectRead(.{ .redirection = irq }).redirection_entry.vector;
+    log.debug("Sending EOI to IRQ {} (vector {})", .{ irq, vector });
+    global_ioapic.directWrite(.eoi, vector);
 }
 
 /// Register redirection entry based on ACPI MADT information
 pub fn redEntryMADT(entry: *acpi.madt.IOAPICSourceOverride) void {
     log.debug("I/O APIC Source Override: 0x{x:0>16}", .{std.mem.readVarInt(u64, std.mem.asBytes(entry), builtin.cpu.arch.endian())});
-    if (entry.glob_sys_int < global_ioapic.glob_sys_int_base) {
+    // Only applies if this override's GSI is actually routed through our
+    // (only) I/O APIC -- glob_sys_int_base is the first GSI this chip owns.
+    if (entry.glob_sys_int >= global_ioapic.glob_sys_int_base) {
         const lapic_id = lapic.global_apic.read(.local_apic_id);
         const redir_entry = RedirectionEntry{
-            .destination = @truncate(lapic_id & 0xf),
-            .vector = @truncate(entry.glob_sys_int - global_ioapic.glob_sys_int_base),
+            // xAPIC ID lives in bits 24-31 of the raw LAPIC ID register value.
+            .destination = @truncate((lapic_id >> 24) & 0xff),
+            // Route to the same vector the identity-mapped IRQ would have
+            // gotten (irq_src + the offset init() uses for everything else),
+            // since that's the vector drivers/IDT handlers for that IRQ
+            // actually expect.
+            .vector = @truncate(@as(usize, entry.irq_src) + global_ioapic.vector_offset),
             .trigger_mode = switch (entry.flags.trigger_mode) {
                 .edge_triggered => .edge,
                 .level_triggered => .level,
@@ -237,7 +256,11 @@ pub fn redEntryMADT(entry: *acpi.madt.IOAPICSourceOverride) void {
             },
             .masked = false,
         };
-        global_ioapic.indirectWrite(.{ .redirection = entry.irq_src }, .{ .redirection_entry = redir_entry });
+        // The redirection table is indexed by this IOAPIC's local pin
+        // number (GSI relative to glob_sys_int_base), not by the legacy IRQ
+        // number.
+        const pin: u16 = @truncate(entry.glob_sys_int - global_ioapic.glob_sys_int_base);
+        global_ioapic.indirectWrite(.{ .redirection = pin }, .{ .redirection_entry = redir_entry });
     }
 }
 
@@ -246,6 +269,7 @@ pub fn init(base: usize, glob_sys_int_base: u32, offset: u8) void {
     log.info("I/O APIC Initialization... ", .{});
     global_ioapic.base = base;
     global_ioapic.glob_sys_int_base = glob_sys_int_base;
+    global_ioapic.vector_offset = offset;
     const info: Info = @bitCast(global_ioapic.indirectRead(.ioapic_version).information);
 
     for (0..info.max_entries + 1) |i| {

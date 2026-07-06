@@ -65,7 +65,8 @@ pub const APIC = struct {
 
 /// Local APIC Registers
 pub const Register = enum(usize) {
-    /// LAPIC ID Register
+    /// LAPIC ID Register. In xAPIC mode the 8-bit APIC ID lives in bits
+    /// 24-31 of the raw register value; the rest is reserved.
     local_apic_id = 0x20,
     /// LAPIC version Register
     local_apic_version = 0x30,
@@ -144,7 +145,9 @@ pub inline fn eoi() void {
 }
 
 /// Enable the APIC
-/// Assumes that an APIC is available
+/// Assumes that an APIC is available. Only xAPIC (MMIO register access via
+/// `control_base`) is supported here -- x2APIC (MSR-based registers) is
+/// never enabled, regardless of whether the CPU supports it.
 pub fn enable() void {
     var apic_msr: LapicMSR = getMSR();
     apic_msr.apic_global_enable = true;

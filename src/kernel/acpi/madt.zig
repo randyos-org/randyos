@@ -56,7 +56,8 @@ pub const MADT = extern struct {
     header: Header align(1),
     /// Local APIC Address
     lapic_addr: u32 align(1),
-    /// Flags (bit 1 = dual PIC)
+    /// Flags (bit 0 [first bit] = PCAT_COMPAT: legacy dual-8259 PICs are
+    /// present and must be disabled before using the APIC)
     flags: u32 align(1),
     // TODO: implement flag struct
 
@@ -238,7 +239,7 @@ pub const LAPICNonMaskable = extern struct {
     acpi_proc_id: u8 align(1),
     /// Flags
     flags: MPSINTI align(1),
-    /// LINT# (0 or 0)
+    /// LINT# (0 or 1)
     lint_num: u8 align(1),
 };
 

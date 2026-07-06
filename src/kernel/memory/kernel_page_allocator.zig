@@ -14,11 +14,13 @@ const boot_info = common.boot_info;
 pub const Entry = packed struct(u128) {
     /// The address
     addr: usize = 0,
-    /// Is this entry used by our allocator?
+    /// Whether this map slot holds a real entry (vs. still being a blank,
+    /// never-assigned filler slot). Not the same as allocation status --
+    /// see `free` for that.
     used: bool = false,
     /// Is the memory described by our entry free?
     free: bool = true,
-    /// Some reserved bytes
+    /// Reserved bits (padding)
     _0: u14 = 0,
     /// Count of pages in this region
     num_pages: u48 = 0,
@@ -30,8 +32,10 @@ pub const MemoryNode = struct {
     size: usize,
 };
 
-/// We will use this memory to write the first 32 entries.
-/// After those 32 entries, we will have enough memory to allocate a page where we can write into.
+/// Scratch space for the map before we have real memory to back it:
+/// `bootstrap()` records up to 16 free regions here (see `mem_max_cnt`)
+/// plus one entry for the map's own backing storage, then reslices `map`
+/// onto freshly allocated pages and copies these entries over.
 var bootstrap_memory: [32]Entry = @splat(.{});
 
 /// Our map (where we will save everything in). We start with our bootstrap memory and after that,
@@ -51,7 +55,7 @@ pub const UEFIMemoryData = struct {
 pub fn bootstrap(mem_data: UEFIMemoryData) void {
     const data = mem_data;
     // only 16 (or less), not 32 because we need some free space in the map to specify our map allocations
-    const mem_max_cnt: usize = if (data.info.len > 16) 16 else map.len;
+    const mem_max_cnt: usize = @min(16, data.info.len);
     const mem_max: usize = data.info.len;
     var index: usize = 0;
     var cnt_free: usize = 0;
@@ -150,6 +154,7 @@ pub fn alloc(_: *anyopaque, len: usize, _: mem.Alignment, _: usize) ?[*]u8 {
 /// Free bytes (page-wise)
 pub fn free(_: *anyopaque, buf: []u8, _: mem.Alignment, _: usize) void {
     const addr: usize = @intFromPtr(buf.ptr);
+    // round down to the containing page's base address to match how map entries are keyed
     const safe_addr: usize = addr - (addr % 4096);
     for (map) |*entry| {
         if (entry.addr == safe_addr) {

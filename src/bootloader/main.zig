@@ -56,10 +56,12 @@ fn bootloader() !void {
     // UEFI strings are UTF-16LE, but Zig strings are UTF-8, so we need to
     // convert it.
     const kernel_executable_path: [*:0]const u16 = std.unicode.utf8ToUtf16LeStringLiteral("\\kernel.elf");
-    // The kernel entry point and the kernel start address. This will be set
-    // when the kernel ELF file is parsed and loaded into the memory.
+    // The kernel entry point, kernel start address, and physical base
+    // address the kernel actually got loaded at. These get set when the
+    // kernel ELF file is parsed and loaded into memory.
     var kernel_entry_point: u64 = undefined;
     var kernel_start_address: u64 = undefined;
+    var base_address: u64 = undefined;
     // This is the type of the kernel entry function. We can't deliver
     // arguments to it, however.
     var kernel_entry: *const fn () callconv(.c) noreturn = undefined;
@@ -130,8 +132,11 @@ fn bootloader() !void {
         log.err("opening root volume failed: {s}", .{@errorName(err)});
         return err;
     };
-    // We will now find free space in the memory for the kernel.
-    // Firstly, we will get the current memory map.
+    // We will now get the current memory map. The loader needs it to pick a
+    // physical location for the kernel once it knows how big the kernel's
+    // segments actually are (see loader.findKernelLoadAddress); we also
+    // reuse it below when preparing the virtual address map before exiting
+    // boot services.
     log.debug("getting memory map to find free addresses", .{});
     // For that, we start with getting information about the memory map.
     // And when no error happened we can save all information about the memory map.
@@ -149,72 +154,38 @@ fn bootloader() !void {
         log.err("getting memory map failed: {s}", .{@errorName(err)});
         return err;
     };
-    // Now that we've got the memory map, we need to find a free base address
-    // where we can load the kernel.
-    log.debug("finding free kernel base address", .{});
-    // We need to declare some variables.
-
-    // Our index to the memory map entries.
-    var mem_index: usize = 0;
-    // The count of entries we have.
-    var mem_count: usize = map_info.len;
-    // The current entry we will be pointing to.
-    var mem_point: *uefi.tables.MemoryDescriptor = undefined;
-    // Our base (minimum) address.
-    var base_address: u64 = 0x100000;
-    // The count of free 4KB pages we have there.
-    // u64 (not usize): `MemoryDescriptor.number_of_pages` is always u64 per
-    // the UEFI spec, regardless of target word size -- usize truncated it
-    // silently correct-looking on 64-bit targets, but is a hard compile
-    // error (and would have been a real bug) on 32-bit ones.
-    var num_pages: u64 = 0;
-    log.debug("mem_count is {}", .{mem_count});
-    while (mem_index < mem_count) : (mem_index += 1) {
-        log.debug("mem_index is {}", .{mem_index});
-        // Here, we calculate the new entry we will be pointing to.
-        mem_point = @ptrCast(@alignCast(memory_map.ptr + (mem_index * map_info.descriptor_size)));
-        // Now, we need to ensure that the memory described in that part of the
-        // memory map is free memory (ConventionalMemory) and that the start of
-        // that region is bigger than our base address.
-        if (mem_point.type == .conventional_memory and mem_point.physical_start >= base_address) {
-            // And if all those conditions are fulfilled, we can set the base
-            // address to our new base address, say how many free pages we have
-            // and break the loop because we don't have to search more free
-            // memory.
-            base_address = mem_point.physical_start;
-            num_pages = mem_point.number_of_pages;
-            log.debug("found {} free pages at 0x{x}", .{ num_pages, base_address });
-            break;
-        }
-    }
-    // After we have found the kernel base address, we can now load the kernel
-    // image.
+    // Now we can load the kernel image.
     log.info("loading kernel image", .{});
-    // To do this, we need to pass the root file system, the kernel executable
-    // path, the base address (from our memory map), a pointer to the kernel
-    // entry point and a pointer to the kernel start address.
-    // Why a pointer for the latter two? Because they have to be modified, but
-    // function arguments are constant. So we use our five-head strategy to say
-    // the function where the value is but still let it be modifiable.
+    // Why a pointer for kernel_entry_point/kernel_start_address? Because
+    // they have to be modified, but function arguments are constant. So we
+    // use our five-head strategy to say the function where the value is but
+    // still let it be modifiable.
     //
     // Feel free to look into the function "loadKernelImage" in
     // src/bootloader/loader.zig!
     loader.loadKernelImage(
         root_file_system,
         kernel_executable_path,
-        base_address,
+        memory_map,
+        map_info,
+        &base_address,
         &kernel_entry_point,
         &kernel_start_address,
         &dwarf_info,
     ) catch |err| {
+        // Fatal: kernel_entry_point/kernel_start_address below are still
+        // undefined without a successfully loaded kernel, so we must not
+        // continue past this point.
         log.err("loading kernel image failed: {s}", .{@errorName(err)});
+        return err;
     };
     // After the loader loaded the kernel, we can do some final steps in the
     // bootloader before we jump into the kernel.
     log.debug("kernel entry point is: '0x{x:0>16}'", .{kernel_entry_point});
     log.debug("kernel start address is: '0x{x:0>16}'", .{kernel_start_address});
 
-    // find RSDP
+    // find RSDP: check both GUIDs, since ACPI-1.0-only firmware won't
+    // publish the 2.0 one, and the kernel decides which version to trust.
     for (0..system_table.number_of_table_entries) |index| {
         const entry = system_table.configuration_table[index];
         if (entry.vendor_guid.eql(uefi.tables.ConfigurationTable.acpi_10_table_guid)) {
@@ -305,8 +276,9 @@ fn bootloader() !void {
     // act like the kernel is at 0x100000 (using virtual addresses), but the
     // kernel can be loaded somewhere else (where that "else" is a physical
     // address). That's why we need to enable virtual addressing here.
-    mem_index = 0;
-    mem_count = map_info.len;
+    var mem_index: usize = 0;
+    const mem_count: usize = map_info.len;
+    var mem_point: *uefi.tables.MemoryDescriptor = undefined;
     while (mem_index < mem_count) : (mem_index += 1) {
         mem_point = @ptrCast(@alignCast(memory_map.ptr + (mem_index * map_info.descriptor_size)));
         // So, in loadSegment in loader.zig, we allocated some pages for the
@@ -341,23 +313,23 @@ fn bootloader() !void {
     // saved in kernel_entry_point. Now, we can say "there is a function at
     // [kernel_entry_point]" and then just call it.
     // The only thing we can't do is passing arguments to that function.
+    // `kernel_entry` is `noreturn`, so control never comes back here -- there
+    // is nothing left to return once this call is made.
     kernel_entry = @ptrFromInt(kernel_entry_point);
     kernel_entry();
-    return .load_error;
 }
 
 /// This is a wrapper to call the bootloader function.
-/// If nothing went wrong, it should not get after `status = bootloader()` because kernel should be started...
+/// If nothing went wrong, this catch block should never run, because the
+/// kernel should already be running by then...
 pub fn main() void {
     bootloader() catch |err| {
         // The computer should never get here because everything should
         // succeed.
-        // But just in case anything happens, we print out the tag name of the
-        // status (for .LoadError it will be "LoadError"). In any function, we
+        // But just in case anything happens, we print out the name of the
+        // error that was responsible for that fail. In any function, we
         // always print out "Error: xyz failed", so we have something like a
         // stack trace.
-        // Here, we just print out the error name that was responsible for that
-        // fail.
         log.err("error occurred during bootloader main function: {s}", .{@errorName(err)});
     };
     while (true) {}

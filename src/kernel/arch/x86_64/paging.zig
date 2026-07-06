@@ -31,6 +31,10 @@ pub const Perm = packed struct(u3) {
 
 /// Page Map Level N Entry
 /// From the Intel SDM Volume 3A (December 2023), Chapter 4.5.4
+/// One layout is shared across all 4 levels (PML4E/PDPTE/PDE/PTE); fields
+/// like `ps`, `d`, `g`, `pk` only take their "mapping a page" meaning at a
+/// leaf entry (always true at L1, and at L2/L3 when `ps == .large`) --
+/// elsewhere they're ignored/reserved, per the per-field docs below.
 pub fn PMLNE(level: Level) type {
     return packed struct(u64) {
         const PME = @This();
@@ -56,7 +60,11 @@ pub fn PMLNE(level: Level) type {
         /// Indicates whether software has written to the page referenced by this entry.
         d: bool,
         /// Page Size
-        /// Must be 1 when mapping a page, must be 0 when referencing a table
+        /// Must be 1 when mapping a page, must be 0 when referencing a table.
+        /// At L1 (PTE) this bit is actually PAT (page attribute table
+        /// selector), not a size choice -- a PTE always maps a single 4KB
+        /// page, so there's nothing to select here; left at the default
+        /// (PAT index 0) throughout this codebase.
         ps: PageSize = .small,
         /// Global when mapping a page, Ignored when referencing a table
         /// If GR4.PGE = 1, determines whether the translation is global, ignored otherwise.
@@ -66,7 +74,10 @@ pub fn PMLNE(level: Level) type {
         /// For ordinary paging, ignored; for HLAT paging, restart
         /// (if 1, linear-address translation is restarted with ordinary paging)
         r: bool,
-        /// Physical address of 4KB aligned page-directory-pointer table referenced by this entry
+        /// Physical address (4KB aligned) of whatever this entry points at:
+        /// the next-level table in the common case, or the mapped page
+        /// itself at a leaf entry (always at L1; at L2/L3 when `ps ==
+        /// .large`). See `getAddress`/`setAddress` for the per-level shift.
         addr: u40,
         /// Ignored
         ign2: u7,
@@ -100,11 +111,18 @@ pub fn PMLNE(level: Level) type {
             .L3 => struct {
                 /// Get the L3 address
                 fn getAddr(self: *const PME) usize {
-                    return (self.addr >> 9) << 30;
+                    // `addr` always stores bits [51:12] of a 4KiB-aligned
+                    // base. For a 1GiB (L3 large) page, the physical base is
+                    // in bits [51:30], so we drop the low 18 bits of `addr`
+                    // (which correspond to PA bits [29:12]) before restoring
+                    // the final << 30 alignment.
+                    return (self.addr >> 18) << 30;
                 }
                 /// Set the L3 address
                 fn setAddr(self: *PME, addr: usize) void {
-                    self.addr = @truncate((addr >> 30) << 9);
+                    // Inverse of getAddr: keep PA bits [51:30], place them
+                    // into descriptor bits [51:30], and leave low bits clear.
+                    self.addr = @truncate((addr >> 30) << 18);
                 }
             },
             .L4 => struct {
@@ -188,13 +206,23 @@ pub fn physFromVirt(pml4: ?*PMLNT(.L4), virt: usize) ?usize {
         if (entry.p) {
             if (entry.ps == .large) {
                 // error or return for PS flag
+                //
+                // The shifts below are inlined copies of PMLNE(.L2/.L3)'s
+                // getAddress(), not calls to it: `current_page_table` keeps
+                // the single static type `*PMLNT(.L4)` for its whole
+                // lifetime here (each reassignment below goes through
+                // `@ptrCast`), so `entry`'s static type is always
+                // `PMLNE(.L4)` regardless of `level` -- calling
+                // `entry.getAddress()` would always resolve to L4's (shift-less)
+                // implementation. `level` (tracked separately, correctly) is
+                // what lets this switch pick the right shift by hand instead.
                 switch (level) {
                     .L1 => @panic("PS flag set on L1 page"),
                     .L2 => {
-                        return (entry.addr << 21) + (@as(usize, indices.l1) << 12) + indices.offset;
+                        return ((entry.addr >> 9) << 21) + (@as(usize, indices.l1) << 12) + indices.offset;
                     },
                     .L3 => {
-                        return (entry.addr << 30) + (@as(usize, indices.l2) << 21) + (@as(usize, indices.l1) << 12) + indices.offset;
+                        return ((entry.addr >> 18) << 30) + (@as(usize, indices.l2) << 21) + (@as(usize, indices.l1) << 12) + indices.offset;
                     },
                     .L4 => @panic("PS flag set on L4 page"),
                 }

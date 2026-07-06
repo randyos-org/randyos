@@ -26,8 +26,9 @@ pub fn readFile(
         log.err("setting file position failed: {s}", .{@errorName(err)});
         return err;
     };
-    // Now, we can read the file. The function in UEFI wants to have the size
-    // variable, but we don't. So we @constCast it.
+    // Now, we can read the file. `read` returns the number of bytes actually
+    // read, which we don't need here (the caller already knows the size it
+    // asked for), so we discard it.
     // You may have recognized I return the error immediately (not handling it
     // as above). But this is the last thing we do, so we may as well just
     // "try" it.
@@ -47,9 +48,11 @@ pub fn readAndAllocate(
 ) !void {
     // We need the boot services to do that.
     const boot_services = uefi.system_table.boot_services.?;
-    // Then, we allocate some memory for the file. However, the memory "type"
-    // we give the allocate function is a bit special: We will never free this
-    // memory, as it holds the data of the kernel.
+    // Then, we allocate some memory for the file. We use the `.loader_data`
+    // memory type rather than the default boot-services pool; most callers
+    // still `freePool` this buffer once they're done with it, but the
+    // debug-info sections read through this function are kept around
+    // unfreed for the kernel to use later.
     buffer.* = boot_services.allocatePool(.loader_data, size) catch |err| {
         log.err("allocating space for file failed: {s}", .{@errorName(err)});
         return err;
@@ -73,10 +76,13 @@ pub fn loadSegment(
     segment_virtual_address: u64,
 ) !void {
     // A small thing that ensures the segment virtual address is aligned to a
-    // page (4KB)
+    // page (4KB). This must be a hard error, not a skip: the caller
+    // (loadProgramSegments) has no other way to know this segment wasn't
+    // actually allocated/loaded, and would otherwise count it as loaded and
+    // carry on as if the kernel image were intact.
     if (segment_virtual_address & pages.page_mask != 0) {
-        log.err("Warning: segment_virtual_address is not well aligned, returning", .{});
-        return;
+        log.err("segment_virtual_address 0x{x} is not page-aligned", .{segment_virtual_address});
+        return error.Unaligned;
     }
     // We get a segment buffer which we can write to.
     var segment_buffer: []u8 = &.{};
@@ -174,7 +180,8 @@ pub fn loadProgramSegments(
     /// This allows the loader to pass debug information to the kernel.
     dwarf_info: *?std.debug.Dwarf,
 ) !void {
-    // How many segments (described by program headers) we should load
+    // Running count of segments actually loaded so far (used below to catch
+    // an ELF with no LOAD-type program headers at all)
     var n_segments_loaded: u64 = 0;
     // Used in the loop that iterates over the program headers
     var set_start_address: bool = true;
@@ -317,14 +324,71 @@ pub fn loadProgramSegments(
     }
 }
 
+/// Errors from picking a physical location to load the kernel at
+pub const FindLoadAddressError = error{NoSuitableMemory};
+
+/// Compute how many bytes of physical memory the kernel's PT_LOAD segments
+/// span (from the lowest segment's vaddr to the end of the highest one),
+/// then find a UEFI conventional-memory region at/above 1MB that's actually
+/// big enough to hold the whole thing -- rather than trusting the first
+/// such region regardless of size, which can leave later segments spilling
+/// past the end of a too-small region and into memory the firmware is
+/// still using (silent heap corruption, surfacing as a fault deep inside
+/// some later, unrelated boot service call).
+pub fn findKernelLoadAddress(
+    memory_map: uefi.tables.MemoryMapSlice,
+    memory_map_info: uefi.tables.MemoryMapInfo,
+    program_headers: []const elf.Elf64.Phdr,
+) FindLoadAddressError!u64 {
+    var min_vaddr: u64 = std.math.maxInt(u64);
+    var max_vaddr_end: u64 = 0;
+    var any_load = false;
+    for (program_headers) |phdr| {
+        if (phdr.type != .LOAD) continue;
+        any_load = true;
+        if (phdr.vaddr < min_vaddr) min_vaddr = phdr.vaddr;
+        const segment_end = phdr.vaddr + phdr.memsz;
+        if (segment_end > max_vaddr_end) max_vaddr_end = segment_end;
+    }
+    if (!any_load) {
+        log.err("no LOAD segments to size the kernel image from", .{});
+        return error.NoSuitableMemory;
+    }
+    const required_size = max_vaddr_end - min_vaddr;
+    log.debug("kernel image needs {} bytes of physical memory", .{required_size});
+
+    var mem_index: usize = 0;
+    while (mem_index < memory_map_info.len) : (mem_index += 1) {
+        const mem_point: *uefi.tables.MemoryDescriptor = @ptrCast(@alignCast(memory_map.ptr + (mem_index * memory_map_info.descriptor_size)));
+        if (mem_point.type == .conventional_memory and
+            mem_point.physical_start >= 0x100000 and
+            mem_point.number_of_pages * @as(u64, pages.page_size) >= required_size)
+        {
+            log.debug("found {} free pages (>= {} bytes needed) at 0x{x}", .{ mem_point.number_of_pages, required_size, mem_point.physical_start });
+            return mem_point.physical_start;
+        }
+    }
+    log.err("no conventional memory region >= 1M big enough for the kernel image ({} bytes)", .{required_size});
+    return error.NoSuitableMemory;
+}
+
 /// Load the kernel image
 pub fn loadKernelImage(
     /// Pointer pointing to the root file system
     root_file_system: *const uefi.protocol.File,
     /// UEFI (16-bit) string with the file name of the kernel
     kernel_image_filename: [*:0]const u16,
-    /// Physical base address to load the bootloader
-    base_physical_address: u64,
+    /// The current UEFI memory map, used to pick a physical address to load
+    /// the kernel at once its segment sizes are known (see
+    /// `findKernelLoadAddress`)
+    memory_map: uefi.tables.MemoryMapSlice,
+    /// Metadata (descriptor size/count) describing `memory_map`
+    memory_map_info: uefi.tables.MemoryMapInfo,
+    /// Pointer to the physical base address variable to be set, once
+    /// `findKernelLoadAddress` picks one -- the caller needs this same
+    /// address separately (it's where the kernel's `__kernel_boot_info` slot
+    /// lives, at the very start of the image)
+    kernel_physical_start: *u64,
     /// Pointer to the "kernel_entry_point" variable to be set
     kernel_entry_point: *u64,
     /// Pointer to the "kernel_start_address" variable for virtual memory
@@ -464,6 +528,11 @@ pub fn loadKernelImage(
     // iterate more easily over it.
     const program_headers: []const elf.Elf64.Phdr = @as([*]const elf.Elf64.Phdr, @ptrCast(@alignCast(program_headers_buffer)))[0..header.phnum];
     const section_headers: []const elf.Elf64.Shdr = @as([*]const elf.Elf64.Shdr, @ptrCast(@alignCast(section_headers_buffer)))[0..header.shnum];
+    // Now that we know the segments' sizes, pick a physical location that's
+    // actually big enough to hold all of them.
+    const base_physical_address = try findKernelLoadAddress(memory_map, memory_map_info, program_headers);
+    log.info("loading kernel at physical address 0x{x}", .{base_physical_address});
+    kernel_physical_start.* = base_physical_address;
     // And now, we call our helper function.
     try loadProgramSegments(
         kernel_img_file,

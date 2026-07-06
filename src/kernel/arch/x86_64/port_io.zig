@@ -56,6 +56,10 @@ pub inline fn out(comptime T: type, port: u16, val: T) void {
 }
 
 /// Wait a very small amount of time
+/// Port 0x80 is the (unused on modern hardware) POST diagnostic-code port;
+/// writing to it costs one bus I/O cycle with no side effects, which is the
+/// classic cheap delay for chips (e.g. the PIC) that need a breather between
+/// commands.
 pub inline fn ioWait() void {
     outb(0x80, 0);
 }

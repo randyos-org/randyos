@@ -171,7 +171,7 @@ pub const CR4 = packed struct(u64) {
     /// (Introduced in the P6 family processors.) Enables the global page feature when set; disables the global page feature when clear.
     pge: bool,
     /// Performance-Monitoring Counter Enable
-    /// Enables execution of the RDPMC instruction for programs or procedures running at any protectiion level when set; RDPMC instruction can be executed only at protection level 0 when clear.
+    /// Enables execution of the RDPMC instruction for programs or procedures running at any protection level when set; RDPMC instruction can be executed only at protection level 0 when clear.
     pce: bool,
     /// Operating System Support for FXSAVE and RXRSTOR instructions
     /// When set, this flag:
@@ -497,7 +497,10 @@ pub inline fn getIP() usize {
     );
 }
 
-/// Write in the Instruction Pointer register and jump there
+/// Jump to `ip` (instruction pointer) on a new stack `sp` (stack pointer),
+/// passing `param` as the callee's first argument
+/// (via `rdi`, per the SysV calling convention) -- e.g. for handing
+/// off to a freshly built stack frame.
 pub inline fn jumpIP(ip: usize, sp: usize, param: anytype) noreturn {
     asm volatile ("push %[ip]; ret"
         :

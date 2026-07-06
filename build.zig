@@ -92,7 +92,7 @@ fn addBootldr(
     sysroot: *WriteFile,
     optimize: OptimizeMode,
     common_mod: *Module,
-) void {
+) *Step.Compile {
     // This is the bootloader target query. We need this special target because
     // bootloaders have a different executable format (and so on) than normal
     // native executables.
@@ -131,6 +131,7 @@ fn addBootldr(
             bootloader_exe.out_filename,
         }),
     );
+    return bootloader_exe;
 }
 
 fn addKernel(
@@ -138,7 +139,7 @@ fn addKernel(
     sysroot: *WriteFile,
     optimize: OptimizeMode,
     common_mod: *Module,
-) void {
+) *Step.Compile {
     // This is the kernel target query. This one is also an x86_64 executable,
     // but freestanding. Normal executables communicate with an operating
     // system to do things. The kernel is one of the core parts for an
@@ -184,6 +185,7 @@ fn addKernel(
         kernel_exe.getEmittedBin(),
         kernel_exe.out_filename,
     );
+    return kernel_exe;
 }
 
 /// Roadmap descriptor for a not-yet-implemented arch stub. Unlike x86_64
@@ -436,6 +438,34 @@ fn addMonitorCmd(b: *Build) void {
     monitor_step.dependOn(&monitor.step);
 }
 
+/// Wire up API documentation generation: Zig's built-in autodoc extracts
+/// `///`/`//!` doc comments during semantic analysis (no separate tool, and
+/// no codegen needed), so this works fine even though the bootloader/kernel
+/// target UEFI/freestanding rather than a hosted OS. Generated separately
+/// per entry point (they're different executables/targets); `common`,
+/// imported by both, shows up nested under whichever entry point's docs
+/// you're browsing. The roadmap arch stubs (see `ArchStub`) are
+/// deliberately left out here -- they're compile-only placeholders, not
+/// something worth documenting on every build.
+fn addDocs(b: *Build, bootloader_exe: *Step.Compile, kernel_exe: *Step.Compile) void {
+    const bootloader_docs = b.addInstallDirectory(.{
+        .source_dir = bootloader_exe.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/bootloader",
+    });
+    const kernel_docs = b.addInstallDirectory(.{
+        .source_dir = kernel_exe.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/kernel",
+    });
+    const docs_step = b.step("docs", "Generate and install API documentation for the bootloader and kernel");
+    docs_step.dependOn(&bootloader_docs.step);
+    docs_step.dependOn(&kernel_docs.step);
+    // Also run as part of the default `zig build`/`zig build install`, not
+    // just when `zig build docs` is requested explicitly.
+    b.getInstallStep().dependOn(docs_step);
+}
+
 fn addSysroot(b: *Build) Sysroot {
     const sysroot_build = b.addWriteFiles();
     const sysroot_install = b.addInstallDirectory(.{
@@ -460,10 +490,9 @@ pub fn build(b: *Build) void {
     addMonitorCmd(b);
 
     const common_mod = addCommon(b, optimize);
-    addBootldr(b, sysroot.build, optimize, common_mod);
-    addKernel(b, sysroot.build, optimize, common_mod);
-    // addBootldr(b, sysroot.build, optimize);
-    // addKernel(b, sysroot.build, optimize);
+    const bootloader_exe = addBootldr(b, sysroot.build, optimize, common_mod);
+    const kernel_exe = addKernel(b, sysroot.build, optimize, common_mod);
+    addDocs(b, bootloader_exe, kernel_exe);
 
     // Roadmap stubs -- see ArchStub's doc comment. None of these touch the
     // default install step, the sysroot, or the QEMU pipeline above.

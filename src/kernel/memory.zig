@@ -8,23 +8,23 @@ pub const kernel_page_allocator = @import("memory/kernel_page_allocator.zig");
 ///   - Source and destination may overlap
 ///   - Both slices must have the same length
 pub fn memmove(comptime T: type, dest: []T, src: []const T) void {
-    // if length is not the same, panic
-    if (dest.len <= src.len) {
-        log.err("Destination slice is shorter than source slice, cannot move properly! ", .{});
+    if (dest.len != src.len) {
+        log.err("Destination and source slices have different lengths, cannot move properly! ", .{});
+        return;
     }
     const len = src.len;
-    var index: usize = 0;
-    // if they don't overlap, use builtin @memcpy
-    if (@intFromPtr(src) - @intFromPtr(dest) - len <= -2 * len) {
-        @memcpy(dest, src);
-    }
-    if (dest.ptr < src.ptr) {
+    if (@intFromPtr(dest.ptr) < @intFromPtr(src.ptr)) {
+        // dest starts before src: copying front-to-back never overwrites a
+        // src element before it's been read.
+        var index: usize = 0;
         while (index < len) : (index += 1) {
             dest[index] = src[index];
         }
     } else {
-        index = len;
-        while (index > 0) : (index -= 1) {
+        // dest starts at/after src: mirror the above by copying back-to-front.
+        var index: usize = len;
+        while (index > 0) {
+            index -= 1;
             dest[index] = src[index];
         }
     }
@@ -34,19 +34,20 @@ pub fn memmove(comptime T: type, dest: []T, src: []const T) void {
 ///   - Source and destination may overlap
 ///   - Both slices must have the same length
 pub fn memmoveVolatile(comptime T: type, dest: []volatile T, src: []const volatile T) void {
-    // if length is not the same, panic
-    if (dest.len <= src.len) {
-        log.err("Destination slice is shorter than source slice, cannot move properly! ", .{});
+    if (dest.len != src.len) {
+        log.err("Destination and source slices have different lengths, cannot move properly! ", .{});
+        return;
     }
     const len = src.len;
-    var index: usize = 0;
     if (@intFromPtr(dest.ptr) < @intFromPtr(src.ptr)) {
+        var index: usize = 0;
         while (index < len) : (index += 1) {
             dest[index] = src[index];
         }
     } else {
-        index = len;
-        while (index > 0) : (index -= 1) {
+        var index: usize = len;
+        while (index > 0) {
+            index -= 1;
             dest[index] = src[index];
         }
     }

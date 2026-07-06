@@ -181,6 +181,7 @@ kexec_load
 keyctl
 kill
 kmain
+kmod
 kpanic
 landlock_add_rule
 landlock_create_ruleset
@@ -210,9 +211,11 @@ lsm_get_self_attr
 lsm_list_modules
 lsm_set_self_attr
 lstat
+ltex
 madt
 madvise
 map_shadow_stack
+markdownlint
 MAXPHYADDR
 mbind
 membarrier
@@ -288,6 +291,7 @@ outb
 outl
 outw
 OVMF
+PascalCase
 pause
 pciconfig
 PCID
@@ -468,6 +472,7 @@ stat
 statfs
 statmount
 statx
+std
 STPCLK
 stty
 swapoff
@@ -484,6 +489,7 @@ SYSEXIT
 sysfs
 sysinfo
 syslog
+sysroot
 tee
 tgkill
 time
@@ -497,6 +503,7 @@ timerfd_gettime
 timerfd_settime
 times
 tkill
+toolchain
 truncate
 tuxcall
 uapi
@@ -541,3 +548,6 @@ xsdt
 XSETBV
 xtpr
 zig
+
+stdlib
+autodoc

@@ -51,13 +51,13 @@ pub fn uartInitialize() void {
     // This sets some bits in the Modem Control Register.
     //   - the first bit controls the Data Terminal Ready pin
     //   - the second bit controls the Request to Send pin
-    //   - the third bit us unused in PC implementations
+    //   - the third bit is unused in PC implementations
     //   - the fourth bit controls a hardware pin which is used to enable the
     //     IRQ in PC implementations.
     //   - the fifth bit provides a local loopback feature for diagnostic
     //     testing of the UART
     //   - the sixth to eighth bytes are unused
-    port_io.outb(modem_command_port, 0x0b); // IRQs enabled, RTS/DSR set
+    port_io.outb(modem_command_port, 0x0b); // DTR/RTS set, IRQ pin (OUT2) enabled
     uart_ready = true;
 }
 
@@ -65,8 +65,9 @@ pub fn uartInitialize() void {
 /// This function is inlined because it may get called thousand times per
 /// second, so we don't need a stack frame for each call.
 pub inline fn uart_is_transmit_buffer_empty() bool {
-    // We ask the line status register and if the sixth bit is set, the
-    // transmit buffer is full.
+    // We ask the line status register and if the sixth bit (Transmitter
+    // Holding Register Empty) is set, the transmit buffer is empty and
+    // ready to accept another byte.
     return (port_io.inb(line_status_port) & 0x20) != 0;
 }
 

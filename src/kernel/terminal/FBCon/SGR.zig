@@ -35,6 +35,8 @@ pub fn colorFromANSI(color_code: u32) Color {
 pub fn selectGraphicRendition(self: *FBCon, control_sequence: FBCon.ControlSequence) void {
     var len: usize = 0;
     const pxfmt = self.gd.pixel_format;
+    // args are packed contiguously from index 0 -- the first null marks the
+    // end, so this just counts how many were actually supplied.
     for (control_sequence.args) |arg| {
         if (arg) |_| {
             len += 1;
@@ -42,7 +44,11 @@ pub fn selectGraphicRendition(self: *FBCon, control_sequence: FBCon.ControlSeque
             break;
         }
     }
-    for (control_sequence.args[0..len]) |arg| {
+    // ANSI defaults a bare `ESC[m` (no explicit parameters) to SGR 0
+    // (reset), same as `ESC[0m`.
+    const default_args = [1]?FBCon.ControlSequenceArgument{.{ .number = 0 }};
+    const args = if (len == 0) default_args[0..] else control_sequence.args[0..len];
+    for (args) |arg| {
         switch (arg orelse unreachable) {
             .number => |num| {
                 switch (num) {

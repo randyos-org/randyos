@@ -79,7 +79,7 @@ pub fn init() void {
     log.info("IDT initialization...", .{});
     // make descriptor point to global idt
     descriptor.offset = @intFromPtr(&global_idt);
-    // construct the gdt generically
+    // construct the idt generically
     inline for (0..255) |i| {
         if (getVector(i)) |vector| {
             switch (Exception.is(i)) {
@@ -114,6 +114,8 @@ pub fn init() void {
 /// Generic Interrupt Caller
 pub fn getVector(comptime number: u8) ?InterruptFunction {
     return switch (number) {
+        // vectors 15 and 22-31 are Intel-reserved (no exception is defined
+        // for them), so leave those IDT entries absent (not present)
         inline 15, 22...31 => null,
         else => blk: {
             // normal or trap
@@ -381,6 +383,8 @@ export fn interruptHandler(frame: *InterruptFrame) void {
             });
             @panic("reached unhandled error");
         },
+        // IRQ1 (keyboard) remapped through the I/O APIC at offset 48 (see
+        // `ioapic.init` call in platform.zig), landing on vector 49
         49 => ps2.keyboardHandler(),
         else => {
             log.debug("Frame contents: {}", .{frame});

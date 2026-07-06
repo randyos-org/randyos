@@ -51,7 +51,10 @@ pub const RSDP = extern struct {
             2 => for (arr[0..self.length]) |val| {
                 sum +%= val;
             },
-            else => log.err("Invalid ACPI RSDP revision!", .{}),
+            else => {
+                log.err("Invalid ACPI RSDP revision!", .{});
+                return error.InvalidChecksum;
+            },
         }
         if (sum != 0) {
             return error.InvalidChecksum;

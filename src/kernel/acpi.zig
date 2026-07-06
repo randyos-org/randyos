@@ -107,7 +107,9 @@ pub fn init(kernel_boot_info: *boot_info.KernelBootInfo) ACPIError!ACPIInfo {
                 ioapic_addr = entry.io_apic.ioapic_addr;
                 glob_sys_int_base = entry.io_apic.glob_sys_int_base;
             },
-            // we already handled this in rsdp checksum and there it will cause a panic so this *is* unreachable
+            // Safe: rsdp.verifyChecksum() (called above) returns
+            // error.InvalidChecksum for any revision other than 0/2, so
+            // control never reaches here with an unrecognized revision.
             else => unreachable,
         }
     } else {

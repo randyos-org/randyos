@@ -342,8 +342,11 @@ pub const SgrStyle = union(enum) {
     hidden,
     strike,
 
-    /// Turns off both bold and dim -- the spec doesn't distinguish them
+    /// Some terminals treat this as "not bold", but ECMA-48 actually defines
+    /// 21 as double underline -- not reliable for turning off bold; prefer `no_dim`.
     no_bold,
+    /// The spec's real intensity reset -- turns off both bold and dim, since
+    /// they're the same "intensity" attribute (21/`no_bold` is not reliable for this).
     no_dim,
     no_italic,
     no_underline,

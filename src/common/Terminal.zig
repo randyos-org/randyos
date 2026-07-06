@@ -5,7 +5,7 @@ const log = std.log.scoped(.common_term);
 const Terminal = @This();
 const ansi = @import("ansi.zig");
 
-/// Terminal writer
+/// The active default Terminal instance, if any
 pub var default_term: ?*Terminal = null;
 
 writer: Writer = .{

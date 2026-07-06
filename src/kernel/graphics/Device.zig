@@ -26,6 +26,8 @@ pub fn init(self: *Self, boot_data: *boot_info.KernelBootInfo) void {
     log.debug("initializing graphics device", .{});
     self.framebuffer_pointer = boot_data.video_mode_info.framebuffer_pointer;
     self.pixels_per_scanline = boot_data.video_mode_info.pixels_per_scanline;
+    // 0/1 mirror UEFI's GraphicsPixelFormat enum (PixelRedGreenBlueReserved8BitPerColor /
+    // PixelBlueGreenRedReserved8BitPerColor); other values (bitmask or BLT-only formats) aren't supported.
     self.pixel_format = switch (boot_data.video_mode_info.pixel_format) {
         0 => .rgb,
         1 => .bgr,

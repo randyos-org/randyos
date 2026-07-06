@@ -95,9 +95,9 @@ curpos: CursorPosition = CursorPosition{
     .column = 0,
     .row = 0,
 },
-/// Maximal width
+/// Maximal width, in character columns (not pixels)
 max_width: u32 = 80,
-/// Maximal height
+/// Maximal height, in character rows (not pixels)
 max_height: u32 = 25,
 /// Graphical Features
 graphical_features: GraphicalFeatures = .{
@@ -147,7 +147,8 @@ pub fn init(self: *Self, gd: *GraphicsDev, clear: bool) void {
     self.term.init(.{});
 }
 
-/// Clear the Screen (effectively set the color of everything to the theme's background color)
+/// Clear the Screen (effectively set the color of everything to the theme's
+/// background color) and home the cursor to (0, 0)
 pub fn clearScreen(self: *Self) void {
     const gd = self.gd;
     const total_size: usize = gd.pixels_per_scanline * gd.pixel_height;
@@ -163,16 +164,15 @@ pub fn clearScreen(self: *Self) void {
     self.curpos.row = 0;
 }
 
-/// Draw a single character (CP437)
+/// Draw a single character (CP437). `x`/`y` are character-cell (column/row)
+/// coordinates, not pixel coordinates -- they get multiplied by the font
+/// size below to find the actual pixel origin.
 pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
     const width = self.font.width;
     const height = self.font.height;
     const gd = self.gd;
     const px_per_scanline = gd.pixels_per_scanline;
     const fb = gd.framebuffer_pointer;
-    if (width > 16) {
-        log.err("Fonts wider than 16 pixels are illegal as of now! ", .{});
-    }
     const char_start: usize = char_index * @as(usize, height);
     const base_index: usize = x * @as(usize, width) + (y * @as(usize, height)) *% px_per_scanline;
     var col: u4 = 0;
@@ -185,6 +185,18 @@ pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
         color = self.bgcolor_int;
     }
     if (self.graphical_features.invisible == true) {
+        // Hidden text still occupies a cell -- paint it as a plain background
+        // rect instead of skipping the draw entirely, so it doesn't leave
+        // the previous glyph's pixels on screen.
+        while (row < height) : ({
+            row += 1;
+            col = 0;
+        }) {
+            while (col < width) : (col += 1) {
+                const index: usize = base_index + col + row *% px_per_scanline;
+                fb[index] = bgcolor;
+            }
+        }
         return;
     }
     while (row < height) : ({
@@ -194,7 +206,9 @@ pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
         while (col < width) : (col += 1) {
             var index: usize = base_index + col;
             index += row *% px_per_scanline;
-            const value = self.font.data[char_start + row] & @as(u16, 1) << (width - col);
+            // Glyph rows are MSB-first (bit 7 = leftmost pixel), so column
+            // `col` (0 = leftmost) lives at bit `width - 1 - col`.
+            const value = self.font.data[char_start + row] & @as(u16, 1) << (width - 1 - col);
             fb[index] = if (value == 0) bgcolor else color;
         }
     }
@@ -210,7 +224,7 @@ pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
             while (col < width) : (col += 1) {
                 const col_left: u4 = if (col == 0) 0 else col - 1;
                 const index: usize = base_index + col + row *% px_per_scanline;
-                const value_left = self.font.data[char_start + row] & @as(u16, 1) << (width - col_left);
+                const value_left = self.font.data[char_start + row] & @as(u16, 1) << (width - 1 - col_left);
                 if (value_left != 0) fb[index] = color;
             }
         }
@@ -293,9 +307,10 @@ pub fn handleVal(self: *Self, val: StateValue) void {
     self.control_sequence.index += 1;
 }
 
-/// Check whether the character is special or not
+/// Check whether a character is special (newline, CR, ESC, or part of an
+/// in-progress control sequence) rather than plain printable text.
 ///
-/// Will get important when using control sequences
+/// Also drives the control-sequence parser's state machine as a side effect.
 pub fn isSpecialChar(self: *Self, char: u8) bool {
     return switch (char) {
         '\n' => true,
@@ -324,9 +339,11 @@ pub fn isSpecialChar(self: *Self, char: u8) bool {
             switch (self.state) {
                 .control_sequence_start, .control_sequence_delimiter => {
                     if ('<' <= char and char <= '?') {
+                        // DEC private-mode prefix byte (e.g. '?' in `CSI ?25h`) -- stored as-is, not parsed as a digit
                         self.control_sequence.args[self.control_sequence.index] = ControlSequenceArgument{ .char = char };
                         self.control_sequence.index += 1;
                     } else {
+                        // first digit of a new numeric argument
                         self.state = State{
                             .control_sequence_value = .{
                                 .values = [_]u8{ char, 0, 0, 0, 0, 0, 0, 0 },
@@ -381,6 +398,9 @@ pub fn isSpecialChar(self: *Self, char: u8) bool {
             }
         },
         else => blk: {
+            // any other byte aborts an in-progress sequence (back to `.none`)
+            // rather than trying to recover -- malformed sequences are just
+            // dropped, and the byte itself is treated as plain text
             if (self.state != .none) {
                 self.state = .none;
             }
@@ -401,9 +421,10 @@ pub fn handleControlSequence(self: *Self, control_sequence: ControlSequence) voi
     }
 }
 
-/// Handle a special character
-///
-/// Will get important when using control sequences
+/// Handle a special character: `\n`/`\r` move the cursor directly. Any other
+/// special character (ESC or part of an in-progress control sequence) is a
+/// no-op here unless it's the final byte that just completed the sequence,
+/// in which case it's dispatched via `handleControlSequence`.
 pub fn handleSpecialChar(self: *Self, char: u8) void {
     switch (char) {
         '\n' => {
@@ -448,6 +469,8 @@ pub fn puts(self: *Self, msg: []const u8) void {
             self.curpos.row += 1;
         }
         if (self.curpos.row == self.max_height) {
+            // ran off the bottom edge -- pull back onto the last row and
+            // scroll its contents up, rather than growing past max_height
             self.curpos.row -= 1;
             self.scroll();
         }

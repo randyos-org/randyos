@@ -14,7 +14,9 @@ var con_out: *uefi.protocol.SimpleTextOutput = undefined;
 // This is why we need this variable.
 var already_called_puts: bool = false;
 
-/// This function puts out any normal string.
+/// This function puts out any normal string. Assumes ASCII: each byte is
+/// transcribed to one UTF-16 code unit with no UTF-8 decoding, so multi-byte
+/// UTF-8 sequences would come out wrong.
 pub fn puts(msg: []const u8) void {
     // iterate over the message we want to print out.
     for (msg) |c| {
@@ -42,9 +44,12 @@ fn uefiInitialize() void {
 
 pub fn uefiTermInit(term: *Terminal, args: ?*const anyopaque) void {
     _ = args;
+    // Locate/reset the UEFI console once, shared across every Terminal that
+    // uses this vtable.
     if (!already_called_puts) {
         uefiInitialize();
     }
+    // Only wire up the generic Writer once the UEFI console is actually available.
     if (already_called_puts and !term.ready) {
         term.defaultInit(null);
     }

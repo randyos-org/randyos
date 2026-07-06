@@ -11,6 +11,7 @@ pub var log_term: ?*Terminal = null;
 /// log lines
 pub var get_time: ?*const fn () f64 = null;
 
+// timestamp, start_color, level, end_color, scope (then caller's own format string/args)
 const log_prefix_fmt = "{d:.4} [{s}{s}{s}]({s}): ";
 
 /// Guards against re-entrant logging. Terminals that parse their own output
@@ -19,7 +20,9 @@ const log_prefix_fmt = "{d:.4} [{s}{s}{s}]({s}): ";
 /// printing the very first color code would recurse into itself forever.
 var logging_in_progress: bool = false;
 
-/// Logging function
+/// std.log callback (wired up via `std_options.logFn`); silently drops the
+/// line if `log_term` isn't set yet (e.g. before platform init or after
+/// `stopLogging()`).
 pub fn logFn(
     comptime level: std.log.Level,
     comptime scope: @TypeOf(.EnumLiteral),
@@ -35,6 +38,9 @@ pub fn logFn(
     }
 }
 
+/// Formats and writes a single log line to `term` (scope filtering + color).
+/// Split out from `logFn` so callers can log directly to a specific terminal
+/// without going through `log_term`/the reentrancy guard.
 pub fn logToTerm(
     term: *Terminal,
     comptime level: std.log.Level,

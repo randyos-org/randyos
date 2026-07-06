@@ -10,7 +10,7 @@
 //! this project's bootloader only targets x86_64 today, but there's no
 //! reason to bake that assumption into this module.
 //!
-//! Instead, this uses a periodic Boot Services timer event (1ms), which is
+//! Instead, this uses a periodic Boot Services timer event (100us), which is
 //! plain Boot Services API available on every UEFI architecture.
 
 const std = @import("std");

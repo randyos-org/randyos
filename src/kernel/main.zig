@@ -88,9 +88,10 @@ comptime {
 }
 
 /// This is our kernel main function.
-/// As you may have seen in the linker script, it says "ENTRY(kmain)". We
-/// export this function ("export fn"), so it is a public symbol that can be
-/// included by the linker.
+/// The linker script's actual `ENTRY` is `_start` (the naked asm stub above
+/// that sets up the stack and jumps to `_main`, which calls this) -- `kmain`
+/// is still `export fn` so it stays a named, locatable symbol (e.g. for a
+/// debugger), not because the linker enters here directly.
 export fn kmain(boot_data: *boot_info.KernelBootInfo) noreturn {
     // Everything below is x86_64-specific today (UART port I/O, the TSC,
     // ACPI, and platform.init's IOAPIC params are all x86 concepts, not just

@@ -1,5 +1,15 @@
 //! Kernel VGA 8x16 Font
 //! 2024 by Samuel Fiedler
+//!
+//! 256-entry CP437 codepage bitmap font, 8x16 pixels per glyph. Data is 16
+//! bytes per glyph (one byte per scanline row), MSB-first -- bit 7 is the
+//! leftmost pixel, bit 0 the rightmost. Regular glyphs leave bit 0 clear as
+//! inter-character spacing; the box-drawing range (0xC0-0xDF) sets it too,
+//! so horizontal/vertical lines join up seamlessly across cells. Glyphs are
+//! indexed directly by CP437 code point (see fonts/charmap.zig for the
+//! Unicode -> CP437 lookup). Inherited from the zig_os fork this project
+//! started from (see readme.md); the bitmap data's original upstream isn't
+//! recorded beyond that.
 
 const std = @import("std");
 const log = std.log.scoped(.term_fonts_vga_8x16);

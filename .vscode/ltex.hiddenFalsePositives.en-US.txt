@@ -1,1 +1,2 @@
 {"rule":"ENGLISH_WORD_REPEAT_RULE","sentence":"^\\QMachine Kernel target triple Kernel build step Bootloader Bootloader target triple Bootloader build step Status\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qmusl is the intended target libc for userspace, once RandyOS grows a userspace at all.\\E$"}

@@ -18,6 +18,7 @@ pub const XSDT = extern struct {
 
     /// Find XSDT Entry
     pub fn findEntry(self: *XSDT, entry_signature: []const u8) FindError!*Header {
+        // XSDT entries are 8-byte (64-bit) table pointers, unlike the RSDT's 4-byte ones.
         const len: u32 = (self.header.length - @sizeOf(Header)) / 8;
         const ptr_addr: usize = @intFromPtr(self) + @sizeOf(Header);
         const entries: [*]align(1) u64 = @ptrFromInt(ptr_addr);

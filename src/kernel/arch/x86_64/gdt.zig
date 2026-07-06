@@ -23,7 +23,10 @@ pub const TSS = extern struct {
     _2: u64 align(1) = 0,
     /// Reserved
     _3: u16 align(1) = 0,
-    /// Size of this struct
+    /// I/O Map Base Address: offset from the TSS base to the I/O permission
+    /// bitmap. Defaulted to `@sizeOf(TSS)`, i.e. past the end of the TSS
+    /// (and thus past its segment limit), which disables the I/O bitmap
+    /// entirely -- every port I/O instruction from ring 3 would #GP.
     io_base: u16 align(1) = @sizeOf(@This()),
 };
 
@@ -36,6 +39,8 @@ pub fn setIST(value: u64) void {
 }
 
 /// Get Interrupt Stack Table
+/// Masked to 3 bits since the IDT gate's IST field (see `idt.Entry.ist`) is
+/// only 3 bits wide, indexing 1-7 into `TSS.ist` (0 means "don't switch stacks").
 pub fn getISTVec() u8 {
     return ist_vec & 0b111;
 }
@@ -206,9 +211,15 @@ pub const SystemAccess = packed struct(u8) {
 
 /// System GDT Entry
 pub const SystemEntry = packed struct(u128) {
-    /// First part of the Limit (a 20-bit value, tells the maximum addressable unit, either in 1 byte units or in 4KB pages. If set to 0xffff, the segment will span the full 4GB address space in 32bit mode)
+    /// First part of the Limit (a 20-bit value, tells the maximum
+    /// addressable unit, either in 1 byte units or in 4KB pages.
+    /// If set to 0xfffff, the segment will span the full 4GB address space
+    /// in 32bit mode)
     limit_low: u16 = 0xffff,
-    /// First part of the Base (a 64-bit value containing the linear address where the segment begins)
+    /// Low 24 bits of the Base (paired with `base_high` below to form the full
+    /// 64-bit linear address where the segment begins.
+    /// System descriptors are 16 bytes so they can hold a full 64-bit base,
+    /// unlike the 32-bit-only base in `Entry`)
     base_low: u24 = 0,
     /// Access bit
     access: SystemAccess = .{},
@@ -299,7 +310,12 @@ pub fn init() void {
         Entry.null_segment,
         Entry.kernel_code,
         Entry.kernel_data,
+
+        // unused: reserves selector 0x18 as a gap between the kernel and
+        // user segments; not referenced by `Selector` (which jumps straight
+        // from 0x10 to 0x20)
         Entry.null_segment,
+
         Entry.user_code,
         Entry.user_data,
         SystemEntry.getTSS().low(),

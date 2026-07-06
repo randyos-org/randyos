@@ -61,6 +61,9 @@ pub fn init(allocator: std.mem.Allocator, params: InitParams) void {
     gdt.init();
     idt.init();
     log.info("PIC disabling... ", .{});
+    // Remap before disabling: if a legacy PIC interrupt sneaks in during the
+    // brief window before disable() takes effect, it lands above vector 31
+    // instead of colliding with a CPU exception vector.
     pic.remap(32, 40);
     pic.disable();
     log.info("PIC disabling successful! ", .{});

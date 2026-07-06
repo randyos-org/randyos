@@ -17,6 +17,8 @@ pub fn drawRect(dev: *Device, x: u16, y: u16, width: u16, height: u16, color: Co
         while (col < width) : (col += 1) {
             // main drawing logic
             var index: usize = x + col;
+            // wrapping multiply: avoids an overflow panic in safety-checked
+            // builds if a caller passes coordinates outside the framebuffer
             index += (y + row) *% dev.pixels_per_scanline;
             dev.framebuffer_pointer[index] = color.getInt(dev.pixel_format);
         }
@@ -38,7 +40,9 @@ pub const PixelBuffer = struct {
 pub fn drawBitmap(dev: *Device, x: u16, y: u16, image: PixelBuffer) void {
     for (0..image.height) |row| {
         for (0..image.width) |col| {
-            const index = (x + col) + (y + row) * dev.pixels_per_scanline;
+            // wrapping multiply: same defensive reasoning as drawRect, so
+            // out-of-framebuffer coordinates wrap instead of panicking here
+            const index = (x + col) + (y + row) *% dev.pixels_per_scanline;
             dev.framebuffer_pointer[index] = dev.getColorInt(image.pixels[row * image.width + col]);
         }
     }
