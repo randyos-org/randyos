@@ -181,6 +181,7 @@ fn bootloader() !void {
     };
     // After the loader loaded the kernel, we can do some final steps in the
     // bootloader before we jump into the kernel.
+    log.debug("loadKernelImage returned OK", .{});
     log.debug("kernel entry point is: '0x{x:0>16}'", .{kernel_entry_point});
     log.debug("kernel start address is: '0x{x:0>16}'", .{kernel_start_address});
 
@@ -214,6 +215,8 @@ fn bootloader() !void {
         log.err("disabling watchdog timer failed: {s}", .{@errorName(err)});
         return err;
     };
+    log.debug("watchdog timer disabled", .{});
+
     // Now, we are preparing to exit the boot services. The boot services are
     // those things that located the protocols. But when we jump into the
     // kernel, we want to have full control over our computer and don't want to

@@ -310,18 +310,22 @@ pub fn loadProgramSegments(
             };
         }
     }
+    log.debug("found_debug_info={}", .{found_debug_info});
     if (found_debug_info) {
         dwarf_info.* = std.debug.Dwarf{
             .sections = sections,
         };
+        log.debug("about to call Dwarf.open", .{});
         dwarf_info.*.?.open(uefi.pool_allocator, builtin.cpu.arch.endian()) catch |err| {
             log.err("opening debug info failed: {s}", .{@errorName(err)});
             dwarf_info.* = null;
             return error.LoadError;
         };
+        log.debug("Dwarf.open returned OK", .{});
     } else {
         dwarf_info.* = null;
     }
+    log.debug("loadProgramSegments about to return", .{});
 }
 
 /// Errors from picking a physical location to load the kernel at
