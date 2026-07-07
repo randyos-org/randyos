@@ -8,7 +8,7 @@ RandyOS is a from-scratch, multi-arch OS fork of [zig_os](https://codeberg.org/s
 [loup-os](https://codeberg.org/loup-os), built with Zig. See `readme.md` for the target-machine matrix.
 Only the x86_64 PC/Mac path (UEFI bootloader + freestanding kernel) is actually working; every other
 architecture in `src/kernel/arch/` and every `src/bootloader-*/` directory is a compile-only roadmap
-stub (see the `ArchStub` doc comment in `build.zig` and `src/abi/README.md`).
+stub (see the `ArchStub` doc comment in `src/build/arch_stubs.zig` and `src/abi/README.md`).
 
 Don't try to "finish" a stub arch unless explicitly asked — the stub existing and compiling *is* the
 current milestone for that arch.
@@ -29,8 +29,13 @@ current milestone for that arch.
   to a dispatcher yet. Read `src/abi/README.md` before editing anything under `src/abi/syscall/`; if a
   table ever needs refreshing, re-fetch the Linux source file and re-run extraction rather than
   hand-editing numbers.
-- `build.zig` — single build script for everything above; see its doc comments for the sysroot/QEMU/OVMF
-  plumbing and the `ArchStub` mechanism used to add new roadmap-stub architectures.
+- `build.zig` — thin orchestration only (imports `src/build/*` and wires them together in
+  `pub fn build`); no build logic of its own lives here anymore.
+- `src/build/` — build logic split by concern, Ghostty style (see each file's own doc comment):
+  `docs.zig` (API doc generation/install), `sysroot.zig` (the staging dir installed to
+  `zig-out/systemroot/`), `qemu.zig` (QEMU run/debug/monitor commands, OVMF wiring), `modules.zig`
+  (the shared `common`/`abi` modules), `targets.zig` (the real x86_64 bootloader/kernel), and
+  `arch_stubs.zig` (the `ArchStub` mechanism used to add new roadmap-stub architectures).
 - `kernel/` and `kernel-dev/` — **local-only reference copies** of the upstream loup-os/zig_os trees,
   excluded from git via `.local-gitignore` (not tracked, not part of this repo). They're kept around for
   cross-referencing during the port/rewrite (e.g. `kernel-dev/build.zig` shows a `zig build test`/`check`
@@ -47,11 +52,17 @@ current milestone for that arch.
 - `zig build run` / `zig build debug` — raw QEMU invocations (debug waits for a GDB connection on
   `localhost:1234`).
 - `zig build monitor` — attach to the QEMU monitor socket via `socat`.
-- `zig build docs` — generate API docs (Zig's built-in autodoc, extracted from `///`/`//!` comments) for
-  the bootloader and kernel separately, installed to `zig-out/docs/bootloader/` and `zig-out/docs/kernel/`
-  respectively (each has its own `index.html`). This also runs automatically as part of the default
-  `zig build`/`zig build install` step -- no separate invocation needed for docs to stay current. The
-  roadmap arch stubs (`kernel-<arch>`/`boot-<arch>`) don't get docs generated for them.
+- `zig build docs` — generate API docs (Zig's built-in autodoc, extracted from `///`/`//!` comments),
+  each module/target installed to its own `zig-out/docs/<name>/` (its own `index.html`): `common`,
+  `bootloader`, `kernel`, and one per real architecture for `abi` (`abi-x86_64`, `abi-aarch64`, `abi-arm`,
+  `abi-powerpc`) -- separate builds are needed there because Zig's autodoc can only resolve one branch of
+  a `builtin.cpu.arch`-keyed switch per compilation (see `syscall`/`auxv`/`fcntl`/`mman`/`types.stat` in
+  `src/abi/`), so a single build would only ever document whichever architecture happens to match the
+  machine running `zig build docs`. This all runs automatically as part of the default `zig build`/
+  `zig build install` step -- no separate invocation needed for docs to stay current. The roadmap arch
+  stubs (`kernel-<arch>`/`boot-<arch>`) also get docs, but installed under their own step
+  (`zig-out/docs/kernel-<arch>/`/`zig-out/docs/boot-<arch>/`), not the shared `docs` step, so a stub that
+  doesn't compile yet can't break the default build's docs.
 - There is currently no `zig build test`/`check` step wired up at the repo root (unlike the reference
   trees in `kernel-dev/`). Don't assume `zig build test` works until that's ported.
 

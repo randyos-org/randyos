@@ -4,3 +4,5 @@
 {"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qfile source file(s)\\E$"}
 {"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qarch source file(s)\\E$"}
 {"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qarm and powerpc (32-bit \\E(?:Dummy|Ina|Jimmy-|Dummy-|Maniquí-|Maniquíes-|Atrapa-|Dummy\\+|Dummy's\\+)[0-9]+\\Q) also expose \\E(?:Dummy|Ina|Jimmy-|Dummy-|Maniquí-|Maniquíes-|Atrapa-|Dummy\\+|Dummy's\\+)[0-9]+\\Q/\\E(?:Dummy|Ina|Jimmy-|Dummy-|Maniquí-|Maniquíes-|Atrapa-|Dummy\\+|Dummy's\\+)[0-9]+\\Q/\\E(?:Dummy|Ina|Jimmy-|Dummy-|Maniquí-|Maniquíes-|Atrapa-|Dummy\\+|Dummy's\\+)[0-9]+\\Q, which x86_64/aarch64 (64-bit) do not.\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qsd-event (systemd's internal event loop) cannot start without epoll — this gates earlier than a naive syscall-count view would suggest.\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qprocfs/sysfs content correctness.\\E$"}

@@ -236,6 +236,7 @@ gfxdev
 gfxdraw
 gfxinfo
 gfxxform
+Ghostty
 ginfo
 glibc
 gofmt
@@ -658,6 +659,7 @@ Systemd
 systemd-udevd
 tee
 tgkill
+Tiano
 time
 timer_create
 timer_delete
@@ -724,3 +726,5 @@ xsdt
 XSETBV
 xtpr
 zig
+
+dir
