@@ -1,5 +1,7 @@
 # RandyOS
 
+![RandyOS logo](src/kernel/graphics/logo/randyos-logo.svg)
+
 Very basic OS for a very basic dude.
 
 This project is a fork of [zig_os](https://codeberg.org/sfiedler/zig_os) and [loup-os](https://codeberg.org/loup-os).
