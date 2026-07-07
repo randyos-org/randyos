@@ -3,7 +3,7 @@
 // Again, our standard library
 const std = @import("std");
 const uefi = std.os.uefi;
-const log = std.log.scoped(.uefi_term);
+const log = std.log.scoped(.bootterm);
 const common = @import("common");
 const Terminal = common.Terminal;
 

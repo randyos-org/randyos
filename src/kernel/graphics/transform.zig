@@ -4,6 +4,7 @@
 //! anything else.
 
 const std = @import("std");
+const log = std.log.scoped(.gfx_xform);
 
 const PixelBuffer = @import("draw.zig").PixelBuffer;
 const Color = @import("color.zig").Color;

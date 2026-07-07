@@ -1,2 +1,6 @@
 {"rule":"ENGLISH_WORD_REPEAT_RULE","sentence":"^\\QMachine Kernel target triple Kernel build step Bootloader Bootloader target triple Bootloader build step Status\\E$"}
 {"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qmusl is the intended target libc for userspace, once RandyOS grows a userspace at all.\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qarch source file\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qfile source file(s)\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qarch source file(s)\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qarm and powerpc (32-bit \\E(?:Dummy|Ina|Jimmy-|Dummy-|Maniquí-|Maniquíes-|Atrapa-|Dummy\\+|Dummy's\\+)[0-9]+\\Q) also expose \\E(?:Dummy|Ina|Jimmy-|Dummy-|Maniquí-|Maniquíes-|Atrapa-|Dummy\\+|Dummy's\\+)[0-9]+\\Q/\\E(?:Dummy|Ina|Jimmy-|Dummy-|Maniquí-|Maniquíes-|Atrapa-|Dummy\\+|Dummy's\\+)[0-9]+\\Q/\\E(?:Dummy|Ina|Jimmy-|Dummy-|Maniquí-|Maniquíes-|Atrapa-|Dummy\\+|Dummy's\\+)[0-9]+\\Q, which x86_64/aarch64 (64-bit) do not.\\E$"}

@@ -61,9 +61,11 @@ pub const MADT = extern struct {
     flags: u32 align(1),
     // TODO: implement flag struct
 
+    // FIXME:GPL begin
     pub const FindError = error{
         NoMatchingEntry,
     };
+    // FIXME:GPL end
 
     /// Find an entry in the MADT
     pub fn findEntry(self: *MADT, entry_type: EntryType) FindError!Entry {
@@ -183,7 +185,7 @@ pub const MPSINTI = packed struct(u16) {
     /// Trigger Mode of the I/O APIC signals
     trigger_mode: TriggerMode,
     /// Reserved
-    _0: u12 = 0,
+    _align1: u12 = 0,
 };
 
 /// Processor local APIC
@@ -202,7 +204,7 @@ pub const IOAPIC = extern struct {
     /// I/O APIC's ID
     apic_id: u8 align(1),
     /// Reserved
-    _0: u8 align(1) = 0,
+    _align1: u8 align(1) = 0,
     /// I/O APIC Address
     ioapic_addr: u32 align(1),
     /// Global System Interrupt Base
@@ -226,7 +228,7 @@ pub const IOAPICNonMaskable = extern struct {
     /// Non-maskable interrupt source
     nmi_source: u8 align(1),
     /// Reserved
-    _0: u8 align(1) = 0,
+    _align1: u8 align(1) = 0,
     /// Flags
     flags: MPSINTI align(1),
     /// Global System Interrupt
@@ -246,7 +248,7 @@ pub const LAPICNonMaskable = extern struct {
 /// Local APIC Address Override
 pub const LAPICAddressOverride = extern struct {
     /// Reserved
-    _0: [2]u8 align(1) = [_]u8{ 0, 0 },
+    _align1: [2]u8 align(1) = [_]u8{ 0, 0 },
     /// 64bit physical address of Local APIC
     apic_addr: u64 align(1),
 };
@@ -254,7 +256,7 @@ pub const LAPICAddressOverride = extern struct {
 /// Processor Local x2APIC
 pub const Lx2APIC = extern struct {
     /// Reserved
-    _0: [2]u8 align(1) = [_]u8{ 0, 0 },
+    _align1: [2]u8 align(1) = [_]u8{ 0, 0 },
     /// Processor's local x2APIC ID
     proc_lapic_id: u32 align(1),
     /// Flags

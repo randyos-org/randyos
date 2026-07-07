@@ -18,9 +18,38 @@ const QemuCmds = struct {
     debug: *Run,
 };
 
+/// Install `compile`'s emitted docs under `zig-out/docs/<name>/` and make
+/// `target_step` depend on that install.
+fn addModuleDocsTo(b: *Build, target_step: *Step, compile: *Step.Compile, name: []const u8) void {
+    const install = b.addInstallDirectory(.{
+        .source_dir = compile.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = b.fmt("docs/{s}", .{name}),
+    });
+    target_step.dependOn(&install.step);
+}
+
+/// Shared handle each `addX` function attaches its own generated docs to,
+/// rather than a single function reaching into already-built `*Step.Compile`
+/// handles after the fact.
+const Docs = struct {
+    step: *Step,
+
+    /// Install `compile`'s emitted docs under `zig-out/docs/<name>/` and
+    /// make the shared "docs" step (part of the default install step) depend
+    /// on that install. Only for things that are always expected to build
+    /// (common/abi/bootloader/kernel) -- the roadmap arch stubs use
+    /// `addModuleDocsTo` directly against their own per-arch step instead,
+    /// so a stub that doesn't build yet can't break the default build.
+    fn addModuleDocs(docs: Docs, b: *Build, compile: *Step.Compile, name: []const u8) void {
+        addModuleDocsTo(b, docs.step, compile, name);
+    }
+};
+
 fn addCommon(
     b: *Build,
     optimize: OptimizeMode,
+    docs: Docs,
 ) *Module {
     // Default set of scopes to ignore in the logger. -Dno-log-scope adds a
     // scope to the ignore list on top of this default and may be given
@@ -84,7 +113,59 @@ fn addCommon(
         .optimize = optimize,
     });
     common_mod.addOptions("build_options", options);
+
+    // Same "docs-only, host-targeted" trick as `abi` below -- `common_mod`
+    // has no fixed target of its own (only ever imported into other
+    // target-specific modules), so it needs its own compile object to run
+    // `getEmittedDocs()` against.
+    const common_docs_mod = b.createModule(.{
+        .root_source_file = b.path("src/common/root.zig"),
+        .target = b.graph.host,
+        .optimize = optimize,
+    });
+    common_docs_mod.addOptions("build_options", options);
+    const common_docs_obj = b.addObject(.{
+        .name = "common",
+        .root_module = common_docs_mod,
+    });
+    docs.addModuleDocs(b, common_docs_obj, "common");
+
     return common_mod;
+}
+
+/// The "abi" module: Linux syscall/ABI compatibility reference data (see
+/// src/abi/README.md). Kept separate from "common" -- it's reference data
+/// about an *external* (Linux's) contract, not code shared between the
+/// bootloader and kernel.
+fn addAbi(
+    b: *Build,
+    optimize: OptimizeMode,
+    docs: Docs,
+) *Module {
+    const abi_mod = b.createModule(.{
+        .root_source_file = b.path("src/abi/root.zig"),
+        .optimize = optimize,
+    });
+
+    // `abi_mod` above has no fixed target (it's only ever imported into
+    // other target-specific modules), so it has nothing of its own to run
+    // `getEmittedDocs()` against. Build a docs-only object targeting the
+    // host natively just so `zig build docs` has something to extract
+    // abi's own doc comments from. This only affects which single
+    // architecture's `syscall` data shows up in the docs, not anything
+    // that ships.
+    const abi_docs_mod = b.createModule(.{
+        .root_source_file = b.path("src/abi/root.zig"),
+        .target = b.graph.host,
+        .optimize = optimize,
+    });
+    const abi_docs_obj = b.addObject(.{
+        .name = "abi",
+        .root_module = abi_docs_mod,
+    });
+    docs.addModuleDocs(b, abi_docs_obj, "abi");
+
+    return abi_mod;
 }
 
 fn addBootldr(
@@ -92,6 +173,8 @@ fn addBootldr(
     sysroot: *WriteFile,
     optimize: OptimizeMode,
     common_mod: *Module,
+    abi_mod: *Module,
+    docs: Docs,
 ) *Step.Compile {
     // This is the bootloader target query. We need this special target because
     // bootloaders have a different executable format (and so on) than normal
@@ -110,11 +193,12 @@ fn addBootldr(
     };
 
     const bootloader_mod = b.createModule(.{
-        .root_source_file = b.path("src/bootloader/main.zig"),
+        .root_source_file = b.path("src/bootloader/root.zig"),
         .target = b.resolveTargetQuery(bootloader_query),
         .optimize = optimize,
     });
     bootloader_mod.addImport("common", common_mod);
+    bootloader_mod.addImport("abi", abi_mod);
 
     const bootloader_exe = b.addExecutable(.{
         // It will be named "bootx64", because that's the regular path that can
@@ -131,6 +215,7 @@ fn addBootldr(
             bootloader_exe.out_filename,
         }),
     );
+    docs.addModuleDocs(b, bootloader_exe, "bootloader");
     return bootloader_exe;
 }
 
@@ -139,6 +224,8 @@ fn addKernel(
     sysroot: *WriteFile,
     optimize: OptimizeMode,
     common_mod: *Module,
+    abi_mod: *Module,
+    docs: Docs,
 ) *Step.Compile {
     // This is the kernel target query. This one is also an x86_64 executable,
     // but freestanding. Normal executables communicate with an operating
@@ -161,6 +248,7 @@ fn addKernel(
         .optimize = optimize,
     });
     kernel_mod.addImport("common", common_mod);
+    kernel_mod.addImport("abi", abi_mod);
 
     const kernel_exe = b.addExecutable(.{
         // We name it "kernel.elf" since that is what the bootloader expects.
@@ -185,114 +273,8 @@ fn addKernel(
         kernel_exe.getEmittedBin(),
         kernel_exe.out_filename,
     );
+    docs.addModuleDocs(b, kernel_exe, "kernel");
     return kernel_exe;
-}
-
-/// Roadmap descriptor for a not-yet-implemented arch stub. Unlike x86_64
-/// (wired into the default install step, the sysroot, and the QEMU
-/// pipeline), these are pure compile-and-link roadmap markers: `zig build
-/// kernel-<name>` (and `boot-<name>`, where applicable) just proves the stub
-/// arch module + linker script actually build, without touching the working
-/// x86_64 boot flow at all.
-const ArchStub = struct {
-    /// Used in step names (e.g. "aarch64" -> "kernel-aarch64") and to locate
-    /// `src/kernel/arch/<name>/kernel.ld`.
-    name: []const u8,
-    kernel_query: Target.Query,
-    kernel_code_model: std.builtin.CodeModel = .default,
-    /// `null` means this arch has no bootloader step yet -- either because
-    /// there's no UEFI firmware worth targeting at all (powerpc: classic
-    /// Macs use Open Firmware, see src/bootloader-ofw/), or because the
-    /// real target board's UEFI firmware doesn't actually help this
-    /// particular OS (arm: Pi 3 does have aarch64 UEFI via pftf, but that
-    /// firmware runs the board in 64-bit mode and doesn't boot a 32-bit OS;
-    /// aarch64's Raspberry Pi 5 case is similar but for a different reason
-    /// -- its UEFI effort was archived entirely. Both go through
-    /// src/bootloader-rpi/ instead; Pi 3/4 running aarch64 do have real
-    /// UEFI, hence aarch64 itself still has a `bootloader_query` below).
-    bootloader_query: ?Target.Query = null,
-};
-
-const arch_stubs = [_]ArchStub{
-    .{
-        .name = "aarch64",
-        .kernel_query = .{ .cpu_arch = .aarch64, .os_tag = .freestanding, .abi = .none, .ofmt = .elf },
-        // Real UEFI firmware -- correct for Raspberry Pi 3/4 (pftf). Does
-        // NOT apply to Raspberry Pi 5 (community UEFI effort archived Feb
-        // 2025 -- see src/bootloader-rpi/) or Apple Silicon Macs (no native
-        // UEFI at all -- see src/bootloader-asahi/). All three target
-        // machines share this same kernel-side stub since the CPU
-        // instruction set is identical across them.
-        .bootloader_query = .{ .cpu_arch = .aarch64, .os_tag = .uefi, .abi = .msvc, .ofmt = .coff },
-    },
-    .{
-        .name = "arm",
-        .kernel_query = .{ .cpu_arch = .arm, .os_tag = .freestanding, .abi = .eabi, .ofmt = .elf },
-        // Real target: Raspberry Pi 3 running a 32-bit OS. Its aarch64 UEFI
-        // firmware (pftf) boots the board in 64-bit mode only -- no path
-        // from there to a 32-bit OS -- so this goes through
-        // src/bootloader-rpi/ same as Pi 5, not a UEFI bootloader query.
-        .bootloader_query = null,
-    },
-    .{
-        .name = "powerpc",
-        .kernel_query = .{ .cpu_arch = .powerpc, .os_tag = .freestanding, .abi = .eabi, .ofmt = .elf },
-        .bootloader_query = null,
-    },
-};
-
-/// Builds (but does not install into the default step, sysroot, or QEMU
-/// pipeline) a stub kernel for one `ArchStub`. Every real function in it
-/// panics -- this only proves the arch module + linker script link.
-fn addStubKernel(b: *Build, optimize: OptimizeMode, common_mod: *Module, stub: ArchStub) void {
-    const kernel_mod = b.createModule(.{
-        .root_source_file = b.path("src/kernel/main.zig"),
-        .target = b.resolveTargetQuery(stub.kernel_query),
-        .code_model = stub.kernel_code_model,
-        .optimize = optimize,
-    });
-    kernel_mod.addImport("common", common_mod);
-
-    const kernel_exe = b.addExecutable(.{
-        .name = b.fmt("kernel-{s}.elf", .{stub.name}),
-        .root_module = kernel_mod,
-        .use_lld = true,
-        .use_llvm = true,
-    });
-    kernel_exe.entry = .disabled;
-    kernel_exe.setLinkerScript(b.path(b.fmt("src/kernel/arch/{s}/kernel.ld", .{stub.name})));
-
-    const install = b.addInstallArtifact(kernel_exe, .{});
-    const step = b.step(
-        b.fmt("kernel-{s}", .{stub.name}),
-        b.fmt("Build the (stub, not bootable) {s} kernel", .{stub.name}),
-    );
-    step.dependOn(&install.step);
-}
-
-/// Builds (but does not install into the default step, sysroot, or QEMU
-/// pipeline) a stub UEFI bootloader for one `ArchStub`, if it has a
-/// `bootloader_query` at all.
-fn addStubBootloader(b: *Build, optimize: OptimizeMode, common_mod: *Module, stub: ArchStub) void {
-    const query = stub.bootloader_query orelse return;
-    const bootloader_mod = b.createModule(.{
-        .root_source_file = b.path("src/bootloader/main.zig"),
-        .target = b.resolveTargetQuery(query),
-        .optimize = optimize,
-    });
-    bootloader_mod.addImport("common", common_mod);
-
-    const bootloader_exe = b.addExecutable(.{
-        .name = b.fmt("boot-{s}.efi", .{stub.name}),
-        .root_module = bootloader_mod,
-    });
-
-    const install = b.addInstallArtifact(bootloader_exe, .{});
-    const step = b.step(
-        b.fmt("boot-{s}", .{stub.name}),
-        b.fmt("Build the (stub, not wired to any boot flow) {s} UEFI bootloader", .{stub.name}),
-    );
-    step.dependOn(&install.step);
 }
 
 fn addQemuCmds(b: *Build) QemuCmds {
@@ -438,32 +420,21 @@ fn addMonitorCmd(b: *Build) void {
     monitor_step.dependOn(&monitor.step);
 }
 
-/// Wire up API documentation generation: Zig's built-in autodoc extracts
-/// `///`/`//!` doc comments during semantic analysis (no separate tool, and
-/// no codegen needed), so this works fine even though the bootloader/kernel
-/// target UEFI/freestanding rather than a hosted OS. Generated separately
-/// per entry point (they're different executables/targets); `common`,
-/// imported by both, shows up nested under whichever entry point's docs
-/// you're browsing. The roadmap arch stubs (see `ArchStub`) are
-/// deliberately left out here -- they're compile-only placeholders, not
-/// something worth documenting on every build.
-fn addDocs(b: *Build, bootloader_exe: *Step.Compile, kernel_exe: *Step.Compile) void {
-    const bootloader_docs = b.addInstallDirectory(.{
-        .source_dir = bootloader_exe.getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "docs/bootloader",
-    });
-    const kernel_docs = b.addInstallDirectory(.{
-        .source_dir = kernel_exe.getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "docs/kernel",
-    });
-    const docs_step = b.step("docs", "Generate and install API documentation for the bootloader and kernel");
-    docs_step.dependOn(&bootloader_docs.step);
-    docs_step.dependOn(&kernel_docs.step);
+fn addDocs(b: *Build) Docs {
+    const docs_step = b.step("docs", "Generate and install API documentation");
     // Also run as part of the default `zig build`/`zig build install`, not
     // just when `zig build docs` is requested explicitly.
     b.getInstallStep().dependOn(docs_step);
+
+    const docs_port = b.option(u16, "docs-port", "Port for `zig build run-docs` to serve documentation on") orelse 3000;
+    const run_docs_step = b.step("run-docs", "Serve the generated documentation locally");
+    const server_cmd = b.addSystemCommand(&.{
+        "python", "-m", "http.server", b.fmt("{d}", .{docs_port}), "-b", "127.0.0.1", "-d", "zig-out/docs/",
+    });
+    server_cmd.step.dependOn(docs_step);
+    run_docs_step.dependOn(&server_cmd.step);
+
+    return .{ .step = docs_step };
 }
 
 fn addSysroot(b: *Build) Sysroot {
@@ -489,15 +460,136 @@ pub fn build(b: *Build) void {
     addQemuSysroot(b, sysroot.install, qemu_cmds);
     addMonitorCmd(b);
 
-    const common_mod = addCommon(b, optimize);
-    const bootloader_exe = addBootldr(b, sysroot.build, optimize, common_mod);
-    const kernel_exe = addKernel(b, sysroot.build, optimize, common_mod);
-    addDocs(b, bootloader_exe, kernel_exe);
+    const docs = addDocs(b);
+    const common_mod = addCommon(b, optimize, docs);
+    const abi_mod = addAbi(b, optimize, docs);
+    _ = addBootldr(b, sysroot.build, optimize, common_mod, abi_mod, docs);
+    _ = addKernel(b, sysroot.build, optimize, common_mod, abi_mod, docs);
 
-    // Roadmap stubs -- see ArchStub's doc comment. None of these touch the
-    // default install step, the sysroot, or the QEMU pipeline above.
+    // Roadmap stubs -- see ArchStub's doc comment. These still don't touch
+    // the default install step, the sysroot, or the QEMU pipeline above, but
+    // each one's own step (`kernel-<name>`/`boot-<name>`) also builds and
+    // installs its docs, so a stub that doesn't compile yet can't break the
+    // shared "docs" step (part of the default install step above).
     for (arch_stubs) |stub| {
-        addStubKernel(b, optimize, common_mod, stub);
-        addStubBootloader(b, optimize, common_mod, stub);
+        addStubKernel(b, optimize, common_mod, abi_mod, stub);
+        addStubBootloader(b, optimize, common_mod, abi_mod, stub);
     }
+}
+
+/// Roadmap descriptor for a not-yet-implemented arch stub. Unlike x86_64
+/// (wired into the default install step, the sysroot, and the QEMU
+/// pipeline), these are pure compile-and-link roadmap markers: `zig build
+/// kernel-<name>` (and `boot-<name>`, where applicable) just proves the stub
+/// arch module + linker script actually build, without touching the working
+/// x86_64 boot flow at all.
+const ArchStub = struct {
+    /// Used in step names (e.g. "aarch64" -> "kernel-aarch64") and to locate
+    /// `src/kernel/arch/<name>/kernel.ld`.
+    name: []const u8,
+    kernel_query: Target.Query,
+    kernel_code_model: std.builtin.CodeModel = .default,
+    /// `null` means this arch has no bootloader step yet -- either because
+    /// there's no UEFI firmware worth targeting at all (powerpc: classic
+    /// Macs use Open Firmware, see src/bootloader/ofw/), or because the
+    /// real target board's UEFI firmware doesn't actually help this
+    /// particular OS (arm: Pi 3 does have aarch64 UEFI via pftf, but that
+    /// firmware runs the board in 64-bit mode and doesn't boot a 32-bit OS;
+    /// aarch64's Raspberry Pi 5 case is similar but for a different reason
+    /// -- its UEFI effort was archived entirely. Both go through
+    /// src/bootloader/rpi/ instead; Pi 3/4 running aarch64 do have real
+    /// UEFI, hence aarch64 itself still has a `bootloader_query` below).
+    bootloader_query: ?Target.Query = null,
+};
+
+const arch_stubs = [_]ArchStub{
+    .{
+        .name = "aarch64",
+        .kernel_query = .{ .cpu_arch = .aarch64, .os_tag = .freestanding, .abi = .none, .ofmt = .elf },
+        // Real UEFI firmware -- correct for Raspberry Pi 3/4 (pftf). Does
+        // NOT apply to Raspberry Pi 5 (community UEFI effort archived Feb
+        // 2025 -- see src/bootloader/rpi/) or Apple Silicon Macs (no native
+        // UEFI at all -- see src/bootloader/asahi/). All three target
+        // machines share this same kernel-side stub since the CPU
+        // instruction set is identical across them.
+        .bootloader_query = .{ .cpu_arch = .aarch64, .os_tag = .uefi, .abi = .msvc, .ofmt = .coff },
+    },
+    .{
+        .name = "arm",
+        .kernel_query = .{ .cpu_arch = .arm, .os_tag = .freestanding, .abi = .eabi, .ofmt = .elf },
+        // Real target: Raspberry Pi 3 running a 32-bit OS. Its aarch64 UEFI
+        // firmware (pftf) boots the board in 64-bit mode only -- no path
+        // from there to a 32-bit OS -- so this goes through
+        // src/bootloader/rpi/ same as Pi 5, not a UEFI bootloader query.
+        .bootloader_query = null,
+    },
+    .{
+        .name = "powerpc",
+        .kernel_query = .{ .cpu_arch = .powerpc, .os_tag = .freestanding, .abi = .eabi, .ofmt = .elf },
+        .bootloader_query = null,
+    },
+};
+
+/// Builds (but does not install into the default step, sysroot, or QEMU
+/// pipeline) a stub kernel for one `ArchStub`. Every real function in it
+/// panics -- this only proves the arch module + linker script link.
+fn addStubKernel(b: *Build, optimize: OptimizeMode, common_mod: *Module, abi_mod: *Module, stub: ArchStub) void {
+    const kernel_mod = b.createModule(.{
+        .root_source_file = b.path("src/kernel/main.zig"),
+        .target = b.resolveTargetQuery(stub.kernel_query),
+        .code_model = stub.kernel_code_model,
+        .optimize = optimize,
+    });
+    kernel_mod.addImport("common", common_mod);
+    kernel_mod.addImport("abi", abi_mod);
+
+    const kernel_exe = b.addExecutable(.{
+        .name = b.fmt("kernel-{s}.elf", .{stub.name}),
+        .root_module = kernel_mod,
+        .use_lld = true,
+        .use_llvm = true,
+    });
+    kernel_exe.entry = .disabled;
+    kernel_exe.setLinkerScript(b.path(b.fmt("src/kernel/arch/{s}/kernel.ld", .{stub.name})));
+
+    const install = b.addInstallArtifact(kernel_exe, .{});
+    const step = b.step(
+        b.fmt("kernel-{s}", .{stub.name}),
+        b.fmt("Build the (stub, not bootable) {s} kernel", .{stub.name}),
+    );
+    step.dependOn(&install.step);
+    // Docs hang off this stub's own step, not the shared "docs" step (part
+    // of the default install step) -- so a stub that doesn't compile yet
+    // can't break the real build.
+    addModuleDocsTo(b, step, kernel_exe, b.fmt("kernel-{s}", .{stub.name}));
+}
+
+/// Builds (but does not install into the default step, sysroot, or QEMU
+/// pipeline) a stub UEFI bootloader for one `ArchStub`, if it has a
+/// `bootloader_query` at all.
+fn addStubBootloader(b: *Build, optimize: OptimizeMode, common_mod: *Module, abi_mod: *Module, stub: ArchStub) void {
+    const query = stub.bootloader_query orelse return;
+    const bootloader_mod = b.createModule(.{
+        .root_source_file = b.path("src/bootloader/root.zig"),
+        .target = b.resolveTargetQuery(query),
+        .optimize = optimize,
+    });
+    bootloader_mod.addImport("common", common_mod);
+    bootloader_mod.addImport("abi", abi_mod);
+
+    const bootloader_exe = b.addExecutable(.{
+        .name = b.fmt("boot-{s}.efi", .{stub.name}),
+        .root_module = bootloader_mod,
+    });
+
+    const install = b.addInstallArtifact(bootloader_exe, .{});
+    const step = b.step(
+        b.fmt("boot-{s}", .{stub.name}),
+        b.fmt("Build the (stub, not wired to any boot flow) {s} UEFI bootloader", .{stub.name}),
+    );
+    step.dependOn(&install.step);
+    // Docs hang off this stub's own step, not the shared "docs" step (part
+    // of the default install step) -- so a stub that doesn't compile yet
+    // can't break the real build.
+    addModuleDocsTo(b, step, bootloader_exe, b.fmt("boot-{s}", .{stub.name}));
 }

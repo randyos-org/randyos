@@ -43,17 +43,17 @@ pub const CR0 = packed struct(u64) {
     /// Enables the native (internal) mechanism for reporting x87 FPU errors when set; enables the PC-style x87 FPU error reporting mechanism when clear.
     ne: bool,
     /// 10 reserved bits
-    _0: u10 = 0,
+    _align1: u10 = 0,
     /// Write Protect
     /// When set, inhibits supervisor-level procedures from writing into read-only pages; when clear, allows supervisor-level procedures to write into read-only pages (regardless of the U/S bit setting).
     wp: bool,
     /// 1 reserved bit
-    _1: u1 = 0,
+    _align2: u1 = 0,
     /// Alignment mask
     /// Enables automatic alignment checking when set; disables alignment checking when clear.
     am: bool,
     /// 10 reserved bits
-    _2: u10 = 0,
+    _align3: u10 = 0,
     /// Not Write-through
     /// When the NW and CD flags are clear, write-back or write-through is enabled for writes that hit the cache and invalidation cycles are enabled.
     nw: bool,
@@ -65,7 +65,7 @@ pub const CR0 = packed struct(u64) {
     /// Enables paging when set; disables paging when clear.
     pg: bool,
     /// 32 reserved bits
-    _3: u32 = 0,
+    _align4: u32 = 0,
 
     /// Get this control register from the processor
     pub fn get() CR0 {
@@ -111,7 +111,7 @@ pub const CR2 = packed struct(u64) {
 /// From the Intel SDM Volume 3A (December 2023), Chapter 2.5
 pub const CR3 = packed struct(u64) {
     /// 3 reserved bits
-    _0: u3 = 0,
+    _align1: u3 = 0,
     /// Page Write-Through
     /// Controls the memory type used to access the first paging structure of the current paging-structure hierarchy
     pwt: bool,
@@ -119,7 +119,7 @@ pub const CR3 = packed struct(u64) {
     /// Controls the memory type used to access the first paging structure of the current paging-structure hierarchy
     pcd: bool,
     /// 7 reserved bits
-    _1: u7 = 0,
+    _align2: u7 = 0,
     /// Page-Directory Base
     addr: u52,
 
@@ -201,7 +201,7 @@ pub const CR4 = packed struct(u64) {
     /// Enables SMX operation when set.
     smxe: bool,
     /// Reserved
-    _0: u1 = 0,
+    _align1: u1 = 0,
     /// FSGSBASE-Enable
     /// Enables the instructions RDFSBASE, RDGSBASE, WRFSBASE and WRGSBASE.
     fsgsbase: bool,
@@ -238,7 +238,7 @@ pub const CR4 = packed struct(u64) {
     /// Enables user interrupts when set, including user-interrupt delivery, user-interrupt notification identification, and the user-interrupt instructions.
     uintr: bool,
     /// 38 reserved bits
-    _1: u38 = 0,
+    _align2: u38 = 0,
 
     /// Get this control register from the processor
     pub fn get() CR4 {
@@ -266,7 +266,7 @@ pub const CR8 = packed struct(u64) {
     /// This field is available in 64-bit mode. A value of 15 means all interrupts will be disabled.
     tpl: u4,
     /// 60 reserved bits
-    _0: u60 = 0,
+    _align1: u60 = 0,
 
     /// Get this control register from the processor
     pub fn get() CR8 {
@@ -341,7 +341,7 @@ pub const CpuFeatures = packed struct(u64) {
     /// A value of 1 indicates the processor supports the performance and debug feature indication MSR IA32_PERF_CAPABILITIES.
     pdcm: bool,
     /// Reserved
-    _0: u1 = 0,
+    _align1: u1 = 0,
     /// Process-context identifiers
     /// A value of 1 indicates that the processor supports PCIDs and that software may set CR4.PCIDE to 1.
     pcid: bool,
@@ -407,7 +407,7 @@ pub const CpuFeatures = packed struct(u64) {
     /// The processor contains an Advanced Programmable Interrupt Controller (APIC), responding to mmory mapped commands in the physical address range FFFE0000 to FFFE0FFF
     apic: bool,
     /// Reserved
-    _1: u1 = 0,
+    _align2: u1 = 0,
     /// SYSENTER and SYSEXIT Instructions
     /// The SYSENTER and SYSEXIT and associated MSRs are supported.
     sep: bool,
@@ -436,7 +436,7 @@ pub const CpuFeatures = packed struct(u64) {
     /// CLFLUSH Instruction is supported
     clfsh: bool,
     /// Reserved
-    _2: u1 = 0,
+    _align3: u1 = 0,
     /// Debug Store
     /// The processor supports the ability to write debug information into a memory resident buffer.
     ds: bool,
@@ -466,7 +466,7 @@ pub const CpuFeatures = packed struct(u64) {
     /// The processor implements the thermal monitor automatic thermal control circuitry (TCC).
     tm: bool,
     /// Reserved
-    _3: u1 = 0,
+    _align4: u1 = 0,
     /// Pending Break Enable
     /// The processor supports the use of the FERR#/PBE# pin when the processor is in the stop-clock state (STPCLK# is asserted) to signal the processor that an interrupt is pending and that the processor should return to normal operation to handle the interrupt.
     pbe: bool,
@@ -581,15 +581,15 @@ pub const RFLAGS = packed struct(u64) {
     /// Carry Flag
     cf: bool,
     /// Reserved
-    _0: u1 = 1,
+    _align1: u1 = 1,
     /// Parity Flag
     pf: bool,
     /// Reserved
-    _1: u1 = 0,
+    _align2: u1 = 0,
     /// Auxiliary Carry Flag
     af: bool,
     /// Reserved
-    _2: u1 = 0,
+    _align3: u1 = 0,
     /// Zero Flag
     zf: bool,
     /// Sign Flag
@@ -607,7 +607,7 @@ pub const RFLAGS = packed struct(u64) {
     /// Nested Task
     nt: bool,
     /// Reserved
-    _3: u1 = 0,
+    _align4: u1 = 0,
     /// Resume Flag
     rf: bool,
     /// Virtual-8086 Mode
@@ -621,7 +621,7 @@ pub const RFLAGS = packed struct(u64) {
     /// ID Flag
     id: bool,
     /// Reserved
-    _4: u42,
+    _align5: u42,
 };
 
 /// Get RFLAGS

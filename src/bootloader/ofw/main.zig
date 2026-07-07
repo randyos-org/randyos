@@ -2,7 +2,7 @@
 //!
 //! STUB: nothing here is implemented. This file exists only to mark that
 //! classic PowerPC Macs (e.g. the iBook G3 750FX) boot via Open Firmware's
-//! client interface, not UEFI -- so `src/bootloader/` (UEFI + PE/COFF)
+//! client interface, not UEFI -- so `src/bootloader/uefi/` (UEFI + PE/COFF)
 //! cannot reach that hardware no matter how it's retargeted.
 //!
 //! The eventual approach here is expected to look like BootX/yaboot: Open

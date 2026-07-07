@@ -9,7 +9,7 @@
 //! for a 32-bit OS (ARM UEFI has no real "32-bit compat mode" equivalent to
 //! x86's CSM). So this is not the same target as `src/kernel/arch/aarch64/`
 //! even though it can run on the same physical board; see
-//! src/bootloader-rpi/ for the (unimplemented) non-UEFI boot story that
+//! src/bootloader/rpi/ for the (unimplemented) non-UEFI boot story that
 //! actually applies here.
 //!
 //! Note: this targets plain `arm` (ARM instruction set), not `thumb`. If

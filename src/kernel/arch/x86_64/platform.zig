@@ -5,7 +5,7 @@ const std = @import("std");
 const log = std.log.scoped(.arch_platform);
 
 const common = @import("common");
-const boot_info = common.boot_info;
+const KernelBootInfo = common.boot_info.KernelBootInfo;
 // const boot_info = @import("../../../boot_info.zig");
 
 /// Port Input / Output
@@ -40,12 +40,13 @@ pub const InitParams = struct {
     /// Global System Interrupt Base
     glob_sys_int_base: u32,
     /// Kernel Boot Information
-    kernel_boot_info: *boot_info.KernelBootInfo,
+    kernel_boot_info: *KernelBootInfo,
     /// Kernel Size in 4KB pages
     kernel_page_size: usize,
 };
 
 /// Do some essential work (where the processor can't continue without that work)
+// FIXME:GPL begin
 pub inline fn setup() void {
     asm volatile (
         \\mov %rsp, __stack_top
@@ -53,6 +54,7 @@ pub inline fn setup() void {
         \\call _main
     );
 }
+// FIXME:GPL end
 
 /// Platform-specific init
 pub fn init(allocator: std.mem.Allocator, params: InitParams) void {

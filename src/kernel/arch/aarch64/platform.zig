@@ -7,7 +7,7 @@
 //! though the CPU instruction set and this file are identical for both:
 //! Raspberry Pi (aarch64 UEFI via pftf firmware -- see `boot-aarch64` in
 //! build.zig) and Apple Silicon Mac (no native UEFI at all -- see
-//! src/bootloader-asahi/). Which one applies is a `KernelBootInfo`/boot-info
+//! src/bootloader/asahi/). Which one applies is a `KernelBootInfo`/boot-info
 //! concern (see the TODO in src/common/boot_info.zig), not something this
 //! file needs to know about.
 

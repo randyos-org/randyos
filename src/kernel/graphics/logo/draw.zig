@@ -1,4 +1,6 @@
 const std = @import("std");
+const log = std.log.scoped(.klogo);
+
 pub const memory = @import("../../memory.zig");
 
 pub const GraphicsDev = @import("../Device.zig");
@@ -8,7 +10,6 @@ pub const transform = @import("../transform.zig");
 /// Parse and draw the embedded RandyOS logo, scaled down to fit the current
 /// display resolution.
 pub fn drawLogo(gd: *GraphicsDev) void {
-    const log = std.log.scoped(.kmain_logo);
     const allocator = memory.kernel_page_allocator.allocator;
 
     const full_size = bmp.parse(allocator, @embedFile("randyos-logo.bmp")) catch |err| {

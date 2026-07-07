@@ -7,7 +7,7 @@ const log = std.log.scoped(.arch_gdt);
 const registers = @import("registers.zig");
 
 extern const __stack_top: u8;
-extern const __trap_stack_top: u8;
+extern const __fault_stack_top: u8;
 
 /// The Task State Segment
 pub const TSS = extern struct {
@@ -304,7 +304,7 @@ pub fn init() void {
     // blown/corrupted current stack (see idt.zig's `usesTrapStack`), so the
     // CPU can push the exception frame somewhere known-good instead of
     // faulting again on the same broken stack.
-    setIST(@intFromPtr(&__trap_stack_top));
+    setIST(@intFromPtr(&__fault_stack_top));
     // set the global descriptor table
     global_gdt = .{
         Entry.null_segment,

@@ -1,5 +1,5 @@
 const std = @import("std");
-const log = std.log.scoped(.graphics_draw);
+const log = std.log.scoped(.gfx_draw);
 
 const Device = @import("Device.zig");
 const Color = @import("color.zig").Color;

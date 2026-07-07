@@ -6,54 +6,50 @@ var already_panicking: bool = false;
 var debug_info: ?std.debug.Dwarf = null;
 var alloc: ?std.mem.Allocator = null;
 
-/// inline assert with panic, source location and message
+/// Assert `ok`, panicking with the caller's location (and an optional extra
+/// message) if it isn't. Meant to be called as `kassert(@src(), ok, null)`.
 pub inline fn kassert(src: std.builtin.SourceLocation, ok: bool, message: ?[]const u8) void {
-    if (!ok) {
-        if (message) |msg| {
-            std.debug.panic("assert failed at {s}:{}:{} in {s} with message: '{s}'", .{ src.file, src.line, src.column, src.fn_name, msg });
-        } else {
-            std.debug.panic("assert failed at {s}:{}:{} in {s}", .{ src.file, src.line, src.column, src.fn_name });
-        }
+    if (ok) return;
+    if (message) |msg| {
+        std.debug.panic("assertion failed [{s} @ {s}:{d}:{d}] -- {s}", .{ src.fn_name, src.file, src.line, src.column, msg });
+    } else {
+        std.debug.panic("assertion failed [{s} @ {s}:{d}:{d}]", .{ src.fn_name, src.file, src.line, src.column });
     }
 }
 
-/// inline panic with source location
+/// Panic with the caller's location plus a message. Meant to be called as
+/// `kpanic(@src(), "...")`.
 pub inline fn kpanic(src: std.builtin.SourceLocation, msg: []const u8) noreturn {
-    std.debug.panic("({s}:{}:{} in {s}): {s}", .{ src.file, src.line, src.column, src.fn_name, msg });
-}
-
-/// inline panic with source location and formatting
-pub inline fn kpanicFmt(src: std.builtin.SourceLocation, comptime fmt: []const u8, args: anytype) noreturn {
-    std.debug.panic("({s}:{}:{} in {s}): " ++ fmt, .{ src.file, src.line, src.column, src.fn_name } ++ args);
+    std.debug.panic("panic in {s} @ {s}:{d}:{d} -- {s}", .{ src.fn_name, src.file, src.line, src.column, msg });
 }
 
 /// Handle kernel panics
 pub fn panic(msg: []const u8, first_trace_addr: ?usize) noreturn {
-    // only print things if not panicking while panic
-    if (!already_panicking) {
-        already_panicking = true;
-        log.err("\r\n\r\n !!! Kernel Panic !!!\r\n", .{});
-        log.err(" !!! Message: {s}", .{msg});
-        // error return trace
-        if (@errorReturnTrace()) |t| if (t.index > 0) {
+    // A panic while already handling one means the reporting below is what
+    // caused it -- don't recurse into it again, just stop here.
+    if (already_panicking) while (true) {};
+    already_panicking = true;
+
+    log.err("\r\n\r\n !!! Kernel Panic !!!\r\n", .{});
+    log.err(" !!! Message: {s}", .{msg});
+
+    // Capture the raw stack trace first; whether or not there's also an
+    // error return trace to report, this one is always available.
+    var addr_buffer: [64]usize = undefined;
+    const trace = std.debug.captureCurrentStackTrace(.{
+        .first_address = first_trace_addr orelse @returnAddress(),
+        .allow_unsafe_unwind = true,
+    }, &addr_buffer);
+
+    if (@errorReturnTrace()) |ret_trace| {
+        if (ret_trace.index > 0) {
             log.err(" !!! Error Return Trace: ", .{});
-            for (t.instruction_addresses) |addr| {
-                printAddress(addr);
-            }
-        };
-        // stack trace
-        log.err(" !!! Stack Trace: ", .{});
-        var addr_buffer: [64]usize = undefined;
-        const st = std.debug.captureCurrentStackTrace(.{
-            .first_address = first_trace_addr orelse @returnAddress(),
-            .allow_unsafe_unwind = true,
-        }, &addr_buffer);
-        for (st.return_addresses) |addr| {
-            printAddress(addr);
+            for (ret_trace.instruction_addresses) |addr| printAddress(addr);
         }
-        log.err(" !!! Will hang now ", .{});
     }
-    // hang
+
+    log.err(" !!! Stack Trace: ", .{});
+    for (trace.return_addresses) |addr| printAddress(addr);
     while (true) {}
 }
 

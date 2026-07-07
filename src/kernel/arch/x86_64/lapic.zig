@@ -154,7 +154,7 @@ pub fn enable() void {
     setMSR(apic_msr);
     global_apic.control_base = @as(u64, apic_msr.apic_base) << 12;
     log.debug("APIC Base is 0x{x}", .{global_apic.control_base});
-    log.debug("Physical from virtual (hex): {?x}", .{paging.physFromVirt(null, global_apic.control_base)});
+    log.debug("Physical from virtual (hex): {?x}", .{paging.physFromVirt(global_apic.control_base)});
 }
 
 /// Initialize the APIC

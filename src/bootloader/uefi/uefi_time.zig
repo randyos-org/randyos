@@ -15,7 +15,7 @@
 
 const std = @import("std");
 const uefi = std.os.uefi;
-const log = std.log.scoped(.uefi_time);
+const log = std.log.scoped(.boottime);
 const BootServices = uefi.tables.BootServices;
 
 /// Nanoseconds elapsed since `init()` was called, updated by `tick` every

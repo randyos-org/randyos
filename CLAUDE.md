@@ -16,10 +16,12 @@ current milestone for that arch.
 ## Repo layout
 
 - `src/common/` — code shared between the bootloader and kernel modules (`common` module, imported by both).
-- `src/bootloader/` — the real, working UEFI bootloader (x86_64/aarch64 target queries via `build.zig`).
-- `src/bootloader-rpi/`, `src/bootloader-asahi/`, `src/bootloader-ofw/` — stub notes for boot paths with
-  no working UEFI story yet (Pi 5, Apple Silicon, PowerPC Open Firmware). Read the file-level doc
-  comment before touching these; they're intentionally unimplemented.
+- `src/bootloader/` — `root.zig` dispatches to a target-specific implementation based on
+  `builtin.target`; `src/bootloader/uefi/` is the real, working UEFI bootloader (x86_64/aarch64
+  target queries via `build.zig`). `src/bootloader/rpi/`, `src/bootloader/asahi/`,
+  `src/bootloader/ofw/` are stub notes for boot paths with no working UEFI story yet (Pi 5, Apple
+  Silicon, PowerPC Open Firmware). Read the file-level doc comment before touching these; they're
+  intentionally unimplemented.
 - `src/kernel/` — the real kernel, with `src/kernel/arch/<name>/` per-architecture code. Only `x86_64`
   is wired into the default build/install/QEMU pipeline; `aarch64`, `arm`, `powerpc` are stub-only.
 - `src/abi/` — Linux syscall ABI-compatibility roadmap notes (musl target libc, per-arch syscall number
@@ -85,12 +87,21 @@ asks for it.
   `memory.zig`) for module-style files exposing multiple declarations.
 - Doc comments: `//!` file-level doc comments explaining *why* a file exists and any non-obvious
   provenance/rationale (this codebase leans heavily on this for stub/roadmap files — see
-  `src/bootloader-rpi/main.zig` or `src/abi/syscall/x86_64.zig` for the expected level of detail);
+  `src/bootloader/rpi/main.zig` or `src/abi/syscall/x86_64.zig` for the expected level of detail);
   `///` for public declarations. Follow the "why, not what" comment philosophy throughout — don't narrate
   what code obviously does.
 - When a file's data is mechanically derived from an external source (e.g. Linux syscall tables), the
   doc comment must say where it came from (exact source file, commit/tag) and that it should be
   re-derived rather than hand-edited if it goes stale.
+
+## Git
+
+- Never run `git add` (or otherwise stage) after making edits, and never assume staging is a safe
+  default just because committing isn't happening. Leave the working tree with unstaged changes, so
+  the user can review them as an unstaged diff — auto-staged files disappear from that view, which
+  reads as files randomly going missing mid-review. Only stage when explicitly asked to stage or
+  commit.
+- Never commit, pull, or perform any other sort of git operation with side effects unless explicitly asked to do so.  Checking git log or git diff are ok, changing branches or pushing are not.
 
 ## Spelling
 

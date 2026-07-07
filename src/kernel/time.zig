@@ -107,3 +107,11 @@ pub fn sleep(seconds: f64) void {
 pub fn sleepMs(ms: u64) void {
     sleep(@as(f64, @floatFromInt(ms)) / 1000.0);
 }
+
+pub fn logNow() void {
+    if (now()) |dt| {
+        log.info("Current wall time: {}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{d:0>2} UTC", .{
+            dt.year, dt.month.numeric(), dt.day, dt.hour, dt.minute, dt.second,
+        });
+    }
+}

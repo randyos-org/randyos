@@ -17,10 +17,10 @@ behind each one).
 | PC | `x86_64-freestanding-none` | `zig build` (default) | UEFI | `x86_64-uefi-msvc` | `zig build` (default) | Working |
 | Mac (Intel) | `x86_64-freestanding-none` | `zig build` (default, shared with PC) | UEFI (same firmware family, plain non-fat `.efi`) | `x86_64-uefi-msvc` | `zig build` (default, shared with PC) | Working |
 | Raspberry Pi 3/4 (64-bit) | `aarch64-freestanding-none` | `zig build kernel-aarch64` | UEFI (pftf firmware) | `aarch64-uefi-msvc` | `zig build boot-aarch64` | Stub |
-| Raspberry Pi 5 | `aarch64-freestanding-none` | `zig build kernel-aarch64` (shared with Pi 3/4) | none yet -- see `src/bootloader-rpi/` | TBD | none yet | Stub |
-| Raspberry Pi 3 (32-bit OS) | `arm-freestanding-eabi` | `zig build kernel-arm` | none yet -- see `src/bootloader-rpi/` | TBD | none yet | Stub |
-| Mac (Apple Silicon) | `aarch64-freestanding-none` | `zig build kernel-aarch64` (shared with Pi 3/4/5) | none yet -- see `src/bootloader-asahi/` | TBD | none yet | Stub |
-| iBook G3 (PowerPC 750FX) | `powerpc-freestanding-eabi` | `zig build kernel-powerpc` | none yet -- see `src/bootloader-ofw/` | TBD | none yet | Stub |
+| Raspberry Pi 5 | `aarch64-freestanding-none` | `zig build kernel-aarch64` (shared with Pi 3/4) | none yet -- see `src/bootloader/rpi/` | TBD | none yet | Stub |
+| Raspberry Pi 3 (32-bit OS) | `arm-freestanding-eabi` | `zig build kernel-arm` | none yet -- see `src/bootloader/rpi/` | TBD | none yet | Stub |
+| Mac (Apple Silicon) | `aarch64-freestanding-none` | `zig build kernel-aarch64` (shared with Pi 3/4/5) | none yet -- see `src/bootloader/asahi/` | TBD | none yet | Stub |
+| iBook G3 (PowerPC 750FX) | `powerpc-freestanding-eabi` | `zig build kernel-powerpc` | none yet -- see `src/bootloader/ofw/` | TBD | none yet | Stub |
 
 ## Requirements
 

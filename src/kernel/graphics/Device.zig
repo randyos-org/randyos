@@ -1,6 +1,7 @@
-const log = @import("std").log.scoped(.graphics_device);
+const log = @import("std").log.scoped(.gfx_dev);
+
 const common = @import("common");
-const boot_info = common.boot_info;
+const KernelBootInfo = common.boot_info.KernelBootInfo;
 
 const color_mod = @import("color.zig");
 const Color = color_mod.Color;
@@ -22,7 +23,7 @@ pixel_width: u32 = undefined,
 /// Pixel height
 pixel_height: u32 = undefined,
 
-pub fn init(self: *Self, boot_data: *boot_info.KernelBootInfo) void {
+pub fn init(self: *Self, boot_data: *KernelBootInfo) void {
     log.debug("initializing graphics device", .{});
     self.framebuffer_pointer = boot_data.video_mode_info.framebuffer_pointer;
     self.pixels_per_scanline = boot_data.video_mode_info.pixels_per_scanline;
@@ -35,6 +36,7 @@ pub fn init(self: *Self, boot_data: *boot_info.KernelBootInfo) void {
     };
     self.pixel_width = boot_data.video_mode_info.horizontal_resolution;
     self.pixel_height = boot_data.video_mode_info.vertical_resolution;
+    log.debug("graphics device initialized", .{});
 }
 
 pub fn getColorInt(self: *Self, color: Color) u32 {

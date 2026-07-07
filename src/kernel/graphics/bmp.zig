@@ -7,7 +7,7 @@
 //! doesn't know or care that the source was a BMP.
 
 const std = @import("std");
-const log = std.log.scoped(.graphics_bmp);
+const log = std.log.scoped(.bmp);
 
 const Color = @import("color.zig").Color;
 const PixelBuffer = @import("draw.zig").PixelBuffer;

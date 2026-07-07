@@ -1,7 +1,7 @@
 //! Graphics Functionality
 //! 2024 by Samuel Fiedler
 
-const log = @import("std").log.scoped(.graphics_color);
+const log = @import("std").log.scoped(.color);
 const common = @import("common");
 
 /// Pixel formats

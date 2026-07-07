@@ -19,8 +19,8 @@
 //!   iBoot (proprietary) -> m1n1 (hardware bringup) -> U-Boot (UEFI) -> us
 //!
 //! This is a genuinely different, three-stage boot story from both
-//! `src/bootloader/` (direct UEFI) and `src/bootloader-rpi/` (Raspberry Pi
-//! 5's native boot sequence or U-Boot, but no m1n1-style hardware-bringup
+//! `src/bootloader/uefi/` (direct UEFI) and `src/bootloader/rpi/` (Raspberry
+//! Pi 5's native boot sequence or U-Boot, but no m1n1-style hardware-bringup
 //! shim needed there) -- not a retarget of either.
 //!
 //! Not implemented: none of the above is built yet.

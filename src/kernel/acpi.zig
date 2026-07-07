@@ -6,7 +6,8 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 const common = @import("common");
-const boot_info = common.boot_info;
+const KernelBootInfo = common.boot_info.KernelBootInfo;
+
 pub const header = @import("acpi/header.zig");
 pub const madt = @import("acpi/madt.zig");
 pub const rsdp = @import("acpi/rsdp.zig");
@@ -36,7 +37,7 @@ pub const ACPIError = error{
 } || rsdp.ChecksumError || header.ChecksumError || xsdt.FindError || MADT.FindError;
 
 /// Initialize the ACPI
-pub fn init(kernel_boot_info: *boot_info.KernelBootInfo) ACPIError!ACPIInfo {
+pub fn init(kernel_boot_info: *KernelBootInfo) ACPIError!ACPIInfo {
     log.info("ACPI initialization... ", .{});
     var ioapic_addr: u32 = undefined;
     var glob_sys_int_base: u32 = undefined;

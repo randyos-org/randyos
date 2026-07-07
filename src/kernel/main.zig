@@ -4,7 +4,7 @@ const builtin = @import("builtin");
 // common lib shared with bootloader
 const common = @import("common");
 pub const build_options = common.build_options;
-pub const boot_info = common.boot_info;
+pub const KernelBootInfo = common.boot_info.KernelBootInfo;
 pub const pages = common.pages;
 pub const logging = common.logging;
 pub const Terminal = common.Terminal;
@@ -18,8 +18,10 @@ pub const memory = @import("memory.zig");
 
 // (re-)written for this kernel
 const debug = @import("debug.zig");
+// FIXME:GPL begin
 pub const kassert = debug.kassert;
 pub const kpanic = debug.kpanic;
+// FIXME:GPL end
 const uart = @import("terminal/uart.zig");
 const FBCon = @import("terminal/FBCon.zig");
 
@@ -31,30 +33,15 @@ const time = @import("time.zig");
 // The constants here are defined in the kernel linker script
 pub extern const __kernel_start: u8;
 pub extern const __kernel_end: u8;
-pub extern const __trap_handler_start: u8;
-pub extern const __trap_handler_end: u8;
-pub extern const __text_start: u8;
-pub extern const __text_end: u8;
-
-pub extern const __stack_bottom: u8;
+/// End of the normal kernel stack.
 pub extern const __stack_top: u8;
-pub extern const __trap_stack_bottom: u8;
-pub extern const __trap_stack_top: u8;
-pub extern var __trap_data: extern struct {};
+/// End of the dedicated IST1 stack `usesTrapStack` (idt.zig) switches to for
+/// stack/GP/page-fault/double-fault exceptions -- see gdt.zig's `setIST`.
+pub extern const __fault_stack_top: u8;
 
-pub extern const __debug_info_start: u8;
-pub extern const __debug_info_end: u8;
-pub extern const __debug_abbrev_start: u8;
-pub extern const __debug_abbrev_end: u8;
-pub extern const __debug_str_start: u8;
-pub extern const __debug_str_end: u8;
-pub extern const __debug_line_start: u8;
-pub extern const __debug_line_end: u8;
-pub extern const __debug_ranges_start: u8;
-pub extern const __debug_ranges_end: u8;
-
-/// Kernel Boot Info by UEFI
-pub extern const __kernel_boot_info: *boot_info.KernelBootInfo;
+/// Pointer to `KernelBootInfo`, written by the bootloader at the very start
+/// of the loaded image (see `.start` in the linker script).
+pub extern const __boot_info_ptr: *KernelBootInfo;
 
 /// Zig Standard Library Options
 pub const std_options: std.Options = .{
@@ -71,6 +58,7 @@ pub const std_options: std.Options = .{
 pub const std_options_debug_threaded_io: ?*std.Io.Threaded = null;
 pub const std_options_debug_io: std.Io = .failing;
 
+// FIXME:GPL begin
 /// Kernel Entry Point (setup)
 fn _start() linksection(".start") callconv(.naked) noreturn {
     arch.platform.setup();
@@ -79,20 +67,21 @@ fn _start() linksection(".start") callconv(.naked) noreturn {
 /// Kernel Entry
 fn _main() callconv(.c) noreturn {
     // This is in case we want to do any prep before calling kmain
-    kmain(__kernel_boot_info);
+    kmain(__boot_info_ptr);
 }
 
 comptime {
     @export(&_start, .{ .name = "_start" });
     @export(&_main, .{ .name = "_main" });
 }
+// FIXME:GPL end
 
 /// This is our kernel main function.
 /// The linker script's actual `ENTRY` is `_start` (the naked asm stub above
 /// that sets up the stack and jumps to `_main`, which calls this) -- `kmain`
 /// is still `export fn` so it stays a named, locatable symbol (e.g. for a
 /// debugger), not because the linker enters here directly.
-export fn kmain(boot_data: *boot_info.KernelBootInfo) noreturn {
+export fn kmain(boot_data: *KernelBootInfo) noreturn {
     // Everything below is x86_64-specific today (UART port I/O, the TSC,
     // ACPI, and platform.init's IOAPIC params are all x86 concepts, not just
     // the platform-init call), so the other arch stubs gate here rather than
@@ -121,11 +110,7 @@ export fn kmain(boot_data: *boot_info.KernelBootInfo) noreturn {
         uart_term.cls();
         log.debug("Kernel terminal initialized", .{});
         log.info("Welcome to RandyOS!", .{});
-        if (time.now()) |dt| {
-            log.info("Current wall time: {}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{d:0>2} UTC", .{
-                dt.year, dt.month.numeric(), dt.day, dt.hour, dt.minute, dt.second,
-            });
-        }
+        time.logNow();
 
         // save the kernel size info
         const kernel_byte_size: usize = @intFromPtr(&__kernel_end) - @intFromPtr(&__kernel_start);
@@ -145,10 +130,11 @@ export fn kmain(boot_data: *boot_info.KernelBootInfo) noreturn {
         fbcon.init(&gd, false);
         const fbterm = &fbcon.term;
         logging.log_term = fbterm;
+        log.debug("fbcon initialized", .{});
 
         // acpi init before platform to parse MADT addresses needed by platform
         const acpi_info = acpi.init(boot_data) catch {
-            kpanic(@src(), "kernel can't continue without ACPI on this platform!\n");
+            kpanic(@src(), "no usable ACPI tables found -- can't boot without them on this platform");
         };
 
         // platform-specific codes
@@ -158,6 +144,8 @@ export fn kmain(boot_data: *boot_info.KernelBootInfo) noreturn {
             .kernel_boot_info = boot_data,
             .kernel_page_size = kernel_page_size,
         });
+        log.info("Kernel initialized!  Idling...", .{});
+        time.logNow();
 
         // demos(&fbcon, uart_term, &gd);
 

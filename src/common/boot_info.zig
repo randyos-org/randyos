@@ -1,6 +1,6 @@
 const std = @import("std");
 const uefi = std.os.uefi;
-const log = std.log.scoped(.boot_info);
+const log = std.log.scoped(.common_boot_info);
 
 /// Video Mode Info
 pub const KernelBootVideoModeInfo = struct {
@@ -17,9 +17,9 @@ pub const KernelBootVideoModeInfo = struct {
 // `*boot_info.KernelBootInfo` directly -- and it's hard-wired to UEFI types
 // (`uefi.tables.MemoryMapSlice`/`MemoryMapInfo`/`RuntimeServices`). That's
 // fine for x86_64 Mac/PC and Raspberry Pi 3/4 (all genuinely UEFI-booted),
-// but Raspberry Pi 5 (see src/bootloader-rpi/), Apple Silicon Mac (see
-// src/bootloader-asahi/), and powerpc (Open Firmware -- see
-// src/bootloader-ofw/) won't be UEFI-booted at all, so whatever loads
+// but Raspberry Pi 5 (see src/bootloader/rpi/), Apple Silicon Mac (see
+// src/bootloader/asahi/), and powerpc (Open Firmware -- see
+// src/bootloader/ofw/) won't be UEFI-booted at all, so whatever loads
 // RandyOS on those either has to synthesize UEFI-shaped data it doesn't
 // actually have, or (better) this struct needs to stop assuming UEFI is the
 // only way a kernel ever gets handed its boot info. Not addressed here --

@@ -8,7 +8,7 @@ const mem = std.mem;
 const math = std.math;
 
 const common = @import("common");
-const boot_info = common.boot_info;
+const KernelBootInfo = common.boot_info.KernelBootInfo;
 
 /// An entry in our map
 pub const Entry = packed struct(u128) {
@@ -21,20 +21,18 @@ pub const Entry = packed struct(u128) {
     /// Is the memory described by our entry free?
     free: bool = true,
     /// Reserved bits (padding)
-    _0: u14 = 0,
-    /// Count of pages in this region
-    num_pages: u48 = 0,
-};
-
-/// A memory node
-pub const MemoryNode = struct {
-    addr: usize,
-    size: usize,
+    _align1: u30 = 0,
+    /// Count of pages in this region. u32 caps a single region at 2^32
+    /// pages (16 TiB) -- comfortably more than any real UEFI memory-map
+    /// entry, unlike a 16-bit count, which silently truncated (via the
+    /// `@truncate` in `bootstrap` below) on regions bigger than ~256MB, a
+    /// real problem on hardware/VMs with multi-GB contiguous free regions.
+    num_pages: u32 = 0,
 };
 
 /// Scratch space for the map before we have real memory to back it:
 /// `bootstrap()` records up to 16 free regions here (see `mem_max_cnt`)
-/// plus one entry for the map's own backing storage, then reslices `map`
+/// plus one entry for the map's own backing storage, then re-slices `map`
 /// onto freshly allocated pages and copies these entries over.
 var bootstrap_memory: [32]Entry = @splat(.{});
 
@@ -45,11 +43,13 @@ pub var map: []Entry = bootstrap_memory[0..];
 /// Maximum amount of pages available
 pub var max_pages: usize = 0;
 
+// FIXME:GPL begin
 /// UEFI Memory Data (MemoryDescriptor) used for bootstrap
 pub const UEFIMemoryData = struct {
     map: uefi.tables.MemoryMapSlice,
     info: uefi.tables.MemoryMapInfo,
 };
+// FIXME:GPL end
 
 /// Bootstrap the allocator
 pub fn bootstrap(mem_data: UEFIMemoryData) void {
@@ -113,6 +113,7 @@ pub fn bootstrap(mem_data: UEFIMemoryData) void {
     }
 }
 
+// FIXME:GPL begin
 /// Count all pages that are free
 pub fn cntFreePages() usize {
     var num_free_pages: usize = 0;
@@ -123,6 +124,7 @@ pub fn cntFreePages() usize {
     }
     return num_free_pages;
 }
+// FIXME:GPL end
 
 /// Allocate bytes (page-wise)
 pub fn alloc(_: *anyopaque, len: usize, _: mem.Alignment, _: usize) ?[*]u8 {
@@ -175,7 +177,7 @@ pub const allocator = mem.Allocator{
 };
 
 /// Initialize the kernel page allocator
-pub fn init(kernel_boot_info: *boot_info.KernelBootInfo) void {
+pub fn init(kernel_boot_info: *KernelBootInfo) void {
     log.info("kernel page allocator initialization...", .{});
     log.debug("bootstrapping the allocator...", .{});
     bootstrap(.{

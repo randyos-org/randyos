@@ -5,7 +5,7 @@
 //!
 //! Targets 32-bit big-endian PowerPC (e.g. the 750FX/G3 in classic iBooks),
 //! not little-endian variants. Classic PowerPC Macs boot via Open Firmware,
-//! not UEFI -- see src/bootloader-ofw/ for that side of the story; there is
+//! not UEFI -- see src/bootloader/ofw/ for that side of the story; there is
 //! no `boot-powerpc` build step because of it.
 
 /// Do some essential work (where the processor can't continue without that work)
