@@ -12,14 +12,17 @@ pub const FindError = error{
     NoMatchingEntry,
 };
 
+/// Size, in bytes, of a single XSDT entry -- an 8-byte (64-bit) table
+/// pointer, unlike the RSDT's 4-byte ones.
+pub const xsdt_entry_size: u32 = 8;
+
 /// Extended System Description Table
 pub const XSDT = extern struct {
     header: Header align(1),
 
     /// Find XSDT Entry
     pub fn findEntry(self: *XSDT, entry_signature: []const u8) FindError!*Header {
-        // XSDT entries are 8-byte (64-bit) table pointers, unlike the RSDT's 4-byte ones.
-        const len: u32 = (self.header.length - @sizeOf(Header)) / 8;
+        const len: u32 = (self.header.length - @sizeOf(Header)) / xsdt_entry_size;
         const ptr_addr: usize = @intFromPtr(self) + @sizeOf(Header);
         const entries: [*]align(1) u64 = @ptrFromInt(ptr_addr);
 

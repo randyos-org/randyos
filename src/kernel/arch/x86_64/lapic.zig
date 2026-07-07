@@ -4,6 +4,8 @@
 const std = @import("std");
 const log = std.log.scoped(.arch_lapic);
 
+const common = @import("common");
+const pages = common.pages;
 const registers = @import("registers.zig");
 const paging = @import("paging.zig");
 
@@ -46,6 +48,9 @@ pub const LapicVersion = packed struct(u32) {
 /// Local APIC
 pub const APIC = struct {
     /// Control Base Address
+    /// Defaults to the standard xAPIC MMIO base every x86_64 system resets
+    /// to; `enable()` overwrites this with whatever `getMSR().apic_base`
+    /// actually reports, in case firmware relocated it.
     control_base: usize = 0xfee00000,
 
     /// Read from the APIC Registers
@@ -152,9 +157,9 @@ pub fn enable() void {
     var apic_msr: LapicMSR = getMSR();
     apic_msr.apic_global_enable = true;
     setMSR(apic_msr);
-    global_apic.control_base = @as(u64, apic_msr.apic_base) << 12;
+    global_apic.control_base = @as(u64, apic_msr.apic_base) << pages.page_shift;
     log.debug("APIC Base is 0x{x}", .{global_apic.control_base});
-    log.debug("Physical from virtual (hex): {?x}", .{paging.physFromVirt(global_apic.control_base)});
+    log.debug("Physical from virtual (hex): {?x}", .{paging.kernelAddressSpace().physFromVirt(global_apic.control_base)});
 }
 
 /// Initialize the APIC

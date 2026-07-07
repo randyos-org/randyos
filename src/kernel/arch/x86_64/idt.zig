@@ -13,6 +13,15 @@ const port_io = @import("port_io.zig");
 const ps2 = @import("ps2.zig");
 const uart = @import("../../terminal/uart.zig");
 
+/// Number of entries in an x86_64 IDT -- one slot per possible
+/// interrupt/exception vector (0-255).
+const idt_entry_count: usize = 256;
+
+/// I/O APIC redirection vector the PS/2 keyboard's IRQ (1) lands on, given
+/// the vector `offset` `ioapic.init` is called with in platform.zig
+/// (`keyboard_irq` (1) + 48 = 49).
+const keyboard_vector: u64 = 49;
+
 /// Entry in the Interrupt Descriptor Table
 pub const Entry = packed struct(u128) {
     /// First part of a pointer to handler code
@@ -70,7 +79,7 @@ pub const Descriptor = packed struct(u80) {
 pub const InterruptFunction = *const fn () callconv(.naked) noreturn;
 
 /// Global IDT
-pub var global_idt: [256]Entry = @splat(.{});
+pub var global_idt: [idt_entry_count]Entry = @splat(.{});
 pub var descriptor: Descriptor = .{ .size = @sizeOf(@TypeOf(global_idt)) - 1, .offset = undefined };
 pub var got_interrupt: bool = false;
 
@@ -80,7 +89,7 @@ pub fn init() void {
     // make descriptor point to global idt
     descriptor.offset = @intFromPtr(&global_idt);
     // construct the idt generically
-    inline for (0..255) |i| {
+    inline for (0..idt_entry_count - 1) |i| {
         if (getVector(i)) |vector| {
             switch (Exception.is(i)) {
                 true => {
@@ -384,8 +393,8 @@ export fn interruptHandler(frame: *InterruptFrame) void {
             @panic("reached unhandled error");
         },
         // IRQ1 (keyboard) remapped through the I/O APIC at offset 48 (see
-        // `ioapic.init` call in platform.zig), landing on vector 49
-        49 => ps2.keyboardHandler(),
+        // `ioapic.init` call in platform.zig)
+        keyboard_vector => ps2.keyboardHandler(),
         else => {
             log.debug("Frame contents: {}", .{frame});
         },

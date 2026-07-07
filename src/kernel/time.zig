@@ -1,19 +1,19 @@
 //! System time.
 //!
 //! `arch.platform.tsc` already gives a monotonic "seconds since boot" clock
-//! for log timestamps, but that's not wall-clock time. UEFI Runtime Services
-//! remain callable after `ExitBootServices` and can report the real
-//! date/time from the platform's RTC, so `init()` captures that once at boot
-//! and combines it with the TSC's elapsed-seconds count afterward -- that
-//! avoids repeated firmware calls (slow, and of dubious safety once our own
-//! GDT/paging are active) while still tracking wall-clock time.
+//! for log timestamps, but that's not wall-clock time. The bootloader reads
+//! the platform's wall clock (however it does that -- UEFI Runtime
+//! Services, a devicetree RTC, etc. -- is a bootloader/firmware concern) and
+//! hands the kernel a plain Unix epoch-seconds snapshot in `KernelBootInfo`;
+//! `init()` stores that and combines it with the TSC's elapsed-seconds count
+//! afterward, avoiding repeated firmware calls (slow, and of dubious safety
+//! once our own GDT/paging are active) while still tracking wall-clock time.
 //!
 //! This also provides `sleep`, a busy-wait built on the same TSC clock.
 //! There's no scheduler yet, so busy-waiting is the only option.
 
 const std = @import("std");
 const log = std.log.scoped(.time);
-const uefi = std.os.uefi;
 const epoch = std.time.epoch;
 
 const arch = @import("arch.zig");
@@ -34,44 +34,17 @@ pub const DateTime = struct {
 };
 
 /// Unix epoch seconds captured at the moment `init()` ran. `null` if
-/// `init()` was never called or the firmware refused to report the time.
+/// `init()` was never called or the bootloader couldn't determine the time.
 var boot_epoch_seconds: ?i64 = null;
 
-/// Convert a UEFI `Time` (a local date/time plus a UTC offset) to Unix
-/// epoch seconds.
-fn toEpochSeconds(t: uefi.Time) i64 {
-    var days: i64 = 0;
-    var year: epoch.Year = epoch.epoch_year;
-    while (year < t.year) : (year += 1) {
-        days += epoch.getDaysInYear(year);
+/// Record the wall-clock snapshot the bootloader captured at boot. Call
+/// this once, early in kernel init, after `arch.platform.tsc.init()`.
+pub fn init(epoch_seconds: ?i64) void {
+    if (epoch_seconds == null) {
+        log.warn("no wall-clock time available from bootloader", .{});
     }
-    var month: u4 = 1;
-    while (month < t.month) : (month += 1) {
-        days += epoch.getDaysInMonth(t.year, @enumFromInt(month));
-    }
-    days += t.day - 1;
-
-    var secs: i64 = days * @as(i64, epoch.secs_per_day);
-    secs += @as(i64, t.hour) * 3600 + @as(i64, t.minute) * 60 + t.second;
-    if (t.timezone != uefi.Time.unspecified_timezone) {
-        // `timezone` is minutes offset from UTC; subtract to normalize.
-        secs -= @as(i64, t.timezone) * 60;
-    }
-    return secs;
-}
-
-/// Capture the wall-clock time from UEFI Runtime Services. Call this once,
-/// early in kernel init, after `arch.platform.tsc.init()`.
-pub fn init(runtime_services: *uefi.tables.RuntimeServices) void {
-    const result = runtime_services.getTime() catch |err| {
-        log.warn("could not read wall-clock time from firmware: {s}", .{@errorName(err)});
-        return;
-    };
-    const t = result[0];
-    boot_epoch_seconds = toEpochSeconds(t);
-    log.info("wall clock at boot: {}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{d:0>2} UTC", .{
-        t.year, t.month, t.day, t.hour, t.minute, t.second,
-    });
+    boot_epoch_seconds = epoch_seconds;
+    logNow();
 }
 
 /// Current wall-clock date/time (UTC), derived from the boot-time snapshot

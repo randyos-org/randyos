@@ -73,8 +73,7 @@ pub const MADT = extern struct {
         // iterate over everything except for the base table
         while (addr < (@intFromPtr(self) + self.header.length)) {
             const hdr: *EntryHeader = @ptrFromInt(addr);
-            // directly increment the address by two because sizeof(header) is two
-            addr += 2;
+            addr += @sizeOf(EntryHeader);
             log.debug("MADT Entry tag is {s}", .{@tagName(hdr.entry_type)});
             // TODO: comptime?
             switch (hdr.entry_type) {
@@ -138,8 +137,7 @@ pub const MADT = extern struct {
         // iterate over everything except for the base table
         while (addr < (@intFromPtr(self) + self.header.length)) {
             const hdr: *EntryHeader = @ptrFromInt(addr);
-            // directly increment the address by two because sizeof(header) is two
-            addr += 2;
+            addr += @sizeOf(EntryHeader);
             log.debug("MADT Entry tag is {s}", .{@tagName(hdr.entry_type)});
             switch (hdr.entry_type) {
                 .io_apic_int_src_override => {
@@ -147,7 +145,7 @@ pub const MADT = extern struct {
                     addr += @sizeOf(IOAPICSourceOverride);
                 },
                 else => {
-                    addr += hdr.record_length - 2;
+                    addr += hdr.record_length - @sizeOf(EntryHeader);
                 },
             }
         }

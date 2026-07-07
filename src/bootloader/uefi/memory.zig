@@ -6,9 +6,16 @@ const std = @import("std");
 const uefi = std.os.uefi;
 const log = std.log.scoped(.bootmem);
 
-const pages = @import("common").pages;
+const common = @import("common");
+const pages = common.pages;
 const efi_page_shift = pages.page_shift;
 const efi_page_mask = pages.page_mask;
+const MemoryRegion = common.boot_info.MemoryRegion;
+
+/// Extra bytes of per-descriptor headroom `exitBootServices` requests on
+/// each retry fetch, on top of whatever `getMemoryMapInfo` reports needing --
+/// covers firmware growing the map again between this fetch and the retry.
+const exit_boot_services_retry_padding: usize = 4;
 
 /// Convert a memory size to memory pages (4096 bytes each)
 pub inline fn efiSizeToPages(value: anytype) @TypeOf(value) {
@@ -72,7 +79,7 @@ pub fn exitBootServices(boot_services: *uefi.tables.BootServices, handle: uefi.H
     while (true) {
         boot_services.exitBootServices(handle, current.info.key) catch {
             log.info("getting memory map and trying to exit boot services", .{});
-            current.* = try fetch(boot_services, 4);
+            current.* = try fetch(boot_services, exit_boot_services_retry_padding);
             continue;
         };
         return;
@@ -107,4 +114,44 @@ pub fn installVirtualAddressMap(
     }
     try runtime_services.setVirtualAddressMap(mm.map);
     return kernel_phys_start;
+}
+
+/// Upper bound on how many regions `toGenericMemoryMap` can emit. Real and
+/// virtualized UEFI firmware typically report well under 100 descriptors;
+/// this is generous headroom, not a tight fit.
+const max_memory_regions = 256;
+
+/// Backing storage for `toGenericMemoryMap`'s result. Static rather than
+/// allocated: this runs from `finalizeKernelBootInfo`, i.e. after
+/// `exitBootServices` has already succeeded, so Boot Services' pool
+/// allocator is no longer callable -- only Runtime Services and the raw
+/// memory the firmware already handed us remain usable.
+var memory_region_storage: [max_memory_regions]MemoryRegion = undefined;
+
+/// Translate a raw UEFI memory map into the firmware-neutral
+/// `[]const MemoryRegion` shape the kernel actually consumes -- the kernel
+/// never needs to know about UEFI's per-descriptor stride or its firmware-
+/// specific type enum.
+pub fn toGenericMemoryMap(mm: MemoryMap) []const MemoryRegion {
+    var count: usize = 0;
+    var index: usize = 0;
+    while (index < mm.info.len and count < max_memory_regions) : (index += 1) {
+        const d: *uefi.tables.MemoryDescriptor = @ptrCast(@alignCast(mm.map.ptr + index * mm.info.descriptor_size));
+        memory_region_storage[count] = .{
+            .phys_start = d.physical_start,
+            .page_count = d.number_of_pages,
+            .kind = switch (d.type) {
+                .conventional_memory => .usable,
+                .acpi_reclaim_memory => .acpi_reclaimable,
+                .acpi_memory_nvs => .acpi_nvs,
+                .boot_services_code, .boot_services_data => .bootloader_reclaimable,
+                .loader_code, .loader_data => .kernel_and_modules,
+                .memory_mapped_io, .memory_mapped_io_port_space => .mmio,
+                .unusable_memory => .bad,
+                else => .reserved,
+            },
+        };
+        count += 1;
+    }
+    return memory_region_storage[0..count];
 }

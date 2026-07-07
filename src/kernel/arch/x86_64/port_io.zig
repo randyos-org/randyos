@@ -4,6 +4,12 @@
 const std = @import("std");
 const log = std.log.scoped(.arch_port_io);
 
+/// POST diagnostic-code port. Unused for its original purpose on modern
+/// hardware; writing to it costs one bus I/O cycle with no side effects,
+/// which is the classic cheap delay for chips (e.g. the PIC) that need a
+/// breather between commands -- see `ioWait`.
+const post_diagnostic_port: u16 = 0x80;
+
 /// Input bytes
 pub inline fn inb(port: u16) u8 {
     return in(u8, port);
@@ -56,10 +62,6 @@ pub inline fn out(comptime T: type, port: u16, val: T) void {
 }
 
 /// Wait a very small amount of time
-/// Port 0x80 is the (unused on modern hardware) POST diagnostic-code port;
-/// writing to it costs one bus I/O cycle with no side effects, which is the
-/// classic cheap delay for chips (e.g. the PIC) that need a breather between
-/// commands.
 pub inline fn ioWait() void {
-    outb(0x80, 0);
+    outb(post_diagnostic_port, 0);
 }

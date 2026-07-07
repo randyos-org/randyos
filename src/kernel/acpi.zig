@@ -86,7 +86,7 @@ pub fn init(kernel_boot_info: *KernelBootInfo) ACPIError!ACPIInfo {
                     return err;
                 };
                 log.debug("XSDT Checksum is valid!", .{});
-                log.debug("XSDT has {} entries", .{((xsdt_ptr.header.length - @sizeOf(header.Header)) / 8)});
+                log.debug("XSDT has {} entries", .{((xsdt_ptr.header.length - @sizeOf(header.Header)) / xsdt.xsdt_entry_size)});
 
                 // find MADT (needed for I/O APIC => Keyboards)
                 const madt_hdr = xsdt_ptr.findEntry("APIC") catch |err| {

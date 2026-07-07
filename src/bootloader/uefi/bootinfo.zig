@@ -1,5 +1,6 @@
 const std = @import("std");
 const uefi = std.os.uefi;
+const epoch = std.time.epoch;
 const log = std.log.scoped(.bootinfo);
 
 const common = @import("common");
@@ -7,6 +8,31 @@ const KernelBootInfo = common.boot_info.KernelBootInfo;
 
 pub const memory = @import("memory.zig");
 pub const graphics = @import("graphics.zig");
+
+/// Convert a UEFI `Time` (a local date/time plus a UTC offset) to Unix
+/// epoch seconds -- the firmware-neutral form `KernelBootInfo` actually
+/// carries, since Unix time is a real cross-platform format the kernel can
+/// consume without knowing anything about UEFI's `Time` layout.
+fn toEpochSeconds(t: uefi.Time) i64 {
+    var days: i64 = 0;
+    var year: epoch.Year = epoch.epoch_year;
+    while (year < t.year) : (year += 1) {
+        days += epoch.getDaysInYear(year);
+    }
+    var month: u4 = 1;
+    while (month < t.month) : (month += 1) {
+        days += epoch.getDaysInMonth(t.year, @enumFromInt(month));
+    }
+    days += t.day - 1;
+
+    var secs: i64 = days * @as(i64, epoch.secs_per_day);
+    secs += @as(i64, t.hour) * 3600 + @as(i64, t.minute) * 60 + t.second;
+    if (t.timezone != uefi.Time.unspecified_timezone) {
+        // `timezone` is minutes offset from UTC; subtract to normalize.
+        secs -= @as(i64, t.timezone) * 60;
+    }
+    return secs;
+}
 
 /// Store a pointer to `kbi` at `base_address` -- the kernel's
 /// `__boot_info_ptr` slot, at the very start of the loaded image -- so
@@ -19,8 +45,9 @@ pub fn writeBootInfoPointer(base_address: u64, kbi: *const KernelBootInfo) void 
 /// Fill in the `kernel_boot_info` fields that aren't known until after the
 /// memory map has reached its final post-`exitBootServices` shape:
 /// `kernel_phys_start` (returned by `installVirtualAddressMap` once it's
-/// remapped the kernel's region) and the map/runtime-services handles
-/// themselves.
+/// remapped the kernel's region), the firmware-neutral memory map, and the
+/// wall-clock time (Runtime Services remain callable this late, but Boot
+/// Services -- including the memory-map fetch itself -- do not).
 pub fn finalizeKernelBootInfo(
     kbi: *KernelBootInfo,
     runtime_services: *uefi.tables.RuntimeServices,
@@ -28,9 +55,13 @@ pub fn finalizeKernelBootInfo(
     kernel_start_address: u64,
 ) !void {
     kbi.kernel_phys_start = try memory.installVirtualAddressMap(runtime_services, mm, kernel_start_address);
-    kbi.map = mm.map;
-    kbi.map_info = mm.info;
-    kbi.runtime_services = runtime_services;
+    kbi.memory_map = memory.toGenericMemoryMap(mm);
+    kbi.boot_wall_clock_unix_seconds = if (runtime_services.getTime()) |result|
+        toEpochSeconds(result[0])
+    else |err| blk: {
+        log.warn("could not read wall-clock time from firmware: {s}", .{@errorName(err)});
+        break :blk null;
+    };
 }
 
 /// Assemble the `KernelBootInfo` the kernel expects at its
@@ -47,7 +78,11 @@ pub fn buildKernelBootInfo(
     kbi.video_mode_info.horizontal_resolution = gfxinfo.mode_info.horizontal_resolution;
     kbi.video_mode_info.vertical_resolution = gfxinfo.mode_info.vertical_resolution;
     kbi.video_mode_info.pixels_per_scanline = gfxinfo.mode_info.pixels_per_scan_line;
-    kbi.video_mode_info.pixel_format = @intFromEnum(gfxinfo.mode_info.pixel_format);
+    kbi.video_mode_info.pixel_format = switch (gfxinfo.mode_info.pixel_format) {
+        .red_green_blue_reserved_8_bit_per_color => .rgb,
+        .blue_green_red_reserved_8_bit_per_color => .bgr,
+        .bit_mask, .blt_only => @panic("unsupported UEFI graphics pixel format"),
+    };
     kbi.dwarf_info = dwarf_info;
     return kbi;
 }

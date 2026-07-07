@@ -13,6 +13,19 @@ pub var global_ioapic = IOApic{
     .glob_sys_int_base = 0,
 };
 
+/// Base offset, in the I/O APIC's indirect register space, of the
+/// redirection table's first entry (IOREDTBL0). Each redirection entry spans
+/// two consecutive 32-bit indirect registers (low/high dword), so entry `n`
+/// lives at `ioredtbl_base + n*2` (low) / `+ n*2 + 1` (high).
+const ioredtbl_base: u32 = 0x10;
+
+/// Bit position where the xAPIC ID field begins in a raw LAPIC ID register
+/// value (bits 24-31).
+const lapic_id_shift: u5 = 24;
+
+/// Legacy IRQ line the PS/2 keyboard is wired to.
+const keyboard_irq: usize = 1;
+
 /// I/O APIC Delivery Mode Type
 pub const DeliveryMode = enum(u3) {
     /// Normal Interrupt
@@ -142,7 +155,7 @@ pub const IOApic = struct {
         var red_entry = self.indirectRead(.{ .redirection = irq }).redirection_entry;
         red_entry.vector = vector;
         // xAPIC ID lives in bits 24-31 of the raw LAPIC ID register value.
-        red_entry.destination = @truncate((lapic_id >> 24) & 0xff);
+        red_entry.destination = @truncate((lapic_id >> lapic_id_shift) & 0xff);
         red_entry.masked = false;
         self.indirectWrite(.{ .redirection = irq }, .{
             .redirection_entry = red_entry,
@@ -156,7 +169,7 @@ pub const IOApic = struct {
         var red_entry = self.indirectRead(.{ .redirection = irq }).redirection_entry;
         red_entry.vector = vector;
         // xAPIC ID lives in bits 24-31 of the raw LAPIC ID register value.
-        red_entry.destination = @truncate((lapic_id >> 24) & 0xff);
+        red_entry.destination = @truncate((lapic_id >> lapic_id_shift) & 0xff);
         red_entry.masked = true;
         self.indirectWrite(.{ .redirection = irq }, .{
             .redirection_entry = red_entry,
@@ -171,10 +184,10 @@ pub const IOApic = struct {
                 // values are 2 32bit integers
                 var values: [2]u32 = .{ 0, 0 };
                 // so we need to multiply the index by two
-                self.directWrite(.selector, 0x10 + index * 2);
+                self.directWrite(.selector, ioredtbl_base + index * 2);
                 values[0] = self.directRead(.data);
                 // and add one for the second value
-                self.directWrite(.selector, 0x10 + index * 2 + 1);
+                self.directWrite(.selector, ioredtbl_base + index * 2 + 1);
                 values[1] = self.directRead(.data);
                 return .{ .redirection_entry = @bitCast(values) };
             },
@@ -194,10 +207,10 @@ pub const IOApic = struct {
                 // values are 2 32bit integers
                 const values: [2]u32 = @bitCast(value.redirection_entry);
                 // so we need to multiply the index by two
-                self.directWrite(.selector, 0x10 + index * 2);
+                self.directWrite(.selector, ioredtbl_base + index * 2);
                 self.directWrite(.data, values[0]);
                 // and add one for the second value
-                self.directWrite(.selector, 0x10 + index * 2 + 1);
+                self.directWrite(.selector, ioredtbl_base + index * 2 + 1);
                 self.directWrite(.data, values[1]);
                 return;
             },
@@ -274,8 +287,7 @@ pub fn init(base: usize, glob_sys_int_base: u32, offset: u8) void {
 
     for (0..info.max_entries + 1) |i| {
         switch (i) {
-            // keyboard
-            1 => global_ioapic.enableVector(@truncate(i), @truncate(i + offset)),
+            keyboard_irq => global_ioapic.enableVector(@truncate(i), @truncate(i + offset)),
             // default: disable
             else => global_ioapic.disableVector(@truncate(i), @truncate(i + offset)),
         }

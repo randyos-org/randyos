@@ -63,8 +63,8 @@ pub fn loadSegment(
     // consists of slices (runtime-sized arrays) of arrays and we want to write
     // to a slice of bytes. So we do a little magic (we first get the pointer
     // of our first slice, and because everything is well-ordered in memory, we
-    // can just set the length of the resulting slice to 4096 * input slice
-    // length).
+    // can just set the length of the resulting slice to pages.page_size *
+    // input slice length).
     // BE VERY CAUTIOUS WITH USING SUCH MANIPULATION CODE IN YOUR OWN PROGRAMS,
     // IT MAY BE A HELL TO DEBUG ERRORS FROM THIS!
     segment_buffer.ptr = @ptrCast(segbuf.ptr);

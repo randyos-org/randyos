@@ -21,17 +21,44 @@ pub const modem_command_port = com1_base + 4;
 pub const line_status_port = com1_base + 5;
 pub var uart_ready: bool = false;
 
+/// `interrupt_enable_port` value that disables all UART interrupts (we poll
+/// the line status register instead).
+const interrupts_disabled: u8 = 0x00;
+/// `line_command_port` bit 7 (DLAB): while set, `data_port`/`data_port + 1`
+/// address the baud rate divisor's LSB/MSB instead of transmitting data.
+const dlab_enable: u8 = 0x80;
+/// Baud rate divisor for 38400 baud (115200 / 3), LSB.
+const baud_38400_divisor_lsb: u8 = 0x03;
+/// Baud rate divisor for 38400 baud, MSB (0 -- the divisor fits in one byte).
+const baud_38400_divisor_msb: u8 = 0x00;
+/// `line_command_port` value for 8 data bits, no parity, 1 stop bit (8N1),
+/// with DLAB clear (back to normal data-port behavior).
+const line_config_8n1: u8 = 0x03;
+/// `fifo_command_port` value: enable FIFO buffers, clear the receive and
+/// transmit FIFOs, 14-byte interrupt trigger level (irrelevant here since
+/// interrupts stay disabled, but the maximum threshold wastes the least
+/// controller-side computation).
+const fifo_enable_clear_14byte: u8 = 0xc7;
+/// `modem_command_port` value: DTR and RTS asserted, OUT2 enabled (the
+/// hardware pin PC platforms wire to the IRQ line).
+const modem_dtr_rts_out2: u8 = 0x0b;
+/// `line_status_port` bit 5: Transmitter Holding Register Empty.
+const transmit_buffer_empty_bit: u8 = 0x20;
+
+/// Bits per hex digit.
+const bits_per_nibble = 4;
+/// Shift to reach the topmost nibble of a 64-bit value.
+const top_nibble_shift: u6 = 64 - bits_per_nibble;
+
 /// This is how to initialize the UART device.
 pub fn uartInitialize() void {
-    // If we set this to 1, the UART device would send us interrupts.
-    port_io.outb(interrupt_enable_port, 0x00);
-    port_io.outb(line_command_port, 0x80); // enable DLAB (set baud rate divisor)
+    port_io.outb(interrupt_enable_port, interrupts_disabled);
+    port_io.outb(line_command_port, dlab_enable);
     // DLAB enables us to send data to the data port without printing,
     // which we use now to set the baud rate (38400)
-    port_io.outb(data_port, 0x03); // LSB of baud rate divisor
-    port_io.outb(data_port + 1, 0x00); // MSB of baud rate divisor
-    // set line to 8N1
-    port_io.outb(line_command_port, 0x03); // 8 bits, no parity, one stop bit
+    port_io.outb(data_port, baud_38400_divisor_lsb);
+    port_io.outb(data_port + 1, baud_38400_divisor_msb);
+    port_io.outb(line_command_port, line_config_8n1);
     // Using this, we set some things in the FIFO (First In First Out) Control
     // register:
     //   - the first bit enables FIFO buffers
@@ -47,7 +74,7 @@ pub fn uartInitialize() void {
     //     to be the maximum as we don't want any interrupts (which we just
     //     disabled), so the least possible computation even on the UART
     //     controller is wasted.
-    port_io.outb(fifo_command_port, 0xc7); // enable FIFO, clear them, with 14-byte threshold
+    port_io.outb(fifo_command_port, fifo_enable_clear_14byte);
     // This sets some bits in the Modem Control Register.
     //   - the first bit controls the Data Terminal Ready pin
     //   - the second bit controls the Request to Send pin
@@ -57,7 +84,7 @@ pub fn uartInitialize() void {
     //   - the fifth bit provides a local loopback feature for diagnostic
     //     testing of the UART
     //   - the sixth to eighth bytes are unused
-    port_io.outb(modem_command_port, 0x0b); // DTR/RTS set, IRQ pin (OUT2) enabled
+    port_io.outb(modem_command_port, modem_dtr_rts_out2);
     uart_ready = true;
 }
 
@@ -68,7 +95,7 @@ pub inline fn uart_is_transmit_buffer_empty() bool {
     // We ask the line status register and if the sixth bit (Transmitter
     // Holding Register Empty) is set, the transmit buffer is empty and
     // ready to accept another byte.
-    return (port_io.inb(line_status_port) & 0x20) != 0;
+    return (port_io.inb(line_status_port) & transmit_buffer_empty_bit) != 0;
 }
 
 /// Put out a single char to COM1
@@ -93,13 +120,13 @@ pub fn uartPuts(str: []const u8) void {
 /// might be corrupted -- this only touches hardware I/O ports.
 pub fn uartPutHex(value: u64) void {
     const digits = "0123456789abcdef";
+    var shift: u6 = top_nibble_shift;
     uartPuts("0x");
-    var shift: u6 = 60;
     while (true) {
         const nibble: u4 = @truncate((value >> shift) & 0xf);
         uart_putchar(digits[nibble]);
         if (shift == 0) break;
-        shift -= 4;
+        shift -= bits_per_nibble;
     }
 }
 

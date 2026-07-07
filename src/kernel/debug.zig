@@ -6,6 +6,12 @@ var already_panicking: bool = false;
 var debug_info: ?std.debug.Dwarf = null;
 var alloc: ?std.mem.Allocator = null;
 
+/// Maximum number of return addresses `panic` will capture into a stack
+/// trace. Plenty for any call depth this kernel actually reaches today;
+/// deeper traces are simply truncated rather than growing this buffer
+/// dynamically (allocation itself might be what's broken during a panic).
+const max_stack_trace_depth: usize = 64;
+
 /// Assert `ok`, panicking with the caller's location (and an optional extra
 /// message) if it isn't. Meant to be called as `kassert(@src(), ok, null)`.
 pub inline fn kassert(src: std.builtin.SourceLocation, ok: bool, message: ?[]const u8) void {
@@ -35,7 +41,7 @@ pub fn panic(msg: []const u8, first_trace_addr: ?usize) noreturn {
 
     // Capture the raw stack trace first; whether or not there's also an
     // error return trace to report, this one is always available.
-    var addr_buffer: [64]usize = undefined;
+    var addr_buffer: [max_stack_trace_depth]usize = undefined;
     const trace = std.debug.captureCurrentStackTrace(.{
         .first_address = first_trace_addr orelse @returnAddress(),
         .allow_unsafe_unwind = true,

@@ -41,6 +41,16 @@ pub const icw4_buf_master: u8 = 0x0c;
 /// Special fully nested (not)
 pub const icw4_sfnm: u8 = 0x10;
 
+/// Bitmask written to the master PIC's data port during `remap` to tell it
+/// there is a slave PIC cascaded on IRQ2 (bit 2 set).
+const master_slave_on_irq2: u8 = 0b0000_0100;
+/// The slave PIC's own cascade identity, written to its data port during
+/// `remap` -- must match the IRQ line (2) the master was just told to expect
+/// it on.
+const slave_cascade_identity: u8 = 2;
+/// Mask written to a PIC's data port to disable all 8 of its IRQ lines.
+const mask_all_irqs: u8 = 0xff;
+
 /// Remap PIC interrupts
 pub fn remap(offset_master: u8, offset_slave: u8) void {
     // save masks
@@ -59,10 +69,10 @@ pub fn remap(offset_master: u8, offset_slave: u8) void {
     port_io.outb(pic2_data, offset_slave);
     port_io.ioWait();
     // tell master PIC that there is a slave PIC at IRQ2
-    port_io.outb(pic1_data, 4);
+    port_io.outb(pic1_data, master_slave_on_irq2);
     port_io.ioWait();
     // tell slave PIC its cascade identity
-    port_io.outb(pic2_data, 2);
+    port_io.outb(pic2_data, slave_cascade_identity);
     port_io.ioWait();
     // have the PICs use 8086 mode (and not 8080 mode)
     port_io.outb(pic1_data, icw4_8086);
@@ -76,6 +86,6 @@ pub fn remap(offset_master: u8, offset_slave: u8) void {
 
 /// Disable the PIC
 pub fn disable() void {
-    port_io.outb(pic1_data, 0xff);
-    port_io.outb(pic2_data, 0xff);
+    port_io.outb(pic1_data, mask_all_irqs);
+    port_io.outb(pic2_data, mask_all_irqs);
 }

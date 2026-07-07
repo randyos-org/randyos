@@ -104,7 +104,7 @@ export fn kmain(boot_data: *KernelBootInfo) noreturn {
         // init clock and set logging clock
         arch.platform.tsc.init();
         logging.get_time = &arch.platform.tsc.getTime;
-        time.init(boot_data.runtime_services);
+        time.init(boot_data.boot_wall_clock_unix_seconds);
 
         // welcome messages
         uart_term.cls();
@@ -114,7 +114,7 @@ export fn kmain(boot_data: *KernelBootInfo) noreturn {
 
         // save the kernel size info
         const kernel_byte_size: usize = @intFromPtr(&__kernel_end) - @intFromPtr(&__kernel_start);
-        const kernel_page_size: usize = std.math.divCeil(usize, kernel_byte_size, 0x1000) catch unreachable;
+        const kernel_page_size: usize = std.math.divCeil(usize, kernel_byte_size, pages.page_size) catch unreachable;
         log.debug("kernel_start = 0x{x}, kernel_end = 0x{x}", .{ @as(usize, @intFromPtr(&__kernel_start)), @as(usize, @intFromPtr(&__kernel_end)) });
 
         // page allocator init and debugging info

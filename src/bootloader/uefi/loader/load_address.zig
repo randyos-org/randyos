@@ -13,6 +13,12 @@ const memory = @import("../memory.zig");
 /// Errors from picking a physical location to load the kernel at
 pub const FindLoadAddressError = error{NoSuitableMemory};
 
+/// Physical regions below this address are never considered for the kernel
+/// load location -- the legacy 1MiB low-memory area (BIOS data area,
+/// VGA/option ROM windows, etc.), same boundary the kernel's own page
+/// allocator applies later.
+const min_kernel_load_address: u64 = 0x100000;
+
 /// Compute how many bytes of physical memory the kernel's PT_LOAD segments
 /// span (from the lowest segment's vaddr to the end of the highest one),
 /// then find a UEFI conventional-memory region at/above 1MB that's actually
@@ -46,7 +52,7 @@ pub fn findKernelLoadAddress(
     while (mem_index < mm.info.len) : (mem_index += 1) {
         const mem_point: *uefi.tables.MemoryDescriptor = @ptrCast(@alignCast(mm.map.ptr + (mem_index * mm.info.descriptor_size)));
         if (mem_point.type == .conventional_memory and
-            mem_point.physical_start >= 0x100000 and
+            mem_point.physical_start >= min_kernel_load_address and
             mem_point.number_of_pages * @as(u64, pages.page_size) >= required_size)
         {
             log.debug("found {} free pages (>= {} bytes needed) at 0x{x}", .{ mem_point.number_of_pages, required_size, mem_point.physical_start });

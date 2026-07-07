@@ -4,6 +4,9 @@
 const std = @import("std");
 const log = std.log.scoped(.arch_gdt);
 
+const common = @import("common");
+const pages = common.pages;
+
 const registers = @import("registers.zig");
 
 extern const __stack_top: u8;
@@ -32,6 +35,10 @@ pub const TSS = extern struct {
 
 var global_tss = TSS{};
 const ist_vec: u8 = 1;
+/// Mask applied to `ist_vec` since the IDT gate's IST field (see
+/// `idt.Entry.ist`) is only 3 bits wide, indexing 1-7 into `TSS.ist` (0 means
+/// "don't switch stacks").
+const ist_vec_mask: u8 = 0b111;
 
 /// Set Interrupt Stack Table
 pub fn setIST(value: u64) void {
@@ -39,10 +46,8 @@ pub fn setIST(value: u64) void {
 }
 
 /// Get Interrupt Stack Table
-/// Masked to 3 bits since the IDT gate's IST field (see `idt.Entry.ist`) is
-/// only 3 bits wide, indexing 1-7 into `TSS.ist` (0 means "don't switch stacks").
 pub fn getISTVec() u8 {
-    return ist_vec & 0b111;
+    return ist_vec & ist_vec_mask;
 }
 
 /// Access byte of a GDT entry
@@ -289,8 +294,13 @@ pub const Selector = enum(u16) {
     _,
 };
 
+/// Number of entries in `global_gdt`: null, kernel code/data, an unused gap
+/// selector, user code/data, and the two-slot (16-byte) TSS system
+/// descriptor (see `SystemEntry.low`/`.high`).
+const gdt_entry_count: usize = 8;
+
 /// The GDT
-pub var global_gdt: [8]Entry align(4096) = undefined;
+pub var global_gdt: [gdt_entry_count]Entry align(pages.page_size) = undefined;
 pub var descriptor: Descriptor = undefined;
 
 /// Initialize the GDT
@@ -323,7 +333,7 @@ pub fn init() void {
     };
     // set the gdt descriptor
     descriptor = .{
-        .size = @sizeOf(Entry) * 8 - 1,
+        .size = @sizeOf(Entry) * gdt_entry_count - 1,
         .offset = @intFromPtr(&global_gdt),
     };
     // load the gdt descriptor

@@ -1,6 +1,35 @@
 const std = @import("std");
-const uefi = std.os.uefi;
 const log = std.log.scoped(.common_boot_info);
+
+/// Firmware-neutral classification of a physical memory region, as reported
+/// by whatever firmware/bootloader actually handed the kernel its boot
+/// info -- the kernel only ever sees this shape, never a raw
+/// firmware-native memory map format.
+pub const MemoryRegionKind = enum {
+    usable,
+    reserved,
+    acpi_reclaimable,
+    acpi_nvs,
+    bootloader_reclaimable,
+    kernel_and_modules,
+    mmio,
+    bad,
+};
+
+/// A single physical memory region, in firmware-neutral form.
+pub const MemoryRegion = struct {
+    phys_start: u64,
+    page_count: u64,
+    kind: MemoryRegionKind,
+};
+
+/// Framebuffer pixel channel order, in firmware-neutral form.
+pub const FramebufferPixelFormat = enum {
+    /// Red, Green, Blue, Reserved
+    rgb,
+    /// Blue, Green, Red, Reserved
+    bgr,
+};
 
 /// Video Mode Info
 pub const KernelBootVideoModeInfo = struct {
@@ -9,25 +38,12 @@ pub const KernelBootVideoModeInfo = struct {
     horizontal_resolution: u32,
     vertical_resolution: u32,
     pixels_per_scanline: u32,
-    pixel_format: u32,
+    pixel_format: FramebufferPixelFormat,
 };
 
-// TODO(kernel portability): this struct is the contract *the kernel itself*
-// (not just the bootloader) depends on -- main.zig takes a
-// `*boot_info.KernelBootInfo` directly -- and it's hard-wired to UEFI types
-// (`uefi.tables.MemoryMapSlice`/`MemoryMapInfo`/`RuntimeServices`). That's
-// fine for x86_64 Mac/PC and Raspberry Pi 3/4 (all genuinely UEFI-booted),
-// but Raspberry Pi 5 (see src/bootloader/rpi/), Apple Silicon Mac (see
-// src/bootloader/asahi/), and powerpc (Open Firmware -- see
-// src/bootloader/ofw/) won't be UEFI-booted at all, so whatever loads
-// RandyOS on those either has to synthesize UEFI-shaped data it doesn't
-// actually have, or (better) this struct needs to stop assuming UEFI is the
-// only way a kernel ever gets handed its boot info. Not addressed here --
-// revisit when a non-UEFI boot path is actually being built.
 /// Kernel Boot Info
 pub const KernelBootInfo = struct {
-    map: uefi.tables.MemoryMapSlice,
-    map_info: uefi.tables.MemoryMapInfo,
+    memory_map: []const MemoryRegion,
     video_mode_info: KernelBootVideoModeInfo,
     rsdp_10: ?*anyopaque,
     rsdp_20: ?*anyopaque,
@@ -36,5 +52,7 @@ pub const KernelBootInfo = struct {
     kernel_virt_start: usize,
     kernel_virt_end: usize,
     dwarf_info: *?std.debug.Dwarf,
-    runtime_services: *uefi.tables.RuntimeServices,
+    /// Unix epoch seconds at boot, as reported by firmware. `null` if the
+    /// bootloader couldn't determine a wall-clock time.
+    boot_wall_clock_unix_seconds: ?i64,
 };

@@ -4,6 +4,11 @@
 const std = @import("std");
 const log = std.log.scoped(.arch_registers);
 
+/// CPUID leaf 1 ("Processor Info and Feature Bits"): with EAX set to this on
+/// entry, CPUID returns the feature bits `CpuFeatures.get` decodes out of
+/// ECX/EDX. From the Intel SDM Vol. 2A, Chapter 3.3, Table 3-8.
+const cpuid_leaf_feature_bits: u32 = 1;
+
 /// CR0
 /// Contains system control flags that control operating mode and states of the processor.
 /// From the Intel SDM Volume 3A (December 2023), Chapter 2.5
@@ -475,7 +480,7 @@ pub const CpuFeatures = packed struct(u64) {
     pub fn get() CpuFeatures {
         return asm volatile ("cpuid; shlq $32, %rdx; or %rdx, %rcx"
             : [ret] "={rcx}" (-> CpuFeatures),
-            : [param] "{eax}" (1),
+            : [param] "{eax}" (cpuid_leaf_feature_bits),
             : .{
               .rcx = true,
               .rdx = true,

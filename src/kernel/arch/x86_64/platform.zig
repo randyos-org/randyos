@@ -33,6 +33,17 @@ pub const tsc = @import("tsc.zig");
 /// Kernel Boot Info by UEFI
 // pub extern const kernel_boot_info: *boot_info.KernelBootInfo;
 
+/// First interrupt vector the (remapped) legacy PIC's master chip is given
+/// for its 8 IRQ lines -- placed just past the 32 CPU exception vectors
+/// (0-31) so a stray legacy IRQ can't collide with one.
+const pic_master_vector_offset: u8 = 32;
+/// First vector the PIC's slave chip is given -- immediately after the
+/// master's 8 vectors.
+const pic_slave_vector_offset: u8 = pic_master_vector_offset + 8;
+/// First vector the I/O APIC's redirection table entries are given (see
+/// `idt.zig`'s `keyboard_vector`, which depends on this exact value).
+const ioapic_vector_offset: u8 = 48;
+
 /// Arguments passed to the platform init
 pub const InitParams = struct {
     /// I/O APIC Address
@@ -66,18 +77,17 @@ pub fn init(allocator: std.mem.Allocator, params: InitParams) void {
     // Remap before disabling: if a legacy PIC interrupt sneaks in during the
     // brief window before disable() takes effect, it lands above vector 31
     // instead of colliding with a CPU exception vector.
-    pic.remap(32, 40);
+    pic.remap(pic_master_vector_offset, pic_slave_vector_offset);
     pic.disable();
     log.info("PIC disabling successful! ", .{});
     paging.init(
         allocator,
-        kern_info.map,
-        kern_info.map_info,
+        kern_info.memory_map,
         kern_info.kernel_phys_start,
         params.kernel_page_size,
     );
     lapic.init();
-    ioapic.init(params.ioapic_addr, params.glob_sys_int_base, 48);
+    ioapic.init(params.ioapic_addr, params.glob_sys_int_base, ioapic_vector_offset);
     log.debug("CR0 contents: {}", .{registers.CR0.get()});
     log.info("Platform-specific initialization successful! ", .{});
 }

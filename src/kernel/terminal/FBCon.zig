@@ -78,6 +78,11 @@ const Self = @This();
 // we make maximum 8 args, just in case
 var control_sequence_arg_buffer: [8]u32 = undefined;
 
+/// The underline is drawn this many glyph rows up from the bottom edge --
+/// roughly a typical underline's thickness-from-baseline offset, scaled to
+/// the font's height.
+const underline_offset_divisor: u8 = 8;
+
 /// The pointer to the graphics device
 gd: *GraphicsDev = undefined,
 /// ANSI Escape Code Parser State
@@ -231,7 +236,7 @@ pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
     }
     if (self.graphical_features.underline == true) {
         // underline: OR 1pxl with height/8 pxls offset from bottom
-        row = height - @divFloor(height, 8);
+        row = height - @divFloor(height, underline_offset_divisor);
         col = 0;
         while (col < width) : (col += 1) {
             const index: usize = base_index + col + row *% px_per_scanline;

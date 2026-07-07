@@ -8,6 +8,11 @@ pub const ChecksumError = error{
     InvalidChecksum,
 };
 
+/// Size, in bytes, of the ACPI 1.0 RSDP structure (bytes 0-19) -- the region
+/// a revision-0 table's checksum covers. Later fields (`length`, `xsdt_addr`,
+/// `ext_checksum`, `res1`) don't exist in that revision.
+const acpi_v1_rsdp_size: usize = 20;
+
 /// Root System Descriptor Pointer
 pub const RSDP = extern struct {
     /// "RSD PTR " (Notice that this signature must contain a trailing blank character)
@@ -45,7 +50,7 @@ pub const RSDP = extern struct {
         var sum: u8 = 0;
         const arr: [*]u8 = @ptrCast(self);
         switch (self.revision) {
-            0 => for (arr[0..20]) |val| {
+            0 => for (arr[0..acpi_v1_rsdp_size]) |val| {
                 sum +%= val;
             },
             2 => for (arr[0..self.length]) |val| {

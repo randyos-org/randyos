@@ -18,6 +18,14 @@ var ring: [ring_size]u8 = undefined;
 var ring_head: usize = 0;
 var ring_tail: usize = 0;
 
+/// PS/2 controller data port (scan code in/out).
+const ps2_data_port: u16 = 0x60;
+
+/// Scan code set 1 convention: codes below this are "make" (key press)
+/// codes; a set high bit (code >= 128) marks the corresponding "break" (key
+/// release) code for the same key.
+const scancode_break_threshold: u8 = 128;
+
 /// Interrupt Handler (top half)
 /// Must stay fast: this runs with interrupts disabled for its entire
 /// duration. Do the minimum required at interrupt time -- ack, read the
@@ -26,7 +34,7 @@ var ring_tail: usize = 0;
 pub fn keyboardHandler() void {
     // trigger mode is edge, so we need to EOI before we read the byte
     lapic.eoi();
-    const scan_code = port_io.inb(0x60);
+    const scan_code = port_io.inb(ps2_data_port);
     const next_head = (ring_head + 1) % ring_size;
     if (next_head != ring_tail) {
         ring[ring_head] = scan_code;
@@ -44,7 +52,7 @@ pub fn processPending() void {
     while (ring_tail != ring_head) {
         const scan_code = ring[ring_tail];
         ring_tail = (ring_tail + 1) % ring_size;
-        if (scan_code < 128) {
+        if (scan_code < scancode_break_threshold) {
             log.info("The interrupt seems to be a key press. Scan code: {}", .{scan_code});
         } else {
             log.info("The interrupt seems to be a key release. Scan code: {}", .{scan_code});

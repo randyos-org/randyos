@@ -18,6 +18,16 @@ pub const BmpError = std.mem.Allocator.Error || error{
     Truncated,
 };
 
+/// `InfoHeader.compression` value for `BI_RGB` (uncompressed) -- the only
+/// compression mode this parser supports.
+const bi_rgb_compression: u32 = 0;
+/// The only `InfoHeader.bits_per_pixel` this parser supports.
+const supported_bits_per_pixel: u16 = 24;
+/// Bytes per pixel in the (24bpp) pixel data this parser supports.
+const bytes_per_pixel: usize = supported_bits_per_pixel / 8;
+/// BMP rows are padded out to a multiple of this many bytes.
+const row_alignment: usize = 4;
+
 /// BMP file header ("BITMAPFILEHEADER").
 /// Every field is `align(1)` because this overlays raw file bytes directly
 /// -- there is no compiler-inserted padding to match.
@@ -56,11 +66,11 @@ pub fn parse(allocator: std.mem.Allocator, bmp_data: []const u8) BmpError!PixelB
     if (!std.mem.eql(u8, &file_header.magic, "BM")) return error.NotABmp;
 
     const info_header: *const InfoHeader = @ptrCast(bmp_data.ptr + @sizeOf(FileHeader));
-    if (info_header.compression != 0) {
+    if (info_header.compression != bi_rgb_compression) {
         log.err("BMP uses compression {} -- only uncompressed (BI_RGB) is supported", .{info_header.compression});
         return error.Unsupported;
     }
-    if (info_header.bits_per_pixel != 24) {
+    if (info_header.bits_per_pixel != supported_bits_per_pixel) {
         log.err("BMP has {} bits per pixel -- only 24bpp color is supported", .{info_header.bits_per_pixel});
         return error.Unsupported;
     }
@@ -71,7 +81,7 @@ pub fn parse(allocator: std.mem.Allocator, bmp_data: []const u8) BmpError!PixelB
     // (positive height) is bottom-up.
     const top_down = info_header.height < 0;
     // Each row is padded to a 4 byte boundary.
-    const row_size = std.mem.alignForward(usize, width * 3, 4);
+    const row_size = std.mem.alignForward(usize, width * bytes_per_pixel, row_alignment);
 
     if (bmp_data.len < file_header.pixel_data_offset) return error.Truncated;
     const pixel_data = bmp_data[file_header.pixel_data_offset..];
@@ -81,10 +91,10 @@ pub fn parse(allocator: std.mem.Allocator, bmp_data: []const u8) BmpError!PixelB
     for (0..height) |dst_row| {
         // `PixelBuffer` is top-down; BMP's default row order is bottom-up.
         const src_row = if (top_down) dst_row else height - 1 - dst_row;
-        const row_bytes = pixel_data[src_row * row_size ..][0 .. width * 3];
+        const row_bytes = pixel_data[src_row * row_size ..][0 .. width * bytes_per_pixel];
         for (0..width) |col| {
             // BMP pixel data is stored blue, green, red.
-            const px = row_bytes[col * 3 ..][0..3];
+            const px = row_bytes[col * bytes_per_pixel ..][0..bytes_per_pixel];
             pixels[dst_row * width + col] = .{ .blue = px[0], .green = px[1], .red = px[2], .reserved = 0 };
         }
     }
