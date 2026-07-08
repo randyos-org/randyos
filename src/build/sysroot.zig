@@ -4,6 +4,7 @@
 //! attaches to QEMU as the emulated FAT boot drive.
 
 const std = @import("std");
+const log = std.log.scoped(.build_sysroot);
 const Build = std.Build;
 const Step = Build.Step;
 const WriteFile = Step.WriteFile;

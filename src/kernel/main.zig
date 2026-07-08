@@ -12,23 +12,22 @@ pub const ansi = common.ansi;
 pub const sgr = ansi.SgrCode;
 
 // copied/updated from Loup OS
-pub const acpi = @import("acpi.zig");
-pub const arch = @import("arch.zig");
-pub const memory = @import("memory.zig");
+pub const arch = @import("arch/root.zig");
+pub const mem = @import("mem/root.zig");
+pub const kpa = mem.kernel_page_allocator;
 
 // (re-)written for this kernel
 const debug = @import("debug.zig");
-// FIXME:GPL begin
 pub const kassert = debug.kassert;
 pub const kpanic = debug.kpanic;
-// FIXME:GPL end
-const uart = @import("terminal/uart.zig");
-const FBCon = @import("terminal/FBCon.zig");
+const uart = @import("arch/x86_64/uart.zig");
+const FBCon = @import("term/FBCon.zig");
 
 // new custom modules
-pub const GraphicsDev = @import("graphics/Device.zig");
-const drawLogo = @import("graphics/logo/draw.zig").drawLogo;
-const time = @import("time.zig");
+pub const GraphicsDev = @import("gfx/Device.zig");
+const drawLogo = @import("gfx/logo/draw.zig").drawLogo;
+const time = @import("time/root.zig");
+const hw = @import("hw/root.zig").interface;
 
 // The constants here are defined in the kernel linker script
 pub extern const __kernel_start: u8;
@@ -58,7 +57,6 @@ pub const std_options: std.Options = .{
 pub const std_options_debug_threaded_io: ?*std.Io.Threaded = null;
 pub const std_options_debug_io: std.Io = .failing;
 
-// FIXME:GPL begin
 /// Kernel Entry Point (setup)
 fn _start() linksection(".start") callconv(.naked) noreturn {
     arch.platform.setup();
@@ -74,7 +72,6 @@ comptime {
     @export(&_start, .{ .name = "_start" });
     @export(&_main, .{ .name = "_main" });
 }
-// FIXME:GPL end
 
 /// This is our kernel main function.
 /// The linker script's actual `ENTRY` is `_start` (the naked asm stub above
@@ -82,83 +79,176 @@ comptime {
 /// is still `export fn` so it stays a named, locatable symbol (e.g. for a
 /// debugger), not because the linker enters here directly.
 export fn kmain(boot_data: *KernelBootInfo) noreturn {
-    // Everything below is x86_64-specific today (UART port I/O, the TSC,
-    // ACPI, and platform.init's IOAPIC params are all x86 concepts, not just
-    // the platform-init call), so the other arch stubs gate here rather than
-    // pretending to share a portable body they don't actually have yet.
-    // `builtin.cpu.arch` is comptime-known, so only the taken branch of this
-    // if/else gets semantically analyzed -- the same mechanism arch.zig's
-    // own dispatch already relies on -- meaning the x86_64-only references
-    // in the true branch don't need to exist for other targets.
-    if (builtin.cpu.arch == .x86_64) {
-        const log = std.log.scoped(.kmain);
+    const log = std.log.scoped(.kmain);
+    var term = initSerialTerm();
+    if (term) |t| {
+        t.cls();
+    }
+    initTimingServices(boot_data);
 
-        // Initialize UART terminal
-        const uart_term = &uart.uart_term;
-        logging.log_term = uart_term;
-        uart_term.init(.{});
+    // welcome messages
+    log.debug("Kernel terminal initialized", .{});
+    log.info("Welcome to RandyOS!", .{});
+    time.logNow();
 
-        // intentionally log before tsc to force -1 timestamp test
-        log.info("-------------------------", .{});
+    // save the kernel size info
+    const kernel_byte_size: usize = @intFromPtr(&__kernel_end) - @intFromPtr(&__kernel_start);
+    const kernel_page_size: usize = std.math.divCeil(usize, kernel_byte_size, pages.page_size) catch unreachable;
+    log.debug("kernel_start = 0x{x}, kernel_end = 0x{x}", .{ @as(usize, @intFromPtr(&__kernel_start)), @as(usize, @intFromPtr(&__kernel_end)) });
 
-        // init clock and set logging clock
-        arch.platform.tsc.init();
-        logging.get_time = &arch.platform.tsc.getTime;
-        time.init(boot_data.boot_wall_clock_unix_seconds);
+    // page allocator init and debugging info
+    // needed before all other operations, including graphics
+    kpa.init(boot_data);
+    debug.init(kpa.allocator, boot_data.dwarf_info);
 
-        // welcome messages
-        uart_term.cls();
-        log.debug("Kernel terminal initialized", .{});
-        log.info("Welcome to RandyOS!", .{});
-        time.logNow();
+    // initialize graphics early so errors can be displayed to user without serial
+    var gd: GraphicsDev = .{};
+    var fbcon: FBCon = .{};
+    term = initGfx(boot_data, &gd, &fbcon);
 
-        // save the kernel size info
-        const kernel_byte_size: usize = @intFromPtr(&__kernel_end) - @intFromPtr(&__kernel_start);
-        const kernel_page_size: usize = std.math.divCeil(usize, kernel_byte_size, pages.page_size) catch unreachable;
-        log.debug("kernel_start = 0x{x}, kernel_end = 0x{x}", .{ @as(usize, @intFromPtr(&__kernel_start)), @as(usize, @intFromPtr(&__kernel_end)) });
+    parseHardwareDescription(boot_data);
+    arch.platform.init(kpa.allocator, .{
+        .kernel_boot_info = boot_data,
+        .kernel_page_size = kernel_page_size,
+    });
 
-        // page allocator init and debugging info
-        // needed before all other operations, including graphics
-        memory.kernel_page_allocator.init(boot_data);
-        debug.init(memory.kernel_page_allocator.allocator, boot_data.dwarf_info);
+    // setup driver support here (this probably requires a few other things
+    // before this, but starting to determine the order of operations now)
+    initDriverSupport();
 
-        // initialize graphics early so errors can be displayed to user without uart
-        var gd: GraphicsDev = .{};
-        var fbcon: FBCon = .{};
-        gd.init(boot_data);
-        drawLogo(&gd);
-        fbcon.init(&gd, false);
-        const fbterm = &fbcon.term;
-        logging.log_term = fbterm;
-        log.debug("fbcon initialized", .{});
+    // Check for firmware runtime pointers in kernel boot info.
+    // If present, try to load the firmware driver.
+    // This is allowed to fail without panic.
+    initFwDriver(boot_data);
 
-        // acpi init before platform to parse MADT addresses needed by platform
-        const acpi_info = acpi.init(boot_data) catch {
-            kpanic(@src(), "no usable ACPI tables found -- can't boot without them on this platform");
-        };
+    if (build_options.run_demos) {
+        demos(&fbcon, term, &gd);
+    }
 
-        // platform-specific codes
-        arch.platform.init(memory.kernel_page_allocator.allocator, .{
-            .ioapic_addr = acpi_info.ioapic_addr,
-            .glob_sys_int_base = acpi_info.glob_sys_int_base,
-            .kernel_boot_info = boot_data,
-            .kernel_page_size = kernel_page_size,
-        });
-        log.info("Kernel initialized!  Idling...", .{});
-        time.logNow();
+    kloop();
+}
 
-        // demos(&fbcon, uart_term, &gd);
-
-        // Idle loop: drain deferred interrupt work, then halt until the next
-        // interrupt. This is the shape a scheduler's idle task will also take
-        // (drain pending work, block) -- becomes that task's body directly
-        // once one exists.
-        while (true) {
+/// Idle loop: drain deferred interrupt work, then halt until the next
+/// interrupt. This is the shape a scheduler's idle task will also take
+/// (drain pending work, block) -- becomes that task's body directly
+/// once one exists.
+fn kloop() noreturn {
+    const log = std.log.scoped(.kmain_loop);
+    log.info("Kernel initialized!  Idling...", .{});
+    time.logNow();
+    while (true) {
+        if (builtin.cpu.arch == .x86_64) {
             arch.platform.ps2.processPending();
             arch.platform.registers.halt();
         }
-    } else {
-        @panic("TODO: kmain not yet implemented for this architecture");
+    }
+}
+
+fn initSerialTerm() ?*Terminal {
+    const log = std.log.scoped(.kmain_serial);
+    var term: ?*Terminal = null;
+    switch (builtin.cpu.arch) {
+        .x86_64 => {
+            // Initialize UART terminal
+            const uart_term = &uart.uart_term;
+            uart_term.init(.{});
+            term = uart_term;
+        },
+        else => return null,
+    }
+    logging.log_term = term;
+    // intentionally log before timing services init'd to force -1 timestamp for testing
+    log.info("-------------------------", .{});
+    return term;
+}
+
+fn initTimingServices(boot_data: *KernelBootInfo) void {
+    const log = std.log.scoped(.kmain_time);
+    switch (builtin.cpu.arch) {
+        .x86_64 => {
+            // init clock and set logging clock
+            arch.platform.tsc.init();
+            logging.get_time = &arch.platform.tsc.getTime;
+            time.init(boot_data.boot_wall_clock_unix_seconds);
+        },
+        else => return,
+    }
+    log.debug("timing services started", .{});
+}
+
+fn initGfx(boot_data: *KernelBootInfo, gd: *GraphicsDev, fbcon: *FBCon) *Terminal {
+    const log = std.log.scoped(.kmain_gfx);
+    gd.init(boot_data);
+    drawLogo(gd);
+    fbcon.init(gd, false);
+    const term = &fbcon.term;
+    logging.log_term = term;
+    log.debug("fbcon initialized", .{});
+    return term;
+}
+
+fn initDriverSupport() void {
+    const log = std.log.scoped(.kmain_drv);
+    log.debug("initialize driver support", .{});
+    // Implementation-specific driver support initialization goes here
+}
+
+/// STUB: intended eventual call site for loading a firmware runtime driver
+/// (e.g. `src/drivers/uefi/root.zig`) once `boot_data.fw_runtime_ptr` is
+/// present -- see `FirmwareRuntimeData` in `src/common/boot_info.zig` for
+/// why that field is a raw, opaque, firmware-native pointer rather than a
+/// kernel-callable capability struct, and `src/drivers/uefi/root.zig` for
+/// why loading it is deferred until a real (dynamic, not `arch`-gated)
+/// driver-loading mechanism exists. Not implemented: this only checks
+/// presence today. Must never grow an `if (builtin.cpu.arch == .x86_64)`
+/// check or similar -- UEFI isn't x86_64-specific (aarch64 has real UEFI
+/// too, see `src/bootloader/rpi/main.zig`), so which driver(s) get linked
+/// in has to be its own axis, independent of `arch.zig`'s CPU-architecture
+/// dispatch.
+///
+/// This is allowed to fail/no-op silently (no panic) -- every capability a
+/// firmware runtime driver would provide is optional and rare (see the
+/// reset/shutdown design discussion: ACPI's FADT reset register, PSCI, and
+/// direct hardware access cover the common, load-bearing cases without
+/// this at all).
+fn initFwDriver(boot_data: *KernelBootInfo) void {
+    const log = std.log.scoped(.kmain_fw);
+    log.debug("initialize firmware driver", .{});
+    if (boot_data.fw_runtime_ptr) |ptrs| {
+        // Load the firmware driver using the provided pointers
+        // Implementation-specific details go here
+        _ = ptrs; // suppress unused variable warning
+    }
+}
+
+/// Breaking down/parsing the raw hardware description (ACPI table
+/// walking today; devicetree parsing eventually) is firmware-format
+/// -specific but *not* CPU-architecture-specific -- ACPI's table
+/// formats don't change based on which CPU is reading them (some
+/// arm64 servers use ACPI too) -- so that parsing happens here, in
+/// the shared body, rather than inside `arch.platform.init`. What
+/// *is* architecture-specific is what to do with the parsed result
+/// (e.g. interpreting MADT's I/O APIC entries only makes sense on
+/// x86 -- ARM's MADT variant has GIC entries instead); that part is
+/// left to `arch.platform.init` and the drivers underneath it
+/// (`ioapic.zig` reads `hw_acpi.madt_ptr` directly once this has
+/// run).
+fn parseHardwareDescription(boot_data: *KernelBootInfo) void {
+    const log = std.log.scoped(.kmain_hw);
+    log.debug("parsing hardware description", .{});
+    switch (boot_data.hardware_description orelse @panic("no hardware description provided by the bootloader at all")) {
+        .acpi => |a| {
+            if (!build_options.has_acpi) {
+                @panic("bootloader provided an ACPI hardware description, but this kernel was built with -Dacpi=false");
+            }
+            hw.init(a.rsdp) catch @panic("no usable ACPI tables found");
+        },
+        .devicetree => |d| {
+            if (!build_options.has_devicetree) {
+                @panic("bootloader provided a Device Tree hardware description, but this kernel was built with -Ddevicetree=false");
+            }
+            hw.init(d.blob) catch @panic("no usable Device Tree found");
+        },
     }
 }
 

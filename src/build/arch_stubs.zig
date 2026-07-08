@@ -6,6 +6,7 @@
 //! working x86_64 boot flow at all.
 
 const std = @import("std");
+const log = std.log.scoped(.build_arch_stubs);
 const Build = std.Build;
 const Target = std.Target;
 const Module = Build.Module;
@@ -27,7 +28,7 @@ pub const ArchStub = struct {
     kernel_query: Target.Query,
     kernel_code_model: std.builtin.CodeModel = .default,
     /// `null` means this arch has no bootloader step yet -- either because
-    /// there's no UEFI firmware worth targeting at all (powerpc: classic
+    /// there's no UEFI firmware worth targeting at all (ppc: classic
     /// Macs use Open Firmware, see src/bootloader/ofw/), or because the
     /// real target board's UEFI firmware doesn't actually help this
     /// particular OS (arm: Pi 3 does have aarch64 UEFI via pftf, but that
@@ -61,7 +62,7 @@ pub const arch_stubs = [_]ArchStub{
         .bootloader_query = null,
     },
     .{
-        .name = "powerpc",
+        .name = "ppc",
         .kernel_query = .{ .cpu_arch = .powerpc, .os_tag = .freestanding, .abi = .eabi, .ofmt = .elf },
         .bootloader_query = null,
     },

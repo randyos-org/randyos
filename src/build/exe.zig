@@ -3,6 +3,7 @@
 //! roadmap (compile-only) architectures.
 
 const std = @import("std");
+const log = std.log.scoped(.build_exe);
 const Build = std.Build;
 const Target = std.Target;
 const Step = Build.Step;

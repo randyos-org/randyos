@@ -62,6 +62,12 @@ pub fn finalizeKernelBootInfo(
         log.warn("could not read wall-clock time from firmware: {s}", .{@errorName(err)});
         break :blk null;
     };
+    // Hand off the raw Runtime Services pointer as opaque data -- no
+    // bootloader-authored wrapper/trampoline code, see the rationale on
+    // `FirmwareRuntimeData` in `src/common/boot_info.zig`. Whether/how
+    // anything actually uses this is up to a future, dynamically-loaded
+    // driver (`src/drivers/uefi/root.zig`), not this bootloader.
+    kbi.fw_runtime_ptr = .{ .uefi = runtime_services };
 }
 
 /// Assemble the `KernelBootInfo` the kernel expects at its
@@ -87,18 +93,25 @@ pub fn buildKernelBootInfo(
     return kbi;
 }
 
-/// Record both ACPI RSDP GUIDs present in the firmware's configuration
-/// table. Both are checked (rather than just the newer one) since
-/// ACPI-1.0-only firmware won't publish the 2.0 GUID at all, and it's the
-/// kernel that decides which version to trust.
+/// Find the ACPI RSDP in the firmware's configuration table and record it
+/// as `kbi.hardware_description`. Both the 1.0 and 2.0 GUIDs are checked
+/// (rather than just the newer one) since ACPI-1.0-only firmware won't
+/// publish the 2.0 GUID at all -- 2.0 wins if both are present, since the
+/// bootloader is better positioned to make that one-time judgment call
+/// than the kernel is (it already has to walk both GUIDs to find either).
+/// `kbi.hardware_description` stays `null` if neither is found.
 fn findAcpiTables(system_table: *uefi.tables.SystemTable, kbi: *KernelBootInfo) void {
+    var rsdp_10: ?*anyopaque = null;
+    var rsdp_20: ?*anyopaque = null;
     for (0..system_table.number_of_table_entries) |index| {
         const entry = system_table.configuration_table[index];
         if (entry.vendor_guid.eql(uefi.tables.ConfigurationTable.acpi_10_table_guid)) {
-            kbi.rsdp_10 = entry.vendor_table;
+            rsdp_10 = entry.vendor_table;
         }
         if (entry.vendor_guid.eql(uefi.tables.ConfigurationTable.acpi_20_table_guid)) {
-            kbi.rsdp_20 = entry.vendor_table;
+            rsdp_20 = entry.vendor_table;
         }
     }
+    const winner = rsdp_20 orelse rsdp_10;
+    kbi.hardware_description = if (winner) |rsdp| .{ .acpi = .{ .rsdp = rsdp } } else null;
 }

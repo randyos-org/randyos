@@ -24,6 +24,9 @@
 //!
 //! Not wired to any dispatcher -- this is a layout reference only.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_types_dirent64);
+
 pub const LinuxDirent64 = extern struct {
     /// Inode number of this directory entry.
     d_ino: u64,

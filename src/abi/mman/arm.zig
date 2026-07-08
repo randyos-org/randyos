@@ -36,6 +36,9 @@
 
 // PROT_* -- mmap()/mprotect() protection flags.
 /// The page may not be accessed at all -- no read, write, or execute.
+const std = @import("std");
+const log = std.log.scoped(.abi_mman_arm);
+
 pub const PROT_NONE: u32 = 0x0;
 /// The page may be read.
 pub const PROT_READ: u32 = 0x1;

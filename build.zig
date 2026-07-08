@@ -13,6 +13,7 @@ const qemu_mod = @import("src/build/qemu.zig");
 const modules_mod = @import("src/build/modules.zig");
 const exe_mod = @import("src/build/exe.zig");
 const arch_stubs_mod = @import("src/build/arch_stubs.zig");
+const options_mod = @import("src/build/options.zig");
 
 pub fn build(b: *Build) void {
     const optimize = b.standardOptimizeOption(.{});
@@ -24,7 +25,8 @@ pub fn build(b: *Build) void {
     qemu_mod.addMonitorCmd(b);
 
     const docs = docs_mod.addDocs(b);
-    const common_mod = modules_mod.addCommon(b, optimize, docs);
+    const options = options_mod.addOptions(b);
+    const common_mod = modules_mod.addCommon(b, optimize, docs, options);
     const abi_mod = modules_mod.addAbi(b, optimize, docs);
     _ = exe_mod.addBootldr(b, sysroot.build, optimize, common_mod, abi_mod, docs);
     _ = exe_mod.addKernel(b, sysroot.build, optimize, common_mod, abi_mod, docs);

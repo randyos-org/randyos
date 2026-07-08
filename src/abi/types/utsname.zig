@@ -21,6 +21,9 @@
 //!
 //! Not wired to any dispatcher -- this is a layout reference only.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_types_utsname);
+
 pub const NewUtsname = extern struct {
     /// Operating system name (e.g. "Linux").
     sysname: [65]u8,

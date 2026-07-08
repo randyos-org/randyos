@@ -21,6 +21,9 @@
 //!
 //! Not wired to any dispatcher -- this is a numbering reference only.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_errno);
+
 pub const Number = enum(u16) {
     /// Operation not permitted: the caller lacks the privilege to perform
     /// the requested action.

@@ -2,6 +2,7 @@
 //! QEMU's FAT boot drive, and the `socat`-based QEMU monitor helper.
 
 const std = @import("std");
+const log = std.log.scoped(.build_qemu);
 const Build = std.Build;
 const Step = Build.Step;
 const Run = Step.Run;

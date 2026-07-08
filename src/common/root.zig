@@ -2,6 +2,9 @@
 //! kernel targets (see build.zig) -- just re-exports; add new shared modules
 //! here rather than importing them by relative path from elsewhere.
 
+const std = @import("std");
+const log = std.log.scoped(.common);
+
 pub const build_options = @import("build_options");
 pub const boot_info = @import("boot_info.zig");
 pub const pages = @import("pages.zig");

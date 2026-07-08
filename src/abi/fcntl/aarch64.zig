@@ -33,6 +33,9 @@
 
 /// Bitmask for extracting the access mode (O_RDONLY/O_WRONLY/O_RDWR) from a
 /// set of `open()` flags.
+const std = @import("std");
+const log = std.log.scoped(.abi_fcntl_aarch64);
+
 pub const O_ACCMODE: u32 = 3;
 /// Open the file for reading only.
 pub const O_RDONLY: u32 = 0;

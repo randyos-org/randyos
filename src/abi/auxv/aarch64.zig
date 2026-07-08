@@ -21,6 +21,9 @@
 //! Not wired to any ELF loader/process bring-up yet -- this is a numbering
 //! reference only.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_auxv_aarch64);
+
 pub const Type = enum(u32) {
     /// Terminating entry marking the end of the auxiliary vector.
     AT_NULL = 0,

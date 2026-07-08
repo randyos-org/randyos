@@ -18,6 +18,9 @@
 //!
 //! Not wired to any dispatcher -- this is a layout reference only.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_types_iovec);
+
 pub const Iovec = extern struct {
     /// Address of the start of this segment's buffer.
     iov_base: usize,

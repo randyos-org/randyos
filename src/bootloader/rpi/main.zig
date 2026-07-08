@@ -28,3 +28,6 @@
 //! flat-binary kernel image directly.
 //!
 //! Not implemented: none of the above is built yet.
+
+const std = @import("std");
+const log = std.log.scoped(.boot_rpi);

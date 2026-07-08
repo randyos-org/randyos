@@ -17,6 +17,9 @@
 //!
 //! Not wired to any dispatcher -- this is a numbering reference only.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_syscall_aarch64);
+
 pub const Number = enum(u32) {
     io_setup = 0,
     io_destroy = 1,

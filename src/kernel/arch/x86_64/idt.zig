@@ -11,7 +11,7 @@ const lapic = @import("lapic.zig");
 const ioapic = @import("ioapic.zig");
 const port_io = @import("port_io.zig");
 const ps2 = @import("ps2.zig");
-const uart = @import("../../terminal/uart.zig");
+const uart = @import("uart.zig");
 
 /// Number of entries in an x86_64 IDT -- one slot per possible
 /// interrupt/exception vector (0-255).

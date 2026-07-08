@@ -32,6 +32,9 @@
 //!
 //! Not wired to any dispatcher -- this is a layout reference only.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_types_stat_x86_64);
+
 pub const Stat = extern struct {
     /// ID of the device containing this file.
     st_dev: u64,

@@ -29,6 +29,9 @@ const Word = switch (builtin.cpu.arch) {
     else => @compileError("unsupported architecture for rlimit ABI"),
 };
 
+const std = @import("std");
+const log = std.log.scoped(.abi_types_rlimit);
+
 pub const Rlimit = extern struct {
     /// Soft limit: the value the kernel enforces for this resource right now.
     rlim_cur: Word,

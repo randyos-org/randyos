@@ -8,12 +8,14 @@ acpimadt
 acpixsdt
 add_key
 adjtimex
+adrp
 AESKLE
 AESNI
 afs_syscall
 alarm
 amdgpu
 arch_prctl
+archs
 Args
 argv
 ARMEB
@@ -62,6 +64,7 @@ DCACHEBSIZE
 dcbz
 delete_module
 devtmpfs
+dir
 DIRENV
 DLAB
 DOFORK
@@ -145,6 +148,7 @@ exit_group
 EXLCK
 faccessat
 faccessat2
+FADT
 fadvise64
 fallocate
 fanotify_init
@@ -283,6 +287,7 @@ kexec_load
 keyctl
 kill
 klogo
+kloop
 kmain
 kmod
 kpanic
@@ -366,6 +371,7 @@ msgrcv
 msgsnd
 MSVC
 msync
+mtlr
 mtrr
 MTRRs
 munlock
@@ -446,6 +452,7 @@ PMLNT
 poll
 popfq
 powerpc
+ppc
 ppoll
 prctl
 pread64
@@ -725,6 +732,5 @@ XSDP
 xsdt
 XSETBV
 xtpr
+yaboot
 zig
-
-dir

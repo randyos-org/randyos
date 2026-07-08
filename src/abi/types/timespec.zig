@@ -19,6 +19,9 @@
 //!
 //! Not wired to any dispatcher -- this is a layout reference only.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_types_timespec);
+
 pub const Timespec = extern struct {
     /// Whole seconds component of the time value.
     tv_sec: i64,

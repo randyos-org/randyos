@@ -24,3 +24,6 @@
 //! shim needed there) -- not a retarget of either.
 //!
 //! Not implemented: none of the above is built yet.
+
+const std = @import("std");
+const log = std.log.scoped(.boot_asahi);

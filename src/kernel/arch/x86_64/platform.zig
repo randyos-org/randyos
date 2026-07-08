@@ -6,7 +6,6 @@ const log = std.log.scoped(.arch_platform);
 
 const common = @import("common");
 const KernelBootInfo = common.boot_info.KernelBootInfo;
-// const boot_info = @import("../../../boot_info.zig");
 
 /// Port Input / Output
 pub const port_io = @import("port_io.zig");
@@ -46,10 +45,6 @@ const ioapic_vector_offset: u8 = 48;
 
 /// Arguments passed to the platform init
 pub const InitParams = struct {
-    /// I/O APIC Address
-    ioapic_addr: usize,
-    /// Global System Interrupt Base
-    glob_sys_int_base: u32,
     /// Kernel Boot Information
     kernel_boot_info: *KernelBootInfo,
     /// Kernel Size in 4KB pages
@@ -57,7 +52,6 @@ pub const InitParams = struct {
 };
 
 /// Do some essential work (where the processor can't continue without that work)
-// FIXME:GPL begin
 pub inline fn setup() void {
     asm volatile (
         \\mov %rsp, __stack_top
@@ -65,7 +59,6 @@ pub inline fn setup() void {
         \\call _main
     );
 }
-// FIXME:GPL end
 
 /// Platform-specific init
 pub fn init(allocator: std.mem.Allocator, params: InitParams) void {
@@ -87,7 +80,16 @@ pub fn init(allocator: std.mem.Allocator, params: InitParams) void {
         params.kernel_page_size,
     );
     lapic.init();
-    ioapic.init(params.ioapic_addr, params.glob_sys_int_base, ioapic_vector_offset);
+
+    // ACPI's static tables (RSDP/XSDT/MADT) are already validated and
+    // parsed by the time this runs -- `kmain` does that generically before
+    // calling here, since table parsing itself isn't architecture-specific
+    // (see `hw/acpi/root.zig`). What *is* architecture-specific is
+    // interpreting a particular MADT entry type -- `ioapic.init` does that
+    // for x86_64's I/O APIC entries, reading the already-populated
+    // `hw.acpi.madt_ptr` itself rather than being handed pre-extracted
+    // values here.
+    ioapic.init(ioapic_vector_offset);
     log.debug("CR0 contents: {}", .{registers.CR0.get()});
     log.info("Platform-specific initialization successful! ", .{});
 }

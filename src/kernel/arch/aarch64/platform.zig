@@ -11,6 +11,32 @@
 //! concern (see the TODO in src/common/boot_info.zig), not something this
 //! file needs to know about.
 
+const std = @import("std");
+const log = std.log.scoped(.arch_aarch64);
+
+const common = @import("common");
+const KernelBootInfo = common.boot_info.KernelBootInfo;
+
+/// Mirrors x86_64's `InitParams` shape so `src/kernel/main.zig`'s `kmain`
+/// can call `arch.platform.init(allocator, .{...})` uniformly across every
+/// arch without its own `builtin.cpu.arch` gate -- this stub's `init` just
+/// panics immediately regardless of what it's given.
+pub const InitParams = struct {
+    kernel_boot_info: *KernelBootInfo,
+    kernel_page_size: usize,
+};
+
+/// TSC-shaped stub: `src/kernel/time/root.zig` calls `arch.platform.tsc
+/// .getTime()` unconditionally (wall-clock math needs a monotonic clock
+/// on every arch, not just x86_64), so this needs to exist and type-check
+/// even though it's never meaningfully reached -- `init()` below panics
+/// before `kmain` gets anywhere near a real timekeeping call.
+pub const tsc = struct {
+    pub fn getTime() f64 {
+        return 0;
+    }
+};
+
 /// Do some essential work (where the processor can't continue without that work)
 ///
 /// Points the stack pointer at the linker-provided `__stack_top` and
@@ -29,10 +55,12 @@ pub inline fn setup() void {
 
 /// Platform-specific init
 ///
-/// TODO: not implemented. Deliberately takes no parameters yet -- x86_64's
-/// `init()` takes ACPI/IOAPIC-shaped params, but those are x86-specific
-/// concepts; aarch64 boards mostly discover hardware via a device tree
-/// instead, so a real signature should wait for that work.
-pub fn init() void {
+/// TODO: not implemented -- panics immediately. Takes the same `InitParams`
+/// shape as every other arch (see above) purely so `kmain` can call this
+/// uniformly; nothing inside actually uses `params` yet.
+pub fn init(allocator: std.mem.Allocator, params: InitParams) void {
+    _ = allocator;
+    _ = params;
+    log.err("platform init not yet implemented for aarch64", .{});
     @panic("TODO: platform init not yet implemented for aarch64");
 }

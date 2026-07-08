@@ -6,7 +6,7 @@ const builtin = @import("builtin");
 const log = std.log.scoped(.arch_ioapic);
 
 const lapic = @import("lapic.zig");
-const acpi = @import("../../acpi.zig");
+const acpi = @import("../../hw/acpi/root.zig");
 
 pub var global_ioapic = IOApic{
     .base = undefined,
@@ -277,11 +277,18 @@ pub fn redEntryMADT(entry: *acpi.madt.IOAPICSourceOverride) void {
     }
 }
 
-/// Initialize the I/O APIC
-pub fn init(base: usize, glob_sys_int_base: u32, offset: u8) void {
+/// Initialize the I/O APIC. Finds its own base address/GSI base from the
+/// MADT's I/O APIC entry -- `acpi.madt_ptr` is already validated and
+/// populated by the time this runs (see `hw/acpi/root.zig`'s `init`, which
+/// deliberately doesn't interpret MADT entries itself, since which entry
+/// types exist/matter is architecture-specific -- this is that
+/// interpretation, for x86_64).
+pub fn init(offset: u8) void {
     log.info("I/O APIC Initialization... ", .{});
-    global_ioapic.base = base;
-    global_ioapic.glob_sys_int_base = glob_sys_int_base;
+    const entry = acpi.madt_ptr.findEntry(.io_apic) catch @panic("No I/O APIC Entry in the MADT found!");
+    log.debug("I/O APIC Entry is {}", .{entry.io_apic});
+    global_ioapic.base = entry.io_apic.ioapic_addr;
+    global_ioapic.glob_sys_int_base = entry.io_apic.glob_sys_int_base;
     global_ioapic.vector_offset = offset;
     const info: Info = @bitCast(global_ioapic.indirectRead(.ioapic_version).information);
 

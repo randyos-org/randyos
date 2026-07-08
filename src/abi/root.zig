@@ -3,6 +3,8 @@
 //! dispatcher yet. Add new ABI categories here rather than importing them by
 //! relative path from elsewhere.
 
+const std = @import("std");
+const log = std.log.scoped(.abi);
 const builtin = @import("builtin");
 
 /// Per-architecture Linux syscall numbering -- see each file under

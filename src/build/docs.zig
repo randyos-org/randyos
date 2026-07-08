@@ -4,6 +4,7 @@
 //! the result locally.
 
 const std = @import("std");
+const log = std.log.scoped(.build_docs);
 const Build = std.Build;
 const Step = Build.Step;
 

@@ -2,6 +2,8 @@
 //! by the syscall ABI (see ../README.md). Add new shared or per-arch types
 //! here rather than importing them by relative path from elsewhere.
 
+const std = @import("std");
+const log = std.log.scoped(.abi_types);
 const builtin = @import("builtin");
 
 /// Per-architecture `struct stat`/`struct stat64` layouts -- see each file

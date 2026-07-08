@@ -11,6 +11,9 @@
 //! something beyond `builtin.target` -- a build option or a separate target
 //! query per board -- that doesn't exist yet.
 
+const std = @import("std");
+const log = std.log.scoped(.bootloader);
+
 const builtin = @import("builtin");
 const common = @import("common");
 
