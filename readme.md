@@ -1,6 +1,6 @@
 # RandyOS
 
-![RandyOS logo](src/kernel/graphics/logo/randyos-logo.svg)
+![RandyOS logo](src/kernel/gfx/logo/randyos-logo.svg)
 
 Very basic OS for a very basic dude.
 
