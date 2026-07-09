@@ -1,10 +1,7 @@
 //! Linux signal numbers, generic across x86_64, arm, arm64, and powerpc.
 //!
 //! Sourced from the Linux kernel source tree (`include/uapi/asm-generic/signal.h`),
-//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2), by fetching
-//! that file directly and mechanically extracting (name, value) pairs -- not
-//! transcribed by hand. Re-derive from that same file if this ever looks
-//! stale; do not hand-edit numbers here.
+//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2)
 //!
 //! Cross-checked against `arch/x86/include/uapi/asm/signal.h`,
 //! `arch/arm/include/uapi/asm/signal.h`, `arch/arm64/include/uapi/asm/signal.h`
@@ -16,12 +13,7 @@
 //! file is numbers only.)
 //!
 //! `SIGIOT`, `SIGPOLL`, and `SIGUNUSED` are C aliases (`#define`d to another
-//! name's value, not distinct numbers). Since a Zig enum cannot have two
-//! members share one value without `EnumField` duplication headaches, they
-//! are instead exposed as `pub const` bindings to the canonical `Number`
-//! member, immediately below the enum.
-//!
-//! Not wired to any dispatcher -- this is a numbering reference only.
+//! name's value, not distinct numbers).
 
 const std = @import("std");
 const log = std.log.scoped(.abi_signal);
@@ -107,31 +99,31 @@ pub const Number = enum(u8) {
     /// Bad system call: an invalid or filtered (e.g. seccomp-denied)
     /// system call was attempted.
     SIGSYS = 31,
+
+    /// `#define SIGIOT 6` (same value as `SIGABRT`) in `include/uapi/asm-generic/signal.h`.
+    ///
+    /// Historical alias for the abort signal, named after the PDP-11 "IOT
+    /// trap" instruction; behaves identically to `SIGABRT`.
+    pub const SIGIOT = Number.SIGABRT;
+
+    /// `#define SIGPOLL SIGIO` in `include/uapi/asm-generic/signal.h`.
+    ///
+    /// System V-style name for "a pollable event occurred"; behaves
+    /// identically to `SIGIO`.
+    pub const SIGPOLL = Number.SIGIO;
+
+    /// `#define SIGUNUSED 31` (same value as `SIGSYS`) in `include/uapi/asm-generic/signal.h`.
+    ///
+    /// Legacy name for the bad-system-call signal; behaves identically to
+    /// `SIGSYS`.
+    pub const SIGUNUSED = Number.SIGSYS;
+
+    /// First realtime signal number. Not part of `Number` because realtime
+    /// signals (`SIGRTMIN` through `SIGRTMAX`) are a computed range, not fixed
+    /// identities -- `SIGRTMAX` itself is `_NSIG` (64), which varies by context.
+    ///
+    /// Lowest-numbered real-time signal: unlike the standard signals above,
+    /// real-time signals (`SIGRTMIN`..`SIGRTMAX`) queue multiple pending
+    /// instances and are delivered in a defined priority order.
+    pub const SIGRTMIN: u8 = 32;
 };
-
-/// `#define SIGIOT 6` (same value as `SIGABRT`) in `include/uapi/asm-generic/signal.h`.
-///
-/// Historical alias for the abort signal, named after the PDP-11 "IOT
-/// trap" instruction; behaves identically to `SIGABRT`.
-pub const SIGIOT = Number.SIGABRT;
-
-/// `#define SIGPOLL SIGIO` in `include/uapi/asm-generic/signal.h`.
-///
-/// System V-style name for "a pollable event occurred"; behaves
-/// identically to `SIGIO`.
-pub const SIGPOLL = Number.SIGIO;
-
-/// `#define SIGUNUSED 31` (same value as `SIGSYS`) in `include/uapi/asm-generic/signal.h`.
-///
-/// Legacy name for the bad-system-call signal; behaves identically to
-/// `SIGSYS`.
-pub const SIGUNUSED = Number.SIGSYS;
-
-/// First realtime signal number. Not part of `Number` because realtime
-/// signals (`SIGRTMIN` through `SIGRTMAX`) are a computed range, not fixed
-/// identities -- `SIGRTMAX` itself is `_NSIG` (64), which varies by context.
-///
-/// Lowest-numbered real-time signal: unlike the standard signals above,
-/// real-time signals (`SIGRTMIN`..`SIGRTMAX`) queue multiple pending
-/// instances and are delivered in a defined priority order.
-pub const SIGRTMIN: u8 = 32;

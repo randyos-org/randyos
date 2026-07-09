@@ -4,10 +4,7 @@
 //! Sourced from the Linux kernel source tree (`include/linux/dirent.h` --
 //! note this is a kernel-internal header, not under `include/uapi/`, but it
 //! is the canonical definition actually used by the `getdents64` syscall),
-//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2), by fetching
-//! that file directly and mechanically extracting the fixed-header fields --
-//! not transcribed by hand. Re-derive from that same file if this ever looks
-//! stale; do not hand-edit fields here.
+//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2)
 //!
 //! The real C struct ends with `char d_name[]` -- a flexible array member
 //! holding the NUL-terminated filename, with no fixed size of its own. Zig's
@@ -21,11 +18,9 @@
 //! NOT `@sizeOf(LinuxDirent64)` -- assuming a fixed-size record here would
 //! silently corrupt directory iteration by misreading `d_name` and every
 //! entry after it.
-//!
-//! Not wired to any dispatcher -- this is a layout reference only.
 
 const std = @import("std");
-const log = std.log.scoped(.abi_types_dirent64);
+const log = std.log.scoped(.abi_dirent64);
 
 pub const LinuxDirent64 = extern struct {
     /// Inode number of this directory entry.

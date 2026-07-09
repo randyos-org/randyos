@@ -23,6 +23,7 @@ const file_io = @import("file_io.zig");
 /// us to check by hand before parsing.
 pub fn readHeader(file: *uefi.protocol.File) !elf.Header {
     const boot_services = uefi.system_table.boot_services.?;
+
     log.debug("loading ELF header", .{});
     var header_buffer: []u8 = undefined;
     file_io.readAndAllocate(file, 0, @sizeOf(elf.Elf64_Ehdr), &header_buffer) catch |err| {

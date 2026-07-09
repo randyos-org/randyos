@@ -2,26 +2,21 @@
 //!
 //! Sourced from the Linux kernel source tree (`include/uapi/asm-generic/errno-base.h`
 //! for values 1-34 and `include/uapi/asm-generic/errno.h` for values 35+),
-//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2), by fetching
-//! those files directly and mechanically extracting (name, value) pairs -- not
-//! transcribed by hand. Re-derive from those same files if this ever looks
-//! stale; do not hand-edit numbers here.
+//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2)
 //!
 //! `arch/x86/include/uapi/asm/errno.h`, `arch/arm/include/uapi/asm/errno.h`,
-//! and `arch/arm64/include/uapi/asm/errno.h` do not exist at this commit --
-//! all three of those architectures use this generic numbering verbatim.
+//! and `arch/arm64/include/uapi/asm/errno.h` do not exist at this commit.
+//! All three of those architectures use this generic numbering verbatim.
 //! `arch/powerpc/include/uapi/asm/errno.h` DOES override one value; see the
 //! `EDEADLOCK_powerpc` note below.
 //!
 //! Some names in the generic C headers are aliases (`#define`d to another
-//! name's value rather than a distinct number). Since a Zig enum cannot have
-//! two members share one value without `EnumField` duplication headaches,
-//! aliases are instead exposed as `pub const` bindings to the canonical
-//! `Number` member, immediately below the enum.
-//!
-//! Not wired to any dispatcher -- this is a numbering reference only.
+//! name's value rather than a distinct number).
+//! Aliases are exposed as `pub const` bindings to the canonical
+//! `Number` member.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const log = std.log.scoped(.abi_errno);
 
 pub const Number = enum(u16) {
@@ -396,44 +391,44 @@ pub const Number = enum(u16) {
     /// Wrong file type for the intended operation: the file's type is
     /// not appropriate for what was requested.
     EFTYPE = 134,
+
+    /// `#define EWOULDBLOCK EAGAIN` in `include/uapi/asm-generic/errno.h`.
+    ///
+    /// Operation would block: the non-blocking call cannot complete right now
+    /// and would otherwise have to wait.
+    pub const EWOULDBLOCK = Number.EAGAIN;
+
+    /// `#define EDEADLOCK EDEADLK` in `include/uapi/asm-generic/errno.h`.
+    ///
+    /// Resource deadlock would occur: acquiring the requested lock would
+    /// deadlock the caller.
+    ///
+    /// This is the generic (x86_64 / arm / arm64) binding.
+    /// powerpc-specific override: `arch/powerpc/include/uapi/asm/errno.h` does
+    /// `#undef EDEADLOCK` (discarding the generic `EDEADLOCK == EDEADLK` alias
+    /// pulled in via `#include <asm-generic/errno.h>`) and then re-`#define`s
+    /// `EDEADLOCK` to the distinct literal value `58`, which is otherwise unused
+    /// in the generic numbering. On powerpc only, `EDEADLOCK` is therefore its
+    /// own errno value, NOT an alias for `EDEADLK` (35). Do not use `Number`'s
+    /// `EDEADLOCK` alias (`Number.EDEADLK`) when targeting powerpc; use this
+    /// constant instead.
+    ///
+    /// Meaning is the same as generic `EDEADLK`/`EDEADLOCK`: resource deadlock
+    /// would occur.
+    pub const EDEADLOCK = switch (builtin.cpu.arch) {
+        .powerpc => 58,
+        else => Number.EDEADLK,
+    };
+
+    /// `#define EFSBADCRC EBADMSG` in `include/uapi/asm-generic/errno.h`.
+    ///
+    /// Bad CRC detected: a filesystem block failed its checksum
+    /// verification.
+    pub const EFSBADCRC = Number.EBADMSG;
+
+    /// `#define EFSCORRUPTED EUCLEAN` in `include/uapi/asm-generic/errno.h`.
+    ///
+    /// Filesystem is corrupted: an on-disk filesystem structure is
+    /// inconsistent and needs repair.
+    pub const EFSCORRUPTED = Number.EUCLEAN;
 };
-
-/// `#define EWOULDBLOCK EAGAIN` in `include/uapi/asm-generic/errno.h`.
-///
-/// Operation would block: the non-blocking call cannot complete right now
-/// and would otherwise have to wait.
-pub const EWOULDBLOCK = Number.EAGAIN;
-
-/// `#define EDEADLOCK EDEADLK` in `include/uapi/asm-generic/errno.h`.
-///
-/// Resource deadlock would occur: acquiring the requested lock would
-/// deadlock the caller.
-///
-/// This is the generic (x86_64 / arm / arm64) binding. See
-/// `EDEADLOCK_powerpc` below for the powerpc-specific override.
-pub const EDEADLOCK = Number.EDEADLK;
-
-/// `#define EFSBADCRC EBADMSG` in `include/uapi/asm-generic/errno.h`.
-///
-/// Bad CRC detected: a filesystem block failed its checksum
-/// verification.
-pub const EFSBADCRC = Number.EBADMSG;
-
-/// `#define EFSCORRUPTED EUCLEAN` in `include/uapi/asm-generic/errno.h`.
-///
-/// Filesystem is corrupted: an on-disk filesystem structure is
-/// inconsistent and needs repair.
-pub const EFSCORRUPTED = Number.EUCLEAN;
-
-/// powerpc-specific override: `arch/powerpc/include/uapi/asm/errno.h` does
-/// `#undef EDEADLOCK` (discarding the generic `EDEADLOCK == EDEADLK` alias
-/// pulled in via `#include <asm-generic/errno.h>`) and then re-`#define`s
-/// `EDEADLOCK` to the distinct literal value `58`, which is otherwise unused
-/// in the generic numbering. On powerpc only, `EDEADLOCK` is therefore its
-/// own errno value, NOT an alias for `EDEADLK` (35). Do not use `Number`'s
-/// `EDEADLOCK` alias (`Number.EDEADLK`) when targeting powerpc; use this
-/// constant instead.
-///
-/// Meaning is the same as generic `EDEADLK`/`EDEADLOCK`: resource deadlock
-/// would occur.
-pub const EDEADLOCK_powerpc: u16 = 58;

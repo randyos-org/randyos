@@ -25,9 +25,11 @@ auxv
 auxvec
 bdflush
 bind
+bootdbg
 bootefi
 bootfs
 bootgfx
+bootseg
 bootx
 bpf
 brk

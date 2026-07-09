@@ -56,7 +56,7 @@ current milestone for that arch.
   each module/target installed to its own `zig-out/docs/<name>/` (its own `index.html`): `common`,
   `bootloader`, `kernel`, and one per real architecture for `abi` (`abi-x86_64`, `abi-aarch64`, `abi-arm`,
   `abi-powerpc`) -- separate builds are needed there because Zig's autodoc can only resolve one branch of
-  a `builtin.cpu.arch`-keyed switch per compilation (see `syscall`/`auxv`/`fcntl`/`mman`/`types.stat` in
+  a `builtin.cpu.arch`-keyed switch per compilation (see `syscall`/`fcntl`/`mman`/`types.stat` in
   `src/abi/`), so a single build would only ever document whichever architecture happens to match the
   machine running `zig build docs`. This all runs automatically as part of the default `zig build`/
   `zig build install` step -- no separate invocation needed for docs to stay current. The roadmap arch

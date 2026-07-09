@@ -92,9 +92,8 @@ pub fn exitBootServices(boot_services: *uefi.tables.BootServices, handle: uefi.H
 /// (0x100000), but the physical memory the loader actually found for it
 /// doesn't have to be there -- so every `.loader_data` descriptor (the
 /// region `loadSegment` in uefi/loader/segments.zig allocated the kernel
-/// into) gets
-/// remapped to `kernel_start_address` instead of identity-mapped like
-/// everything else. Returns that region's physical start, which the caller
+/// into) gets remapped to `kernel_start_address` instead of identity-mapped
+/// like everything else. Returns that region's physical start, which the caller
 /// still needs separately as `kernel_phys_start`.
 pub fn installVirtualAddressMap(
     runtime_services: *uefi.tables.RuntimeServices,

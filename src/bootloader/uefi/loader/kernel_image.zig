@@ -77,16 +77,19 @@ const LoadedKernel = struct {
 
 /// Load `\kernel.elf` from `root_file_system` into memory described by `mm`.
 pub fn loadKernel(root_file_system: *const uefi.protocol.File, mm: memory.MemoryMap) !LoadedKernel {
+    log.info("loading kernel image", .{});
+
     // UEFI strings are UTF-16LE, but Zig strings are UTF-8, so we need to
     // convert it.
     const kernel_executable_path: [*:0]const u16 = std.unicode.utf8ToUtf16LeStringLiteral("\\kernel.elf");
+
     var loaded: LoadedKernel = .{
         .base_address = undefined,
         .kernel_entry_point = undefined,
         .kernel_start_address = undefined,
         .dwarf_info = null,
     };
-    log.info("loading kernel image", .{});
+
     // Why pointers for the LoadedKernel fields? Because they have to be
     // modified, but function arguments are constant. So we use our
     // five-head strategy to say the function where the value is but still

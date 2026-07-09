@@ -33,6 +33,7 @@ pub fn readFile(
         log.err("setting file position failed: {s}", .{@errorName(err)});
         return err;
     };
+
     // Now, we can read the file. `read` returns the number of bytes actually
     // read, which we don't need here (the caller already knows the size it
     // asked for), so we discard it.
@@ -64,6 +65,7 @@ pub fn readAndAllocate(
         log.err("allocating space for file failed: {s}", .{@errorName(err)});
         return err;
     };
+
     // As described above (in readFile), we just return the status of another
     // function.
     try readFile(file, position, buffer.*);

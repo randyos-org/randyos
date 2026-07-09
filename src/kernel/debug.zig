@@ -78,15 +78,15 @@ pub fn printAddress(addr: usize) void {
 /// Initialize Panicking (DWARF)
 pub fn init(allocator: std.mem.Allocator, dwarf_info: *?std.debug.Dwarf) void {
     if (builtin.strip_debug_info) {
-        log.err("debug info stripped, returning!");
+        log.err("debug info stripped");
         return;
     }
-    log.debug("panic and debug info initialization...", .{});
+    log.debug("debug info initialization...", .{});
     alloc = allocator;
     debug_info = dwarf_info.*;
     if (debug_info == null) {
-        log.debug("Panic initialization successful! (debug info not available)", .{});
+        log.debug("Initialization of panic system successful! (debug info not available)", .{});
     } else {
-        log.debug("panic and debug info initialization successful!", .{});
+        log.debug("debug info initialization successful!", .{});
     }
 }

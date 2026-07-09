@@ -1,8 +1,8 @@
 //! Provides a "seconds since boot" clock for the bootloader.
 //!
-//! `RuntimeServices.getTime()` reads a real hardware RTC, which only ever
-//! tracks whole seconds -- OVMF (and real firmware) reports `nanosecond = 0`
-//! unconditionally, there's no sub-second data to extract there no matter
+//! `RuntimeServices.getTime()` reads a real hardware RTC, which may only ever
+//! tracks whole seconds.  For example, OVMF reports `nanosecond = 0`
+//! unconditionally, so there's no sub-second data to extract there no matter
 //! how much print precision is used.
 //!
 //! A raw cycle counter (e.g. x86_64's `rdtsc`) would give real sub-second

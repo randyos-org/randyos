@@ -2,10 +2,7 @@
 //! family of syscalls to describe scatter/gather I/O buffers.
 //!
 //! Sourced from the Linux kernel source tree (`include/uapi/linux/uio.h`),
-//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2), by fetching
-//! that file directly and mechanically extracting the struct layout and
-//! constants -- not transcribed by hand. Re-derive from that same file if
-//! this ever looks stale; do not hand-edit fields here.
+//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2)
 //!
 //! `iov_base` is `void __user *` (a pointer) and `iov_len` is
 //! `__kernel_size_t` -- both are simply "however wide a pointer/size_t is on
@@ -15,11 +12,9 @@
 //! targets, so unlike `rlimit.zig`'s explicit comptime-resolved `Word`, a
 //! plain `usize` is used directly here -- no separate word-size switch is
 //! needed.
-//!
-//! Not wired to any dispatcher -- this is a layout reference only.
 
 const std = @import("std");
-const log = std.log.scoped(.abi_types_iovec);
+const log = std.log.scoped(.abi_iovec);
 
 pub const Iovec = extern struct {
     /// Address of the start of this segment's buffer.

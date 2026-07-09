@@ -34,17 +34,21 @@ pub fn loadSegment(
         log.err("segment_virtual_address 0x{x} is not page-aligned", .{segment_virtual_address});
         return error.Unaligned;
     }
+
     // We get a segment buffer which we can write to.
     var segment_buffer: []u8 = &.{};
+
     // Because we will allocate pages (4KB regions of memory) and not bytes, we
     // want to know the page count needed for this segment.
     const segment_page_count = memory.efiSizeToPages(segment_memory_size);
+
     // Also, as the ELF documentation requests it, we need to zero-fill all
     // unused bytes. For that, we have to know where we should start
     // zero-filling and how many bytes are going to be zero-filled.
     var zero_fill_start: u64 = 0;
     var zero_fill_count: usize = 0;
     const boot_services = uefi.system_table.boot_services.?;
+
     // At the beginning, we allocate pages for that program code. Why do we
     // allocate pages and not single bytes? Because the ELF specification
     // requires that all "unused" bytes in a page are zero (and so we need
@@ -59,6 +63,7 @@ pub fn loadSegment(
         log.err("allocating pages for ELF segment failed: {s}", .{@errorName(err)});
         return err;
     };
+
     // The problem however is that the segment buffer we want to write to
     // consists of slices (runtime-sized arrays) of arrays and we want to write
     // to a slice of bytes. So we do a little magic (we first get the pointer
@@ -69,6 +74,7 @@ pub fn loadSegment(
     // IT MAY BE A HELL TO DEBUG ERRORS FROM THIS!
     segment_buffer.ptr = @ptrCast(segbuf.ptr);
     segment_buffer.len = segbuf.len * pages.page_size;
+
     // Now, we will read the segment data from the file directly into the
     // segment buffer we just allocated, but only if the segment file size is
     // bigger than 0. This is a great example of the difference between
@@ -83,8 +89,8 @@ pub fn loadSegment(
             return err;
         };
     }
-    // Now, as you might have read above, we will zero-fill all unused space.
 
+    // Now, as you might have read above, we will zero-fill all unused space.
     // We zero-fill everything after our segment, so it will be the segment
     // virtual address plus the segment file size.
     zero_fill_start = segment_virtual_address + segment_file_size;
@@ -121,6 +127,7 @@ pub fn loadProgramSegments(
     // start at 0x100000) and the first loadable segment (which is expected to
     // be the kernel code).
     var base_address_difference: u64 = 0;
+
     // If the ELF file has no program headers, then the kernel is probably
     // empty.
     if (program_headers.len == 0) {
@@ -128,6 +135,7 @@ pub fn loadProgramSegments(
         return error.InvalidParameter;
     }
     log.debug("loading {} segments", .{program_headers.len});
+
     // Because we have the program headers as a slice, we can easily iterate
     // over it using "for". If we used a many-item pointer, we would have to
     // use a separate index.
@@ -137,6 +145,7 @@ pub fn loadProgramSegments(
         // have to load.
         if (phdr.type == .LOAD) {
             log.debug("loading program segment {}", .{index});
+
             // We can expect the first segment that will be loaded to be the
             // kernel code segment. Thus, we can do the following only the
             // first time.
@@ -145,14 +154,17 @@ pub fn loadProgramSegments(
                 // we set it to false, we will not enter this condition another
                 // time. So we will enter this condition exactly once.
                 set_start_address = false;
+
                 // We set the kernel start address to the virtual address of
                 // that segment.
                 kernel_start_address.* = program_headers[index].vaddr;
+
                 // And we set the difference between the base address and the
                 // virtual address.
                 base_address_difference = program_headers[index].vaddr - base_physical_address;
                 log.debug("set kernel start address to 0x{x} and base address difference to 0x{x}", .{ kernel_start_address.*, base_address_difference });
             }
+
             // Then, we call loadSegment which contains the core loading
             // functionality.
             loadSegment(
@@ -167,6 +179,7 @@ pub fn loadProgramSegments(
                 log.err("loading program segment {} failed: {s}", .{ index, @errorName(err) });
                 return err;
             };
+
             // And if everything succeeded, we increase the number of segments
             // that were loaded.
             // We need this because not all program segments want to be loaded,
@@ -174,6 +187,7 @@ pub fn loadProgramSegments(
             n_segments_loaded += 1;
         }
     }
+
     // We do not only have to return an error (above) if there are no segments
     // we can iterate over, but also if we find no loadable segments.
     if (n_segments_loaded == 0) {

@@ -26,18 +26,26 @@ pub fn locateGraphicsOutput(boot_services: *uefi.tables.BootServices) !GraphicsI
     };
 
     log.debug("querying graphics mode info", .{});
-    log.info("current graphics mode = {}", .{graphics_output.mode.mode});
+    const mode = graphics_output.mode;
+    log.info("current graphics mode = {}", .{mode.mode});
+
     var i: u32 = 0;
-    while (i < graphics_output.mode.max_mode) : (i += 1) {
+    while (i < mode.max_mode) : (i += 1) {
         const mode_info = graphics_output.queryMode(i) catch |err| {
             log.err("querying graphics mode failed: {s}", .{@errorName(err)});
             return err;
         };
-        if (graphics_output.mode.mode == i) {
-            log.info("  resolution and pixel format: {}x{} {s}", .{ mode_info.horizontal_resolution, mode_info.vertical_resolution, @tagName(mode_info.pixel_format) });
+
+        if (mode.mode == i) {
+            log.info("  resolution and pixel format: {}x{} {s}", .{
+                mode_info.horizontal_resolution,
+                mode_info.vertical_resolution,
+                @tagName(mode_info.pixel_format),
+            });
         }
     }
-    const video_mode_info = graphics_output.queryMode(graphics_output.mode.mode) catch |err| {
+
+    const video_mode_info = graphics_output.queryMode(mode.mode) catch |err| {
         log.err("querying graphics mode failed: {s}", .{@errorName(err)});
         return err;
     };

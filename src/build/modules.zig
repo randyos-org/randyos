@@ -17,12 +17,14 @@ const Docs = docs_mod.Docs;
 /// Real architectures the "abi" module's reference data covers (see
 /// src/abi/README.md) -- one doc-only build per entry, since Zig's autodoc
 /// can only resolve one branch of a `builtin.cpu.arch`-keyed switch per
-/// compilation (`syscall`/`auxv`/`fcntl`/`mman` in src/abi/root.zig,
-/// `types.stat` in src/abi/types/root.zig). A single host-targeted doc build
-/// would silently only ever document whichever architecture happens to
-/// match the machine running `zig build docs` -- building one per real arch
-/// instead means every architecture's actual (fully resolved) constants show
-/// up somewhere, each under its own explicit `abi-<name>` doc page.
+/// compilation (`fcntl` in src/abi/fcntl.zig, `mman` in src/abi/mman.zig,
+/// `syscall` in src/abi/syscall.zig, and `stat` in src/abi/stat.zig each
+/// switch per-field/per-declaration within the file). A single
+/// host-targeted doc build would silently only ever document whichever
+/// architecture happens to match the machine running `zig build docs` --
+/// building one per real arch instead means every architecture's actual
+/// (fully resolved) constants show up somewhere, each under its own
+/// explicit `abi-<name>` doc page.
 const abi_doc_targets = [_]struct { name: []const u8, query: Target.Query }{
     .{ .name = "x86_64", .query = .{ .cpu_arch = .x86_64, .os_tag = .freestanding, .abi = .none } },
     .{ .name = "aarch64", .query = .{ .cpu_arch = .aarch64, .os_tag = .freestanding, .abi = .none } },

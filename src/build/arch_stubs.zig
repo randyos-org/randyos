@@ -1,10 +1,3 @@
-//! Roadmap arch stubs -- see `ArchStub`'s doc comment. Unlike x86_64 (see
-//! targets.zig; wired into the default install step, the sysroot, and the
-//! QEMU pipeline), these are pure compile-and-link roadmap markers: `zig
-//! build kernel-<name>` (and `boot-<name>`, where applicable) just proves the
-//! stub arch module + linker script actually build, without touching the
-//! working x86_64 boot flow at all.
-
 const std = @import("std");
 const log = std.log.scoped(.build_arch_stubs);
 const Build = std.Build;
@@ -15,28 +8,14 @@ const OptimizeMode = std.builtin.OptimizeMode;
 const docs_mod = @import("docs.zig");
 const addModuleDocsTo = docs_mod.addModuleDocsTo;
 
-/// Roadmap descriptor for a not-yet-implemented arch stub. Unlike x86_64
-/// (wired into the default install step, the sysroot, and the QEMU
-/// pipeline), these are pure compile-and-link roadmap markers: `zig build
-/// kernel-<name>` (and `boot-<name>`, where applicable) just proves the stub
-/// arch module + linker script actually build, without touching the working
-/// x86_64 boot flow at all.
+/// `zig build kernel-<name>` (and `boot-<name>`, where applicable)
 pub const ArchStub = struct {
     /// Used in step names (e.g. "aarch64" -> "kernel-aarch64") and to locate
     /// `src/kernel/arch/<name>/kernel.ld`.
     name: []const u8,
     kernel_query: Target.Query,
     kernel_code_model: std.builtin.CodeModel = .default,
-    /// `null` means this arch has no bootloader step yet -- either because
-    /// there's no UEFI firmware worth targeting at all (ppc: classic
-    /// Macs use Open Firmware, see src/bootloader/ofw/), or because the
-    /// real target board's UEFI firmware doesn't actually help this
-    /// particular OS (arm: Pi 3 does have aarch64 UEFI via pftf, but that
-    /// firmware runs the board in 64-bit mode and doesn't boot a 32-bit OS;
-    /// aarch64's Raspberry Pi 5 case is similar but for a different reason
-    /// -- its UEFI effort was archived entirely. Both go through
-    /// src/bootloader/rpi/ instead; Pi 3/4 running aarch64 do have real
-    /// UEFI, hence aarch64 itself still has a `bootloader_query` below).
+    /// `null` means this arch has no bootloader step
     bootloader_query: ?Target.Query = null,
 };
 

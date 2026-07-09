@@ -1,11 +1,22 @@
-//! Linux auxiliary vector (`AT_*`) type constants for powerpc (32-bit).
+//! Linux auxiliary vector (`AT_*`) type constants.
 //!
-//! Sourced from the Linux kernel source tree (`include/uapi/linux/auxvec.h`
-//! and `arch/powerpc/include/uapi/asm/auxvec.h`), torvalds/linux @
-//! 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2), by
-//! fetching those files directly and mechanically extracting (name, value)
-//! pairs -- not transcribed by hand. Re-derive from those same files if this
-//! ever looks stale; do not hand-edit numbers here.
+//! Sourced from the Linux kernel source tree, torvalds/linux @
+//! 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2):
+//!
+//! | scope | source file |
+//! | --- | --- |
+//! | generic base | `include/uapi/linux/auxvec.h` |
+//! | x86_64 override | `arch/x86/include/uapi/asm/auxvec.h` |
+//! | aarch64 override | `arch/arm64/include/uapi/asm/auxvec.h` |
+//! | arm override | `arch/arm/include/uapi/asm/auxvec.h` |
+//! | powerpc override | `arch/powerpc/include/uapi/asm/auxvec.h` |
+//!
+//! Each tag's doc comment is prefixed with the architectures
+//! it's specific to, e.g. `[powerpc]` or `[powerpc][x86_64]`; no prefix means
+//! the tag is common to x86_64/aarch64/arm/powerpc. This is a numbering
+//! reference only -- the target architecture is not consulted to restrict
+//! which tags are reachable, so nothing stops code from naming a tag that the
+//! real kernel would never place in that architecture's auxv.
 //!
 //! These are the keys of the auxv (auxiliary vector) entries the kernel
 //! places on a new process's initial stack, alongside argv/envp, describing
@@ -26,14 +37,11 @@
 //! the size affected by cache-management instructions like `dcbz` -- which
 //! does not necessarily match the cache *line* size encoded in
 //! `*_CACHEGEOMETRY`.
-//!
-//! Not wired to any ELF loader/process bring-up yet -- this is a numbering
-//! reference only.
 
 const std = @import("std");
-const log = std.log.scoped(.abi_auxv_powerpc);
+const log = std.log.scoped(.abi_auxv);
 
-pub const Type = enum(u32) {
+pub const AT = enum(u32) {
     /// Terminating entry marking the end of the auxiliary vector.
     AT_NULL = 0,
     /// Marks an entry that should be ignored by the program.
@@ -72,20 +80,20 @@ pub const Type = enum(u32) {
     /// Frequency (in ticks per second) at which `times()` increments.
     AT_CLKTCK = 17,
 
-    // powerpc-specific extras (`arch/powerpc/include/uapi/asm/auxvec.h`),
-    // using the generic header's reserved 18-22 range: cache block size (so
-    // glibc can use the `dcbz` instruction safely) and a glibc-compat
-    // ignored entry.
-    /// Data cache block size in bytes -- the size affected by cache-
-    /// management instructions such as `dcbz`, so glibc can use them safely.
+    // Generic header's reserved 18-22 range; powerpc uses it for its own
+    // cache-block-size/glibc-compat extras (`arch/powerpc/include/uapi/asm/
+    // auxvec.h`).
+    /// [powerpc] Data cache block size in bytes -- the size affected by
+    /// cache-management instructions such as `dcbz`, so glibc can use them
+    /// safely.
     AT_DCACHEBSIZE = 19,
-    /// Instruction cache block size in bytes -- the size affected by cache-
-    /// management instructions, so glibc can use them safely.
+    /// [powerpc] Instruction cache block size in bytes -- the size affected
+    /// by cache-management instructions, so glibc can use them safely.
     AT_ICACHEBSIZE = 20,
-    /// Unified cache block size in bytes -- the size affected by cache-
-    /// management instructions, so glibc can use them safely.
+    /// [powerpc] Unified cache block size in bytes -- the size affected by
+    /// cache-management instructions, so glibc can use them safely.
     AT_UCACHEBSIZE = 21,
-    /// A special entry type that is always ignored, kept for glibc
+    /// [powerpc] A special entry type that is always ignored, kept for glibc
     /// compatibility on PowerPC.
     AT_IGNOREPPC = 22,
 
@@ -116,32 +124,43 @@ pub const Type = enum(u32) {
     /// program.
     AT_EXECFN = 31,
 
-    /// Address of the vDSO ELF image mapped into the process; the kernel
-    /// header notes this "has to use the same value as x86 for glibc's
-    /// sake."
+    /// [x86_64] Address of the kernel's vsyscall/vDSO entry point used to
+    /// make system calls efficiently. i386-only in the kernel header (guarded
+    /// by `#ifdef __i386__`) and not meaningful in true 64-bit mode, but
+    /// recorded here anyway since x86_64 systems may still service 32-bit/
+    /// i386 compat processes and the value is cheap to keep for a complete
+    /// picture.
+    AT_SYSINFO = 32,
+    /// Address of the vDSO ELF image mapped into the process; the powerpc
+    /// kernel header notes this "has to use the same value as x86 for
+    /// glibc's sake." Also redundantly re-declared by
+    /// `arch/arm64/include/uapi/asm/auxvec.h` (guarded by
+    /// `#ifndef AT_SYSINFO_EHDR`) alongside its own `AT_MINSIGSTKSZ = 51` --
+    /// confirmed both values match the generic numbering exactly.
     AT_SYSINFO_EHDR = 33,
 
-    // powerpc-specific cache-geometry extras -- see the file header for the
+    // powerpc-only cache-geometry extras -- see the file header for the
     // *_CACHEGEOMETRY bit-packing.
-    /// Level 1 instruction cache size in bytes.
+    /// [powerpc] Level 1 instruction cache size in bytes.
     AT_L1I_CACHESIZE = 40,
-    /// Level 1 instruction cache line size (bits 0-15) and associativity
-    /// (bits 16-31); see the file header for the exact bit-packing.
+    /// [powerpc] Level 1 instruction cache line size (bits 0-15) and
+    /// associativity (bits 16-31); see the file header for the exact
+    /// bit-packing.
     AT_L1I_CACHEGEOMETRY = 41,
-    /// Level 1 data cache size in bytes.
+    /// [powerpc] Level 1 data cache size in bytes.
     AT_L1D_CACHESIZE = 42,
-    /// Level 1 data cache line size (bits 0-15) and associativity (bits
-    /// 16-31); see the file header for the exact bit-packing.
+    /// [powerpc] Level 1 data cache line size (bits 0-15) and associativity
+    /// (bits 16-31); see the file header for the exact bit-packing.
     AT_L1D_CACHEGEOMETRY = 43,
-    /// Level 2 cache size in bytes.
+    /// [powerpc] Level 2 cache size in bytes.
     AT_L2_CACHESIZE = 44,
-    /// Level 2 cache line size (bits 0-15) and associativity (bits 16-31);
-    /// see the file header for the exact bit-packing.
+    /// [powerpc] Level 2 cache line size (bits 0-15) and associativity (bits
+    /// 16-31); see the file header for the exact bit-packing.
     AT_L2_CACHEGEOMETRY = 45,
-    /// Level 3 cache size in bytes.
+    /// [powerpc] Level 3 cache size in bytes.
     AT_L3_CACHESIZE = 46,
-    /// Level 3 cache line size (bits 0-15) and associativity (bits 16-31);
-    /// see the file header for the exact bit-packing.
+    /// [powerpc] Level 3 cache line size (bits 0-15) and associativity (bits
+    /// 16-31); see the file header for the exact bit-packing.
     AT_L3_CACHEGEOMETRY = 47,
 
     /// Minimum stack size in bytes required for signal delivery.

@@ -15,10 +15,12 @@ pub const graphics = @import("graphics.zig");
 /// consume without knowing anything about UEFI's `Time` layout.
 fn toEpochSeconds(t: uefi.Time) i64 {
     var days: i64 = 0;
+
     var year: epoch.Year = epoch.epoch_year;
     while (year < t.year) : (year += 1) {
         days += epoch.getDaysInYear(year);
     }
+
     var month: u4 = 1;
     while (month < t.month) : (month += 1) {
         days += epoch.getDaysInMonth(t.year, @enumFromInt(month));
@@ -62,6 +64,7 @@ pub fn finalizeKernelBootInfo(
         log.warn("could not read wall-clock time from firmware: {s}", .{@errorName(err)});
         break :blk null;
     };
+
     // Hand off the raw Runtime Services pointer as opaque data -- no
     // bootloader-authored wrapper/trampoline code, see the rationale on
     // `FirmwareRuntimeData` in `src/common/boot_info.zig`. Whether/how

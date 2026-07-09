@@ -34,6 +34,7 @@ pub fn findKernelLoadAddress(
     var min_vaddr: u64 = std.math.maxInt(u64);
     var max_vaddr_end: u64 = 0;
     var any_load = false;
+
     for (program_headers) |phdr| {
         if (phdr.type != .LOAD) continue;
         any_load = true;

@@ -1,20 +1,9 @@
-//! Bootloader entry point dispatcher. `build.zig` points every bootloader
-//! target query at this file instead of at a specific implementation
-//! directory directly, so adding a new target only means adding a branch
-//! here rather than teaching `build.zig` a new root_source_file.
-//!
-//! Only UEFI is wired up right now (real x86_64 build + aarch64 stub -- see
-//! `arch_stubs` in build.zig). `rpi/`, `asahi/`, and `ofw/` are unreached:
-//! a bare target triple can't tell a Raspberry Pi 5 apart from an Apple
-//! Silicon Mac or a classic PowerPC Mac (all are e.g. plain
-//! `aarch64-freestanding-none` or similar), so selecting one of those needs
-//! something beyond `builtin.target` -- a build option or a separate target
-//! query per board -- that doesn't exist yet.
+//! Bootloader entry point dispatcher.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const log = std.log.scoped(.bootloader);
 
-const builtin = @import("builtin");
 const common = @import("common");
 
 const impl = switch (builtin.target.os.tag) {

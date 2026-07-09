@@ -7,6 +7,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const uefi = std.os.uefi;
 const elf = std.elf;
+const Dwarf = std.debug.Dwarf;
+const DwarfSectionId = Dwarf.Section.Id;
 const log = std.log.scoped(.bootdbg);
 
 const elf_image = @import("elf.zig");
@@ -22,15 +24,18 @@ pub fn loadDebugInfo(
     section_headers: []const elf.Elf64.Shdr,
     /// A pointer to the DWARF debug information structure (if available)
     /// This allows the loader to pass debug information to the kernel.
-    dwarf_info: *?std.debug.Dwarf,
+    dwarf_info: *?Dwarf,
 ) !void {
     log.debug("loading DWARF debug info sections", .{});
     var section_string_table: []u8 = &.{};
+
     // not just "debug_info" but general debug information (so abbrev etc. too)
     var found_debug_info: bool = false;
-    var sections: std.debug.Dwarf.SectionArray = @splat(null);
+
+    var sections: Dwarf.SectionArray = @splat(null);
     try elf_image.getSectionContents(file, section_headers[header.shstrndx], &section_string_table);
     log.debug("section string table length is '{}'", .{section_string_table.len});
+
     // iterate over sections to find debug sections and load them to open dwarf info
     for (section_headers[0..header.shnum]) |shdr| {
         const section_name = elf_image.getSectionName(section_string_table, shdr) orelse continue;
@@ -39,8 +44,9 @@ pub fn loadDebugInfo(
             var buf: []u8 = &.{};
             log.debug("found .debug_info!", .{});
             found_debug_info = true;
+
             try elf_image.getSectionContents(file, shdr, &buf);
-            sections[@intFromEnum(std.debug.Dwarf.Section.Id.debug_info)] = .{
+            sections[@intFromEnum(DwarfSectionId.debug_info)] = .{
                 .data = buf,
                 .owned = false,
             };
@@ -49,8 +55,9 @@ pub fn loadDebugInfo(
             var buf: []u8 = &.{};
             log.debug("found .debug_abbrev!", .{});
             found_debug_info = true;
+
             try elf_image.getSectionContents(file, shdr, &buf);
-            sections[@intFromEnum(std.debug.Dwarf.Section.Id.debug_abbrev)] = .{
+            sections[@intFromEnum(DwarfSectionId.debug_abbrev)] = .{
                 .data = buf,
                 .owned = false,
             };
@@ -59,8 +66,9 @@ pub fn loadDebugInfo(
             var buf: []u8 = &.{};
             log.debug("found .debug_line!", .{});
             found_debug_info = true;
+
             try elf_image.getSectionContents(file, shdr, &buf);
-            sections[@intFromEnum(std.debug.Dwarf.Section.Id.debug_line)] = .{
+            sections[@intFromEnum(DwarfSectionId.debug_line)] = .{
                 .data = buf,
                 .owned = false,
             };
@@ -69,8 +77,9 @@ pub fn loadDebugInfo(
             var buf: []u8 = &.{};
             log.debug("found .debug_str!", .{});
             found_debug_info = true;
+
             try elf_image.getSectionContents(file, shdr, &buf);
-            sections[@intFromEnum(std.debug.Dwarf.Section.Id.debug_str)] = .{
+            sections[@intFromEnum(DwarfSectionId.debug_str)] = .{
                 .data = buf,
                 .owned = false,
             };
@@ -79,8 +88,9 @@ pub fn loadDebugInfo(
             var buf: []u8 = &.{};
             log.debug("found .debug_ranges!", .{});
             found_debug_info = true;
+
             try elf_image.getSectionContents(file, shdr, &buf);
-            sections[@intFromEnum(std.debug.Dwarf.Section.Id.debug_ranges)] = .{
+            sections[@intFromEnum(DwarfSectionId.debug_ranges)] = .{
                 .data = buf,
                 .owned = false,
             };
@@ -88,7 +98,7 @@ pub fn loadDebugInfo(
     }
     log.debug("found_debug_info={}", .{found_debug_info});
     if (found_debug_info) {
-        dwarf_info.* = std.debug.Dwarf{
+        dwarf_info.* = Dwarf{
             .sections = sections,
         };
         log.debug("about to call Dwarf.open", .{});

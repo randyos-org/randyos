@@ -1,10 +1,7 @@
 //! Linux `struct new_utsname`, returned by the `uname` syscall.
 //!
 //! Sourced from the Linux kernel source tree (`include/uapi/linux/utsname.h`),
-//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2), by fetching
-//! that file directly and mechanically extracting the struct layout -- not
-//! transcribed by hand. Re-derive from that same file if this ever looks
-//! stale; do not hand-edit fields here.
+//! torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2)
 //!
 //! This layout is fully uniform across every architecture -- there is no
 //! per-arch override of `struct new_utsname` in this header or elsewhere at
@@ -18,11 +15,9 @@
 //! layout. `[65]u8` is the fixed 65-byte C array this struct actually has;
 //! callers still get a NUL-terminated C string within those 65 bytes, they
 //! just don't get compile-time sentinel enforcement on the type itself.
-//!
-//! Not wired to any dispatcher -- this is a layout reference only.
 
 const std = @import("std");
-const log = std.log.scoped(.abi_types_utsname);
+const log = std.log.scoped(.abi_utsname);
 
 pub const NewUtsname = extern struct {
     /// Operating system name (e.g. "Linux").

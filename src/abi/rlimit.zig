@@ -2,10 +2,7 @@
 //!
 //! Sourced from the Linux kernel source tree (`include/uapi/linux/resource.h`
 //! for the struct, `include/uapi/asm-generic/resource.h` for the resource
-//! IDs), torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2), by
-//! fetching those files directly and mechanically extracting the struct
-//! layout and (name, value) pairs -- not transcribed by hand. Re-derive from
-//! those same files if this ever looks stale; do not hand-edit values here.
+//! IDs), torvalds/linux @ 8cdeaa50eae8dad34885515f62559ee83e7e8dda (kernel version 7.2.0-rc2)
 //!
 //! `arch/x86/include/uapi/asm/resource.h`, `arch/arm/include/uapi/asm/resource.h`,
 //! `arch/arm64/include/uapi/asm/resource.h`, and
@@ -18,19 +15,16 @@
 //! 4 bytes on the 32-bit arm/powerpc targets this project builds for. `Word`
 //! below is resolved at comptime so one struct definition is correct for all
 //! four architectures.
-//!
-//! Not wired to any dispatcher -- this is a layout/numbering reference only.
 
+const std = @import("std");
 const builtin = @import("builtin");
+const log = std.log.scoped(.abi_rlimit);
 
 const Word = switch (builtin.cpu.arch) {
     .x86_64, .aarch64 => u64,
     .arm, .powerpc => u32,
     else => @compileError("unsupported architecture for rlimit ABI"),
 };
-
-const std = @import("std");
-const log = std.log.scoped(.abi_types_rlimit);
 
 pub const Rlimit = extern struct {
     /// Soft limit: the value the kernel enforces for this resource right now.
