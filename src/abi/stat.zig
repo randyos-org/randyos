@@ -15,9 +15,9 @@
 //! Therefore, each arch gets its own private struct type below,
 //! and `pub const Stat` picks the right one via a `builtin.cpu.arch` switch.
 
+const sysinfo = @import("builtin");
 const std = @import("std");
 const log = std.log.scoped(.abi_stat);
-const builtin = @import("builtin");
 
 /// Linux `struct stat` layout for x86_64.
 ///
@@ -455,7 +455,7 @@ const PowerpcStat64 = extern struct {
 };
 
 /// `struct stat` for whichever architecture is actually being built.
-pub const Stat = switch (builtin.cpu.arch) {
+pub const Stat = switch (sysinfo.cpu.arch) {
     .x86_64 => X86_64Stat,
     .aarch64 => Aarch64Stat,
     .arm => ArmStat,
@@ -466,7 +466,7 @@ pub const Stat = switch (builtin.cpu.arch) {
 /// `struct stat64` for whichever architecture is actually being built.
 /// Only arm and powerpc define a different one; we use this as an alias for the
 /// default struct on other platforms.
-pub const Stat64 = switch (builtin.cpu.arch) {
+pub const Stat64 = switch (sysinfo.cpu.arch) {
     .x86_64 => X86_64Stat,
     .aarch64 => Aarch64Stat,
     .arm => ArmStat64,

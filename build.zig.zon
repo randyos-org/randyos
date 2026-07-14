@@ -2,7 +2,10 @@
     .name = .randyos,
     .fingerprint = 0xc73c6fcafd0e312e,
     .version = "0.1.0",
-    .dependencies = .{},
+    .minimum_zig_version = "0.17.0-dev.203",
+    .dependencies = .{
+        .ghostty = .{ .path = "vendor/ghostty" },
+    },
 
     // package hash is computed from files in .paths
     .paths = .{

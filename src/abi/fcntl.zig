@@ -85,8 +85,8 @@
 //! flock`, `struct flock64`, and `struct f_owner_ex` belong in a separate,
 //! structs-focused pass.
 
+const sysinfo = @import("builtin");
 const std = @import("std");
-const builtin = @import("builtin");
 const log = std.log.scoped(.abi_fcntl);
 
 /// The `open()` access-mode sub-field occupying bits 0-1 of the flags word
@@ -352,7 +352,7 @@ const PowerpcOpenFlags = packed struct(u32) {
 /// each private per-arch type above for exactly which bit positions the
 /// four arch-varying flags (`direct`/`largefile`/`directory`/`nofollow`)
 /// take.
-pub const OpenFlags = switch (builtin.cpu.arch) {
+pub const OpenFlags = switch (sysinfo.cpu.arch) {
     .x86_64 => X86_64OpenFlags,
     .aarch64, .arm => Aarch64ArmOpenFlags,
     .powerpc => PowerpcOpenFlags,

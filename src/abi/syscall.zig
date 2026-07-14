@@ -48,12 +48,12 @@
 //! that matters is *within* one architecture's resolved set of values, and
 //! each architecture's assignment is a bijection over its own missing names.
 
+const sysinfo = @import("builtin");
 const std = @import("std");
 const log = std.log.scoped(.abi_syscall);
-const builtin = @import("builtin");
 
 comptime {
-    switch (builtin.cpu.arch) {
+    switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => {},
         else => @compileError("No syscall ABI data for this architecture"),
     }
@@ -67,2930 +67,2930 @@ const _invalid: [__max_invalid]u32 = blk: {
 };
 
 pub const Number = enum(u32) {
-    _llseek = switch (builtin.cpu.arch) {
+    _llseek = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[0],
         .arm, .powerpc => 140,
         else => unreachable,
     },
-    _newselect = switch (builtin.cpu.arch) {
+    _newselect = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[1],
         .arm, .powerpc => 142,
         else => unreachable,
     },
-    _sysctl = switch (builtin.cpu.arch) {
+    _sysctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 156,
         .aarch64 => _invalid[2],
         .arm, .powerpc => 149,
         else => unreachable,
     },
-    accept = switch (builtin.cpu.arch) {
+    accept = switch (sysinfo.cpu.arch) {
         .x86_64 => 43,
         .aarch64 => 202,
         .arm => 285,
         .powerpc => 330,
         else => unreachable,
     },
-    accept4 = switch (builtin.cpu.arch) {
+    accept4 = switch (sysinfo.cpu.arch) {
         .x86_64 => 288,
         .aarch64 => 242,
         .arm => 366,
         .powerpc => 344,
         else => unreachable,
     },
-    access = switch (builtin.cpu.arch) {
+    access = switch (sysinfo.cpu.arch) {
         .x86_64 => 21,
         .aarch64 => _invalid[3],
         .arm, .powerpc => 33,
         else => unreachable,
     },
-    acct = switch (builtin.cpu.arch) {
+    acct = switch (sysinfo.cpu.arch) {
         .x86_64 => 163,
         .aarch64 => 89,
         .arm, .powerpc => 51,
         else => unreachable,
     },
-    add_key = switch (builtin.cpu.arch) {
+    add_key = switch (sysinfo.cpu.arch) {
         .x86_64 => 248,
         .aarch64 => 217,
         .arm => 309,
         .powerpc => 269,
         else => unreachable,
     },
-    adjtimex = switch (builtin.cpu.arch) {
+    adjtimex = switch (sysinfo.cpu.arch) {
         .x86_64 => 159,
         .aarch64 => 171,
         .arm, .powerpc => 124,
         else => unreachable,
     },
-    afs_syscall = switch (builtin.cpu.arch) {
+    afs_syscall = switch (sysinfo.cpu.arch) {
         .x86_64 => 183,
         .aarch64, .arm => _invalid[4],
         .powerpc => 137,
         else => unreachable,
     },
-    alarm = switch (builtin.cpu.arch) {
+    alarm = switch (sysinfo.cpu.arch) {
         .x86_64 => 37,
         .aarch64, .arm => _invalid[5],
         .powerpc => 27,
         else => unreachable,
     },
-    arch_prctl = switch (builtin.cpu.arch) {
+    arch_prctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 158,
         .aarch64, .arm, .powerpc => _invalid[6],
         else => unreachable,
     },
-    arch_specific_syscall = switch (builtin.cpu.arch) {
+    arch_specific_syscall = switch (sysinfo.cpu.arch) {
         .x86_64, .arm, .powerpc => _invalid[7],
         .aarch64 => 244,
         else => unreachable,
     },
-    arm_fadvise64_64 = switch (builtin.cpu.arch) {
+    arm_fadvise64_64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[8],
         .arm => 270,
         else => unreachable,
     },
-    arm_sync_file_range = switch (builtin.cpu.arch) {
+    arm_sync_file_range = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[9],
         .arm => 341,
         else => unreachable,
     },
-    bdflush = switch (builtin.cpu.arch) {
+    bdflush = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[10],
         .arm, .powerpc => 134,
         else => unreachable,
     },
-    bind = switch (builtin.cpu.arch) {
+    bind = switch (sysinfo.cpu.arch) {
         .x86_64 => 49,
         .aarch64 => 200,
         .arm => 282,
         .powerpc => 327,
         else => unreachable,
     },
-    bpf = switch (builtin.cpu.arch) {
+    bpf = switch (sysinfo.cpu.arch) {
         .x86_64 => 321,
         .aarch64 => 280,
         .arm => 386,
         .powerpc => 361,
         else => unreachable,
     },
-    @"break" = switch (builtin.cpu.arch) {
+    @"break" = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[11],
         .powerpc => 17,
         else => unreachable,
     },
-    brk = switch (builtin.cpu.arch) {
+    brk = switch (sysinfo.cpu.arch) {
         .x86_64 => 12,
         .aarch64 => 214,
         .arm, .powerpc => 45,
         else => unreachable,
     },
-    cachestat = switch (builtin.cpu.arch) {
+    cachestat = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 451,
         else => unreachable,
     },
-    capget = switch (builtin.cpu.arch) {
+    capget = switch (sysinfo.cpu.arch) {
         .x86_64 => 125,
         .aarch64 => 90,
         .arm => 184,
         .powerpc => 183,
         else => unreachable,
     },
-    capset = switch (builtin.cpu.arch) {
+    capset = switch (sysinfo.cpu.arch) {
         .x86_64 => 126,
         .aarch64 => 91,
         .arm => 185,
         .powerpc => 184,
         else => unreachable,
     },
-    chdir = switch (builtin.cpu.arch) {
+    chdir = switch (sysinfo.cpu.arch) {
         .x86_64 => 80,
         .aarch64 => 49,
         .arm, .powerpc => 12,
         else => unreachable,
     },
-    chmod = switch (builtin.cpu.arch) {
+    chmod = switch (sysinfo.cpu.arch) {
         .x86_64 => 90,
         .aarch64 => _invalid[12],
         .arm, .powerpc => 15,
         else => unreachable,
     },
-    chown = switch (builtin.cpu.arch) {
+    chown = switch (sysinfo.cpu.arch) {
         .x86_64 => 92,
         .aarch64 => _invalid[13],
         .arm => 182,
         .powerpc => 181,
         else => unreachable,
     },
-    chown32 = switch (builtin.cpu.arch) {
+    chown32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[14],
         .arm => 212,
         else => unreachable,
     },
-    chroot = switch (builtin.cpu.arch) {
+    chroot = switch (sysinfo.cpu.arch) {
         .x86_64 => 161,
         .aarch64 => 51,
         .arm, .powerpc => 61,
         else => unreachable,
     },
-    clock_adjtime = switch (builtin.cpu.arch) {
+    clock_adjtime = switch (sysinfo.cpu.arch) {
         .x86_64 => 305,
         .aarch64 => 266,
         .arm => 372,
         .powerpc => 347,
         else => unreachable,
     },
-    clock_adjtime64 = switch (builtin.cpu.arch) {
+    clock_adjtime64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[15],
         .aarch64, .arm, .powerpc => 405,
         else => unreachable,
     },
-    clock_getres = switch (builtin.cpu.arch) {
+    clock_getres = switch (sysinfo.cpu.arch) {
         .x86_64 => 229,
         .aarch64 => 114,
         .arm => 264,
         .powerpc => 247,
         else => unreachable,
     },
-    clock_getres_time64 = switch (builtin.cpu.arch) {
+    clock_getres_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[16],
         .aarch64, .arm, .powerpc => 406,
         else => unreachable,
     },
-    clock_gettime = switch (builtin.cpu.arch) {
+    clock_gettime = switch (sysinfo.cpu.arch) {
         .x86_64 => 228,
         .aarch64 => 113,
         .arm => 263,
         .powerpc => 246,
         else => unreachable,
     },
-    clock_gettime64 = switch (builtin.cpu.arch) {
+    clock_gettime64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[17],
         .aarch64, .arm, .powerpc => 403,
         else => unreachable,
     },
-    clock_nanosleep = switch (builtin.cpu.arch) {
+    clock_nanosleep = switch (sysinfo.cpu.arch) {
         .x86_64 => 230,
         .aarch64 => 115,
         .arm => 265,
         .powerpc => 248,
         else => unreachable,
     },
-    clock_nanosleep_time64 = switch (builtin.cpu.arch) {
+    clock_nanosleep_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[18],
         .aarch64, .arm, .powerpc => 407,
         else => unreachable,
     },
-    clock_settime = switch (builtin.cpu.arch) {
+    clock_settime = switch (sysinfo.cpu.arch) {
         .x86_64 => 227,
         .aarch64 => 112,
         .arm => 262,
         .powerpc => 245,
         else => unreachable,
     },
-    clock_settime64 = switch (builtin.cpu.arch) {
+    clock_settime64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[19],
         .aarch64, .arm, .powerpc => 404,
         else => unreachable,
     },
-    clone = switch (builtin.cpu.arch) {
+    clone = switch (sysinfo.cpu.arch) {
         .x86_64 => 56,
         .aarch64 => 220,
         .arm, .powerpc => 120,
         else => unreachable,
     },
-    clone3 = switch (builtin.cpu.arch) {
+    clone3 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 435,
         else => unreachable,
     },
-    close = switch (builtin.cpu.arch) {
+    close = switch (sysinfo.cpu.arch) {
         .x86_64 => 3,
         .aarch64 => 57,
         .arm, .powerpc => 6,
         else => unreachable,
     },
-    close_range = switch (builtin.cpu.arch) {
+    close_range = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 436,
         else => unreachable,
     },
-    connect = switch (builtin.cpu.arch) {
+    connect = switch (sysinfo.cpu.arch) {
         .x86_64 => 42,
         .aarch64 => 203,
         .arm => 283,
         .powerpc => 328,
         else => unreachable,
     },
-    copy_file_range = switch (builtin.cpu.arch) {
+    copy_file_range = switch (sysinfo.cpu.arch) {
         .x86_64 => 326,
         .aarch64 => 285,
         .arm => 391,
         .powerpc => 379,
         else => unreachable,
     },
-    creat = switch (builtin.cpu.arch) {
+    creat = switch (sysinfo.cpu.arch) {
         .x86_64 => 85,
         .aarch64 => _invalid[20],
         .arm, .powerpc => 8,
         else => unreachable,
     },
-    create_module = switch (builtin.cpu.arch) {
+    create_module = switch (sysinfo.cpu.arch) {
         .x86_64 => 174,
         .aarch64, .arm => _invalid[21],
         .powerpc => 127,
         else => unreachable,
     },
-    delete_module = switch (builtin.cpu.arch) {
+    delete_module = switch (sysinfo.cpu.arch) {
         .x86_64 => 176,
         .aarch64 => 106,
         .arm, .powerpc => 129,
         else => unreachable,
     },
-    dup = switch (builtin.cpu.arch) {
+    dup = switch (sysinfo.cpu.arch) {
         .x86_64 => 32,
         .aarch64 => 23,
         .arm, .powerpc => 41,
         else => unreachable,
     },
-    dup2 = switch (builtin.cpu.arch) {
+    dup2 = switch (sysinfo.cpu.arch) {
         .x86_64 => 33,
         .aarch64 => _invalid[22],
         .arm, .powerpc => 63,
         else => unreachable,
     },
-    dup3 = switch (builtin.cpu.arch) {
+    dup3 = switch (sysinfo.cpu.arch) {
         .x86_64 => 292,
         .aarch64 => 24,
         .arm => 358,
         .powerpc => 316,
         else => unreachable,
     },
-    epoll_create = switch (builtin.cpu.arch) {
+    epoll_create = switch (sysinfo.cpu.arch) {
         .x86_64 => 213,
         .aarch64 => _invalid[23],
         .arm => 250,
         .powerpc => 236,
         else => unreachable,
     },
-    epoll_create1 = switch (builtin.cpu.arch) {
+    epoll_create1 = switch (sysinfo.cpu.arch) {
         .x86_64 => 291,
         .aarch64 => 20,
         .arm => 357,
         .powerpc => 315,
         else => unreachable,
     },
-    epoll_ctl = switch (builtin.cpu.arch) {
+    epoll_ctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 233,
         .aarch64 => 21,
         .arm => 251,
         .powerpc => 237,
         else => unreachable,
     },
-    epoll_ctl_old = switch (builtin.cpu.arch) {
+    epoll_ctl_old = switch (sysinfo.cpu.arch) {
         .x86_64 => 214,
         .aarch64, .arm, .powerpc => _invalid[24],
         else => unreachable,
     },
-    epoll_pwait = switch (builtin.cpu.arch) {
+    epoll_pwait = switch (sysinfo.cpu.arch) {
         .x86_64 => 281,
         .aarch64 => 22,
         .arm => 346,
         .powerpc => 303,
         else => unreachable,
     },
-    epoll_pwait2 = switch (builtin.cpu.arch) {
+    epoll_pwait2 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 441,
         else => unreachable,
     },
-    epoll_wait = switch (builtin.cpu.arch) {
+    epoll_wait = switch (sysinfo.cpu.arch) {
         .x86_64 => 232,
         .aarch64 => _invalid[25],
         .arm => 252,
         .powerpc => 238,
         else => unreachable,
     },
-    epoll_wait_old = switch (builtin.cpu.arch) {
+    epoll_wait_old = switch (sysinfo.cpu.arch) {
         .x86_64 => 215,
         .aarch64, .arm, .powerpc => _invalid[26],
         else => unreachable,
     },
-    eventfd = switch (builtin.cpu.arch) {
+    eventfd = switch (sysinfo.cpu.arch) {
         .x86_64 => 284,
         .aarch64 => _invalid[27],
         .arm => 351,
         .powerpc => 307,
         else => unreachable,
     },
-    eventfd2 = switch (builtin.cpu.arch) {
+    eventfd2 = switch (sysinfo.cpu.arch) {
         .x86_64 => 290,
         .aarch64 => 19,
         .arm => 356,
         .powerpc => 314,
         else => unreachable,
     },
-    execve = switch (builtin.cpu.arch) {
+    execve = switch (sysinfo.cpu.arch) {
         .x86_64 => 59,
         .aarch64 => 221,
         .arm, .powerpc => 11,
         else => unreachable,
     },
-    execveat = switch (builtin.cpu.arch) {
+    execveat = switch (sysinfo.cpu.arch) {
         .x86_64 => 322,
         .aarch64 => 281,
         .arm => 387,
         .powerpc => 362,
         else => unreachable,
     },
-    exit = switch (builtin.cpu.arch) {
+    exit = switch (sysinfo.cpu.arch) {
         .x86_64 => 60,
         .aarch64 => 93,
         .arm, .powerpc => 1,
         else => unreachable,
     },
-    exit_group = switch (builtin.cpu.arch) {
+    exit_group = switch (sysinfo.cpu.arch) {
         .x86_64 => 231,
         .aarch64 => 94,
         .arm => 248,
         .powerpc => 234,
         else => unreachable,
     },
-    faccessat = switch (builtin.cpu.arch) {
+    faccessat = switch (sysinfo.cpu.arch) {
         .x86_64 => 269,
         .aarch64 => 48,
         .arm => 334,
         .powerpc => 298,
         else => unreachable,
     },
-    faccessat2 = switch (builtin.cpu.arch) {
+    faccessat2 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 439,
         else => unreachable,
     },
-    fadvise64 = switch (builtin.cpu.arch) {
+    fadvise64 = switch (sysinfo.cpu.arch) {
         .x86_64 => 221,
         .aarch64 => 223,
         .arm => _invalid[28],
         .powerpc => 233,
         else => unreachable,
     },
-    fadvise64_64 = switch (builtin.cpu.arch) {
+    fadvise64_64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[29],
         .powerpc => 254,
         else => unreachable,
     },
-    fallocate = switch (builtin.cpu.arch) {
+    fallocate = switch (sysinfo.cpu.arch) {
         .x86_64 => 285,
         .aarch64 => 47,
         .arm => 352,
         .powerpc => 309,
         else => unreachable,
     },
-    fanotify_init = switch (builtin.cpu.arch) {
+    fanotify_init = switch (sysinfo.cpu.arch) {
         .x86_64 => 300,
         .aarch64 => 262,
         .arm => 367,
         .powerpc => 323,
         else => unreachable,
     },
-    fanotify_mark = switch (builtin.cpu.arch) {
+    fanotify_mark = switch (sysinfo.cpu.arch) {
         .x86_64 => 301,
         .aarch64 => 263,
         .arm => 368,
         .powerpc => 324,
         else => unreachable,
     },
-    fchdir = switch (builtin.cpu.arch) {
+    fchdir = switch (sysinfo.cpu.arch) {
         .x86_64 => 81,
         .aarch64 => 50,
         .arm, .powerpc => 133,
         else => unreachable,
     },
-    fchmod = switch (builtin.cpu.arch) {
+    fchmod = switch (sysinfo.cpu.arch) {
         .x86_64 => 91,
         .aarch64 => 52,
         .arm, .powerpc => 94,
         else => unreachable,
     },
-    fchmodat = switch (builtin.cpu.arch) {
+    fchmodat = switch (sysinfo.cpu.arch) {
         .x86_64 => 268,
         .aarch64 => 53,
         .arm => 333,
         .powerpc => 297,
         else => unreachable,
     },
-    fchmodat2 = switch (builtin.cpu.arch) {
+    fchmodat2 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 452,
         else => unreachable,
     },
-    fchown = switch (builtin.cpu.arch) {
+    fchown = switch (sysinfo.cpu.arch) {
         .x86_64 => 93,
         .aarch64 => 55,
         .arm, .powerpc => 95,
         else => unreachable,
     },
-    fchown32 = switch (builtin.cpu.arch) {
+    fchown32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[30],
         .arm => 207,
         else => unreachable,
     },
-    fchownat = switch (builtin.cpu.arch) {
+    fchownat = switch (sysinfo.cpu.arch) {
         .x86_64 => 260,
         .aarch64 => 54,
         .arm => 325,
         .powerpc => 289,
         else => unreachable,
     },
-    fcntl = switch (builtin.cpu.arch) {
+    fcntl = switch (sysinfo.cpu.arch) {
         .x86_64 => 72,
         .aarch64 => 25,
         .arm, .powerpc => 55,
         else => unreachable,
     },
-    fcntl64 = switch (builtin.cpu.arch) {
+    fcntl64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[31],
         .arm => 221,
         .powerpc => 204,
         else => unreachable,
     },
-    fdatasync = switch (builtin.cpu.arch) {
+    fdatasync = switch (sysinfo.cpu.arch) {
         .x86_64 => 75,
         .aarch64 => 83,
         .arm, .powerpc => 148,
         else => unreachable,
     },
-    fgetxattr = switch (builtin.cpu.arch) {
+    fgetxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 193,
         .aarch64 => 10,
         .arm => 231,
         .powerpc => 214,
         else => unreachable,
     },
-    file_getattr = switch (builtin.cpu.arch) {
+    file_getattr = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 468,
         else => unreachable,
     },
-    file_setattr = switch (builtin.cpu.arch) {
+    file_setattr = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 469,
         else => unreachable,
     },
-    finit_module = switch (builtin.cpu.arch) {
+    finit_module = switch (sysinfo.cpu.arch) {
         .x86_64 => 313,
         .aarch64 => 273,
         .arm => 379,
         .powerpc => 353,
         else => unreachable,
     },
-    flistxattr = switch (builtin.cpu.arch) {
+    flistxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 196,
         .aarch64 => 13,
         .arm => 234,
         .powerpc => 217,
         else => unreachable,
     },
-    flock = switch (builtin.cpu.arch) {
+    flock = switch (sysinfo.cpu.arch) {
         .x86_64 => 73,
         .aarch64 => 32,
         .arm, .powerpc => 143,
         else => unreachable,
     },
-    fork = switch (builtin.cpu.arch) {
+    fork = switch (sysinfo.cpu.arch) {
         .x86_64 => 57,
         .aarch64 => _invalid[32],
         .arm, .powerpc => 2,
         else => unreachable,
     },
-    fremovexattr = switch (builtin.cpu.arch) {
+    fremovexattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 199,
         .aarch64 => 16,
         .arm => 237,
         .powerpc => 220,
         else => unreachable,
     },
-    fsconfig = switch (builtin.cpu.arch) {
+    fsconfig = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 431,
         else => unreachable,
     },
-    fsetxattr = switch (builtin.cpu.arch) {
+    fsetxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 190,
         .aarch64 => 7,
         .arm => 228,
         .powerpc => 211,
         else => unreachable,
     },
-    fsmount = switch (builtin.cpu.arch) {
+    fsmount = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 432,
         else => unreachable,
     },
-    fsopen = switch (builtin.cpu.arch) {
+    fsopen = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 430,
         else => unreachable,
     },
-    fspick = switch (builtin.cpu.arch) {
+    fspick = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 433,
         else => unreachable,
     },
-    fstat = switch (builtin.cpu.arch) {
+    fstat = switch (sysinfo.cpu.arch) {
         .x86_64 => 5,
         .aarch64 => 80,
         .arm, .powerpc => 108,
         else => unreachable,
     },
-    fstat64 = switch (builtin.cpu.arch) {
+    fstat64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[33],
         .arm, .powerpc => 197,
         else => unreachable,
     },
-    fstatat64 = switch (builtin.cpu.arch) {
+    fstatat64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[34],
         .arm => 327,
         .powerpc => 291,
         else => unreachable,
     },
-    fstatfs = switch (builtin.cpu.arch) {
+    fstatfs = switch (sysinfo.cpu.arch) {
         .x86_64 => 138,
         .aarch64 => 44,
         .arm, .powerpc => 100,
         else => unreachable,
     },
-    fstatfs64 = switch (builtin.cpu.arch) {
+    fstatfs64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[35],
         .arm => 267,
         .powerpc => 253,
         else => unreachable,
     },
-    fsync = switch (builtin.cpu.arch) {
+    fsync = switch (sysinfo.cpu.arch) {
         .x86_64 => 74,
         .aarch64 => 82,
         .arm, .powerpc => 118,
         else => unreachable,
     },
-    ftime = switch (builtin.cpu.arch) {
+    ftime = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[36],
         .powerpc => 35,
         else => unreachable,
     },
-    ftruncate = switch (builtin.cpu.arch) {
+    ftruncate = switch (sysinfo.cpu.arch) {
         .x86_64 => 77,
         .aarch64 => 46,
         .arm, .powerpc => 93,
         else => unreachable,
     },
-    ftruncate64 = switch (builtin.cpu.arch) {
+    ftruncate64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[37],
         .arm, .powerpc => 194,
         else => unreachable,
     },
-    futex = switch (builtin.cpu.arch) {
+    futex = switch (sysinfo.cpu.arch) {
         .x86_64 => 202,
         .aarch64 => 98,
         .arm => 240,
         .powerpc => 221,
         else => unreachable,
     },
-    futex_requeue = switch (builtin.cpu.arch) {
+    futex_requeue = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 456,
         else => unreachable,
     },
-    futex_time64 = switch (builtin.cpu.arch) {
+    futex_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[38],
         .aarch64, .arm, .powerpc => 422,
         else => unreachable,
     },
-    futex_wait = switch (builtin.cpu.arch) {
+    futex_wait = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 455,
         else => unreachable,
     },
-    futex_waitv = switch (builtin.cpu.arch) {
+    futex_waitv = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 449,
         else => unreachable,
     },
-    futex_wake = switch (builtin.cpu.arch) {
+    futex_wake = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 454,
         else => unreachable,
     },
-    futimesat = switch (builtin.cpu.arch) {
+    futimesat = switch (sysinfo.cpu.arch) {
         .x86_64 => 261,
         .aarch64 => _invalid[39],
         .arm => 326,
         .powerpc => 290,
         else => unreachable,
     },
-    get_kernel_syms = switch (builtin.cpu.arch) {
+    get_kernel_syms = switch (sysinfo.cpu.arch) {
         .x86_64 => 177,
         .aarch64, .arm => _invalid[40],
         .powerpc => 130,
         else => unreachable,
     },
-    get_mempolicy = switch (builtin.cpu.arch) {
+    get_mempolicy = switch (sysinfo.cpu.arch) {
         .x86_64 => 239,
         .aarch64 => 236,
         .arm => 320,
         .powerpc => 260,
         else => unreachable,
     },
-    get_robust_list = switch (builtin.cpu.arch) {
+    get_robust_list = switch (sysinfo.cpu.arch) {
         .x86_64 => 274,
         .aarch64 => 100,
         .arm => 339,
         .powerpc => 299,
         else => unreachable,
     },
-    get_thread_area = switch (builtin.cpu.arch) {
+    get_thread_area = switch (sysinfo.cpu.arch) {
         .x86_64 => 211,
         .aarch64, .arm, .powerpc => _invalid[41],
         else => unreachable,
     },
-    getcpu = switch (builtin.cpu.arch) {
+    getcpu = switch (sysinfo.cpu.arch) {
         .x86_64 => 309,
         .aarch64 => 168,
         .arm => 345,
         .powerpc => 302,
         else => unreachable,
     },
-    getcwd = switch (builtin.cpu.arch) {
+    getcwd = switch (sysinfo.cpu.arch) {
         .x86_64 => 79,
         .aarch64 => 17,
         .arm => 183,
         .powerpc => 182,
         else => unreachable,
     },
-    getdents = switch (builtin.cpu.arch) {
+    getdents = switch (sysinfo.cpu.arch) {
         .x86_64 => 78,
         .aarch64 => _invalid[42],
         .arm, .powerpc => 141,
         else => unreachable,
     },
-    getdents64 = switch (builtin.cpu.arch) {
+    getdents64 = switch (sysinfo.cpu.arch) {
         .x86_64, .arm => 217,
         .aarch64 => 61,
         .powerpc => 202,
         else => unreachable,
     },
-    getegid = switch (builtin.cpu.arch) {
+    getegid = switch (sysinfo.cpu.arch) {
         .x86_64 => 108,
         .aarch64 => 177,
         .arm, .powerpc => 50,
         else => unreachable,
     },
-    getegid32 = switch (builtin.cpu.arch) {
+    getegid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[43],
         .arm => 202,
         else => unreachable,
     },
-    geteuid = switch (builtin.cpu.arch) {
+    geteuid = switch (sysinfo.cpu.arch) {
         .x86_64 => 107,
         .aarch64 => 175,
         .arm, .powerpc => 49,
         else => unreachable,
     },
-    geteuid32 = switch (builtin.cpu.arch) {
+    geteuid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[44],
         .arm => 201,
         else => unreachable,
     },
-    getgid = switch (builtin.cpu.arch) {
+    getgid = switch (sysinfo.cpu.arch) {
         .x86_64 => 104,
         .aarch64 => 176,
         .arm, .powerpc => 47,
         else => unreachable,
     },
-    getgid32 = switch (builtin.cpu.arch) {
+    getgid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[45],
         .arm => 200,
         else => unreachable,
     },
-    getgroups = switch (builtin.cpu.arch) {
+    getgroups = switch (sysinfo.cpu.arch) {
         .x86_64 => 115,
         .aarch64 => 158,
         .arm, .powerpc => 80,
         else => unreachable,
     },
-    getgroups32 = switch (builtin.cpu.arch) {
+    getgroups32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[46],
         .arm => 205,
         else => unreachable,
     },
-    getitimer = switch (builtin.cpu.arch) {
+    getitimer = switch (sysinfo.cpu.arch) {
         .x86_64 => 36,
         .aarch64 => 102,
         .arm, .powerpc => 105,
         else => unreachable,
     },
-    getpeername = switch (builtin.cpu.arch) {
+    getpeername = switch (sysinfo.cpu.arch) {
         .x86_64 => 52,
         .aarch64 => 205,
         .arm => 287,
         .powerpc => 332,
         else => unreachable,
     },
-    getpgid = switch (builtin.cpu.arch) {
+    getpgid = switch (sysinfo.cpu.arch) {
         .x86_64 => 121,
         .aarch64 => 155,
         .arm, .powerpc => 132,
         else => unreachable,
     },
-    getpgrp = switch (builtin.cpu.arch) {
+    getpgrp = switch (sysinfo.cpu.arch) {
         .x86_64 => 111,
         .aarch64 => _invalid[47],
         .arm, .powerpc => 65,
         else => unreachable,
     },
-    getpid = switch (builtin.cpu.arch) {
+    getpid = switch (sysinfo.cpu.arch) {
         .x86_64 => 39,
         .aarch64 => 172,
         .arm, .powerpc => 20,
         else => unreachable,
     },
-    getpmsg = switch (builtin.cpu.arch) {
+    getpmsg = switch (sysinfo.cpu.arch) {
         .x86_64 => 181,
         .aarch64, .arm => _invalid[48],
         .powerpc => 187,
         else => unreachable,
     },
-    getppid = switch (builtin.cpu.arch) {
+    getppid = switch (sysinfo.cpu.arch) {
         .x86_64 => 110,
         .aarch64 => 173,
         .arm, .powerpc => 64,
         else => unreachable,
     },
-    getpriority = switch (builtin.cpu.arch) {
+    getpriority = switch (sysinfo.cpu.arch) {
         .x86_64 => 140,
         .aarch64 => 141,
         .arm, .powerpc => 96,
         else => unreachable,
     },
-    getrandom = switch (builtin.cpu.arch) {
+    getrandom = switch (sysinfo.cpu.arch) {
         .x86_64 => 318,
         .aarch64 => 278,
         .arm => 384,
         .powerpc => 359,
         else => unreachable,
     },
-    getresgid = switch (builtin.cpu.arch) {
+    getresgid = switch (sysinfo.cpu.arch) {
         .x86_64 => 120,
         .aarch64 => 150,
         .arm => 171,
         .powerpc => 170,
         else => unreachable,
     },
-    getresgid32 = switch (builtin.cpu.arch) {
+    getresgid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[49],
         .arm => 211,
         else => unreachable,
     },
-    getresuid = switch (builtin.cpu.arch) {
+    getresuid = switch (sysinfo.cpu.arch) {
         .x86_64 => 118,
         .aarch64 => 148,
         .arm, .powerpc => 165,
         else => unreachable,
     },
-    getresuid32 = switch (builtin.cpu.arch) {
+    getresuid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[50],
         .arm => 209,
         else => unreachable,
     },
-    getrlimit = switch (builtin.cpu.arch) {
+    getrlimit = switch (sysinfo.cpu.arch) {
         .x86_64 => 97,
         .aarch64 => 163,
         .arm => _invalid[51],
         .powerpc => 76,
         else => unreachable,
     },
-    getrusage = switch (builtin.cpu.arch) {
+    getrusage = switch (sysinfo.cpu.arch) {
         .x86_64 => 98,
         .aarch64 => 165,
         .arm, .powerpc => 77,
         else => unreachable,
     },
-    getsid = switch (builtin.cpu.arch) {
+    getsid = switch (sysinfo.cpu.arch) {
         .x86_64 => 124,
         .aarch64 => 156,
         .arm, .powerpc => 147,
         else => unreachable,
     },
-    getsockname = switch (builtin.cpu.arch) {
+    getsockname = switch (sysinfo.cpu.arch) {
         .x86_64 => 51,
         .aarch64 => 204,
         .arm => 286,
         .powerpc => 331,
         else => unreachable,
     },
-    getsockopt = switch (builtin.cpu.arch) {
+    getsockopt = switch (sysinfo.cpu.arch) {
         .x86_64 => 55,
         .aarch64 => 209,
         .arm => 295,
         .powerpc => 340,
         else => unreachable,
     },
-    gettid = switch (builtin.cpu.arch) {
+    gettid = switch (sysinfo.cpu.arch) {
         .x86_64 => 186,
         .aarch64 => 178,
         .arm => 224,
         .powerpc => 207,
         else => unreachable,
     },
-    gettimeofday = switch (builtin.cpu.arch) {
+    gettimeofday = switch (sysinfo.cpu.arch) {
         .x86_64 => 96,
         .aarch64 => 169,
         .arm, .powerpc => 78,
         else => unreachable,
     },
-    getuid = switch (builtin.cpu.arch) {
+    getuid = switch (sysinfo.cpu.arch) {
         .x86_64 => 102,
         .aarch64 => 174,
         .arm, .powerpc => 24,
         else => unreachable,
     },
-    getuid32 = switch (builtin.cpu.arch) {
+    getuid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[52],
         .arm => 199,
         else => unreachable,
     },
-    getxattr = switch (builtin.cpu.arch) {
+    getxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 191,
         .aarch64 => 8,
         .arm => 229,
         .powerpc => 212,
         else => unreachable,
     },
-    getxattrat = switch (builtin.cpu.arch) {
+    getxattrat = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 464,
         else => unreachable,
     },
-    gtty = switch (builtin.cpu.arch) {
+    gtty = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[53],
         .powerpc => 32,
         else => unreachable,
     },
-    idle = switch (builtin.cpu.arch) {
+    idle = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[54],
         .powerpc => 112,
         else => unreachable,
     },
-    init_module = switch (builtin.cpu.arch) {
+    init_module = switch (sysinfo.cpu.arch) {
         .x86_64 => 175,
         .aarch64 => 105,
         .arm, .powerpc => 128,
         else => unreachable,
     },
-    inotify_add_watch = switch (builtin.cpu.arch) {
+    inotify_add_watch = switch (sysinfo.cpu.arch) {
         .x86_64 => 254,
         .aarch64 => 27,
         .arm => 317,
         .powerpc => 276,
         else => unreachable,
     },
-    inotify_init = switch (builtin.cpu.arch) {
+    inotify_init = switch (sysinfo.cpu.arch) {
         .x86_64 => 253,
         .aarch64 => _invalid[55],
         .arm => 316,
         .powerpc => 275,
         else => unreachable,
     },
-    inotify_init1 = switch (builtin.cpu.arch) {
+    inotify_init1 = switch (sysinfo.cpu.arch) {
         .x86_64 => 294,
         .aarch64 => 26,
         .arm => 360,
         .powerpc => 318,
         else => unreachable,
     },
-    inotify_rm_watch = switch (builtin.cpu.arch) {
+    inotify_rm_watch = switch (sysinfo.cpu.arch) {
         .x86_64 => 255,
         .aarch64 => 28,
         .arm => 318,
         .powerpc => 277,
         else => unreachable,
     },
-    io_cancel = switch (builtin.cpu.arch) {
+    io_cancel = switch (sysinfo.cpu.arch) {
         .x86_64 => 210,
         .aarch64 => 3,
         .arm => 247,
         .powerpc => 231,
         else => unreachable,
     },
-    io_destroy = switch (builtin.cpu.arch) {
+    io_destroy = switch (sysinfo.cpu.arch) {
         .x86_64 => 207,
         .aarch64 => 1,
         .arm => 244,
         .powerpc => 228,
         else => unreachable,
     },
-    io_getevents = switch (builtin.cpu.arch) {
+    io_getevents = switch (sysinfo.cpu.arch) {
         .x86_64 => 208,
         .aarch64 => 4,
         .arm => 245,
         .powerpc => 229,
         else => unreachable,
     },
-    io_pgetevents = switch (builtin.cpu.arch) {
+    io_pgetevents = switch (sysinfo.cpu.arch) {
         .x86_64 => 333,
         .aarch64 => 292,
         .arm => 399,
         .powerpc => 388,
         else => unreachable,
     },
-    io_pgetevents_time64 = switch (builtin.cpu.arch) {
+    io_pgetevents_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[56],
         .aarch64, .arm, .powerpc => 416,
         else => unreachable,
     },
-    io_setup = switch (builtin.cpu.arch) {
+    io_setup = switch (sysinfo.cpu.arch) {
         .x86_64 => 206,
         .aarch64 => 0,
         .arm => 243,
         .powerpc => 227,
         else => unreachable,
     },
-    io_submit = switch (builtin.cpu.arch) {
+    io_submit = switch (sysinfo.cpu.arch) {
         .x86_64 => 209,
         .aarch64 => 2,
         .arm => 246,
         .powerpc => 230,
         else => unreachable,
     },
-    io_uring_enter = switch (builtin.cpu.arch) {
+    io_uring_enter = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 426,
         else => unreachable,
     },
-    io_uring_register = switch (builtin.cpu.arch) {
+    io_uring_register = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 427,
         else => unreachable,
     },
-    io_uring_setup = switch (builtin.cpu.arch) {
+    io_uring_setup = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 425,
         else => unreachable,
     },
-    ioctl = switch (builtin.cpu.arch) {
+    ioctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 16,
         .aarch64 => 29,
         .arm, .powerpc => 54,
         else => unreachable,
     },
-    ioperm = switch (builtin.cpu.arch) {
+    ioperm = switch (sysinfo.cpu.arch) {
         .x86_64 => 173,
         .aarch64, .arm => _invalid[57],
         .powerpc => 101,
         else => unreachable,
     },
-    iopl = switch (builtin.cpu.arch) {
+    iopl = switch (sysinfo.cpu.arch) {
         .x86_64 => 172,
         .aarch64, .arm => _invalid[58],
         .powerpc => 110,
         else => unreachable,
     },
-    ioprio_get = switch (builtin.cpu.arch) {
+    ioprio_get = switch (sysinfo.cpu.arch) {
         .x86_64 => 252,
         .aarch64 => 31,
         .arm => 315,
         .powerpc => 274,
         else => unreachable,
     },
-    ioprio_set = switch (builtin.cpu.arch) {
+    ioprio_set = switch (sysinfo.cpu.arch) {
         .x86_64 => 251,
         .aarch64 => 30,
         .arm => 314,
         .powerpc => 273,
         else => unreachable,
     },
-    ipc = switch (builtin.cpu.arch) {
+    ipc = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[59],
         .powerpc => 117,
         else => unreachable,
     },
-    kcmp = switch (builtin.cpu.arch) {
+    kcmp = switch (sysinfo.cpu.arch) {
         .x86_64 => 312,
         .aarch64 => 272,
         .arm => 378,
         .powerpc => 354,
         else => unreachable,
     },
-    kexec_file_load = switch (builtin.cpu.arch) {
+    kexec_file_load = switch (sysinfo.cpu.arch) {
         .x86_64 => 320,
         .aarch64 => 294,
         .arm => 401,
         .powerpc => 382,
         else => unreachable,
     },
-    kexec_load = switch (builtin.cpu.arch) {
+    kexec_load = switch (sysinfo.cpu.arch) {
         .x86_64 => 246,
         .aarch64 => 104,
         .arm => 347,
         .powerpc => 268,
         else => unreachable,
     },
-    keyctl = switch (builtin.cpu.arch) {
+    keyctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 250,
         .aarch64 => 219,
         .arm => 311,
         .powerpc => 271,
         else => unreachable,
     },
-    kill = switch (builtin.cpu.arch) {
+    kill = switch (sysinfo.cpu.arch) {
         .x86_64 => 62,
         .aarch64 => 129,
         .arm, .powerpc => 37,
         else => unreachable,
     },
-    landlock_add_rule = switch (builtin.cpu.arch) {
+    landlock_add_rule = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 445,
         else => unreachable,
     },
-    landlock_create_ruleset = switch (builtin.cpu.arch) {
+    landlock_create_ruleset = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 444,
         else => unreachable,
     },
-    landlock_restrict_self = switch (builtin.cpu.arch) {
+    landlock_restrict_self = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 446,
         else => unreachable,
     },
-    lchown = switch (builtin.cpu.arch) {
+    lchown = switch (sysinfo.cpu.arch) {
         .x86_64 => 94,
         .aarch64 => _invalid[60],
         .arm, .powerpc => 16,
         else => unreachable,
     },
-    lchown32 = switch (builtin.cpu.arch) {
+    lchown32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[61],
         .arm => 198,
         else => unreachable,
     },
-    lgetxattr = switch (builtin.cpu.arch) {
+    lgetxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 192,
         .aarch64 => 9,
         .arm => 230,
         .powerpc => 213,
         else => unreachable,
     },
-    link = switch (builtin.cpu.arch) {
+    link = switch (sysinfo.cpu.arch) {
         .x86_64 => 86,
         .aarch64 => _invalid[62],
         .arm, .powerpc => 9,
         else => unreachable,
     },
-    linkat = switch (builtin.cpu.arch) {
+    linkat = switch (sysinfo.cpu.arch) {
         .x86_64 => 265,
         .aarch64 => 37,
         .arm => 330,
         .powerpc => 294,
         else => unreachable,
     },
-    listen = switch (builtin.cpu.arch) {
+    listen = switch (sysinfo.cpu.arch) {
         .x86_64 => 50,
         .aarch64 => 201,
         .arm => 284,
         .powerpc => 329,
         else => unreachable,
     },
-    listmount = switch (builtin.cpu.arch) {
+    listmount = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 458,
         else => unreachable,
     },
-    listns = switch (builtin.cpu.arch) {
+    listns = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 470,
         else => unreachable,
     },
-    listxattr = switch (builtin.cpu.arch) {
+    listxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 194,
         .aarch64 => 11,
         .arm => 232,
         .powerpc => 215,
         else => unreachable,
     },
-    listxattrat = switch (builtin.cpu.arch) {
+    listxattrat = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 465,
         else => unreachable,
     },
-    llistxattr = switch (builtin.cpu.arch) {
+    llistxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 195,
         .aarch64 => 12,
         .arm => 233,
         .powerpc => 216,
         else => unreachable,
     },
-    lock = switch (builtin.cpu.arch) {
+    lock = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[63],
         .powerpc => 53,
         else => unreachable,
     },
-    lookup_dcookie = switch (builtin.cpu.arch) {
+    lookup_dcookie = switch (sysinfo.cpu.arch) {
         .x86_64 => 212,
         .aarch64 => 18,
         .arm => 249,
         .powerpc => 235,
         else => unreachable,
     },
-    lremovexattr = switch (builtin.cpu.arch) {
+    lremovexattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 198,
         .aarch64 => 15,
         .arm => 236,
         .powerpc => 219,
         else => unreachable,
     },
-    lseek = switch (builtin.cpu.arch) {
+    lseek = switch (sysinfo.cpu.arch) {
         .x86_64 => 8,
         .aarch64 => 62,
         .arm, .powerpc => 19,
         else => unreachable,
     },
-    lsetxattr = switch (builtin.cpu.arch) {
+    lsetxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 189,
         .aarch64 => 6,
         .arm => 227,
         .powerpc => 210,
         else => unreachable,
     },
-    lsm_get_self_attr = switch (builtin.cpu.arch) {
+    lsm_get_self_attr = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 459,
         else => unreachable,
     },
-    lsm_list_modules = switch (builtin.cpu.arch) {
+    lsm_list_modules = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 461,
         else => unreachable,
     },
-    lsm_set_self_attr = switch (builtin.cpu.arch) {
+    lsm_set_self_attr = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 460,
         else => unreachable,
     },
-    lstat = switch (builtin.cpu.arch) {
+    lstat = switch (sysinfo.cpu.arch) {
         .x86_64 => 6,
         .aarch64 => _invalid[64],
         .arm, .powerpc => 107,
         else => unreachable,
     },
-    lstat64 = switch (builtin.cpu.arch) {
+    lstat64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[65],
         .arm, .powerpc => 196,
         else => unreachable,
     },
-    madvise = switch (builtin.cpu.arch) {
+    madvise = switch (sysinfo.cpu.arch) {
         .x86_64 => 28,
         .aarch64 => 233,
         .arm => 220,
         .powerpc => 205,
         else => unreachable,
     },
-    map_shadow_stack = switch (builtin.cpu.arch) {
+    map_shadow_stack = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 453,
         else => unreachable,
     },
-    mbind = switch (builtin.cpu.arch) {
+    mbind = switch (sysinfo.cpu.arch) {
         .x86_64 => 237,
         .aarch64 => 235,
         .arm => 319,
         .powerpc => 259,
         else => unreachable,
     },
-    membarrier = switch (builtin.cpu.arch) {
+    membarrier = switch (sysinfo.cpu.arch) {
         .x86_64 => 324,
         .aarch64 => 283,
         .arm => 389,
         .powerpc => 365,
         else => unreachable,
     },
-    memfd_create = switch (builtin.cpu.arch) {
+    memfd_create = switch (sysinfo.cpu.arch) {
         .x86_64 => 319,
         .aarch64 => 279,
         .arm => 385,
         .powerpc => 360,
         else => unreachable,
     },
-    memfd_secret = switch (builtin.cpu.arch) {
+    memfd_secret = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => 447,
         .arm, .powerpc => _invalid[66],
         else => unreachable,
     },
-    migrate_pages = switch (builtin.cpu.arch) {
+    migrate_pages = switch (sysinfo.cpu.arch) {
         .x86_64 => 256,
         .aarch64 => 238,
         .arm => 400,
         .powerpc => 258,
         else => unreachable,
     },
-    mincore = switch (builtin.cpu.arch) {
+    mincore = switch (sysinfo.cpu.arch) {
         .x86_64 => 27,
         .aarch64 => 232,
         .arm => 219,
         .powerpc => 206,
         else => unreachable,
     },
-    mkdir = switch (builtin.cpu.arch) {
+    mkdir = switch (sysinfo.cpu.arch) {
         .x86_64 => 83,
         .aarch64 => _invalid[67],
         .arm, .powerpc => 39,
         else => unreachable,
     },
-    mkdirat = switch (builtin.cpu.arch) {
+    mkdirat = switch (sysinfo.cpu.arch) {
         .x86_64 => 258,
         .aarch64 => 34,
         .arm => 323,
         .powerpc => 287,
         else => unreachable,
     },
-    mknod = switch (builtin.cpu.arch) {
+    mknod = switch (sysinfo.cpu.arch) {
         .x86_64 => 133,
         .aarch64 => _invalid[68],
         .arm, .powerpc => 14,
         else => unreachable,
     },
-    mknodat = switch (builtin.cpu.arch) {
+    mknodat = switch (sysinfo.cpu.arch) {
         .x86_64 => 259,
         .aarch64 => 33,
         .arm => 324,
         .powerpc => 288,
         else => unreachable,
     },
-    mlock = switch (builtin.cpu.arch) {
+    mlock = switch (sysinfo.cpu.arch) {
         .x86_64 => 149,
         .aarch64 => 228,
         .arm, .powerpc => 150,
         else => unreachable,
     },
-    mlock2 = switch (builtin.cpu.arch) {
+    mlock2 = switch (sysinfo.cpu.arch) {
         .x86_64 => 325,
         .aarch64 => 284,
         .arm => 390,
         .powerpc => 378,
         else => unreachable,
     },
-    mlockall = switch (builtin.cpu.arch) {
+    mlockall = switch (sysinfo.cpu.arch) {
         .x86_64 => 151,
         .aarch64 => 230,
         .arm, .powerpc => 152,
         else => unreachable,
     },
-    mmap = switch (builtin.cpu.arch) {
+    mmap = switch (sysinfo.cpu.arch) {
         .x86_64 => 9,
         .aarch64 => 222,
         .arm => _invalid[69],
         .powerpc => 90,
         else => unreachable,
     },
-    mmap2 = switch (builtin.cpu.arch) {
+    mmap2 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[70],
         .arm, .powerpc => 192,
         else => unreachable,
     },
-    modify_ldt = switch (builtin.cpu.arch) {
+    modify_ldt = switch (sysinfo.cpu.arch) {
         .x86_64 => 154,
         .aarch64, .arm => _invalid[71],
         .powerpc => 123,
         else => unreachable,
     },
-    mount = switch (builtin.cpu.arch) {
+    mount = switch (sysinfo.cpu.arch) {
         .x86_64 => 165,
         .aarch64 => 40,
         .arm, .powerpc => 21,
         else => unreachable,
     },
-    mount_setattr = switch (builtin.cpu.arch) {
+    mount_setattr = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 442,
         else => unreachable,
     },
-    move_mount = switch (builtin.cpu.arch) {
+    move_mount = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 429,
         else => unreachable,
     },
-    move_pages = switch (builtin.cpu.arch) {
+    move_pages = switch (sysinfo.cpu.arch) {
         .x86_64 => 279,
         .aarch64 => 239,
         .arm => 344,
         .powerpc => 301,
         else => unreachable,
     },
-    mprotect = switch (builtin.cpu.arch) {
+    mprotect = switch (sysinfo.cpu.arch) {
         .x86_64 => 10,
         .aarch64 => 226,
         .arm, .powerpc => 125,
         else => unreachable,
     },
-    mpx = switch (builtin.cpu.arch) {
+    mpx = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[72],
         .powerpc => 56,
         else => unreachable,
     },
-    mq_getsetattr = switch (builtin.cpu.arch) {
+    mq_getsetattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 245,
         .aarch64 => 185,
         .arm => 279,
         .powerpc => 267,
         else => unreachable,
     },
-    mq_notify = switch (builtin.cpu.arch) {
+    mq_notify = switch (sysinfo.cpu.arch) {
         .x86_64 => 244,
         .aarch64 => 184,
         .arm => 278,
         .powerpc => 266,
         else => unreachable,
     },
-    mq_open = switch (builtin.cpu.arch) {
+    mq_open = switch (sysinfo.cpu.arch) {
         .x86_64 => 240,
         .aarch64 => 180,
         .arm => 274,
         .powerpc => 262,
         else => unreachable,
     },
-    mq_timedreceive = switch (builtin.cpu.arch) {
+    mq_timedreceive = switch (sysinfo.cpu.arch) {
         .x86_64 => 243,
         .aarch64 => 183,
         .arm => 277,
         .powerpc => 265,
         else => unreachable,
     },
-    mq_timedreceive_time64 = switch (builtin.cpu.arch) {
+    mq_timedreceive_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[73],
         .aarch64, .arm, .powerpc => 419,
         else => unreachable,
     },
-    mq_timedsend = switch (builtin.cpu.arch) {
+    mq_timedsend = switch (sysinfo.cpu.arch) {
         .x86_64 => 242,
         .aarch64 => 182,
         .arm => 276,
         .powerpc => 264,
         else => unreachable,
     },
-    mq_timedsend_time64 = switch (builtin.cpu.arch) {
+    mq_timedsend_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[74],
         .aarch64, .arm, .powerpc => 418,
         else => unreachable,
     },
-    mq_unlink = switch (builtin.cpu.arch) {
+    mq_unlink = switch (sysinfo.cpu.arch) {
         .x86_64 => 241,
         .aarch64 => 181,
         .arm => 275,
         .powerpc => 263,
         else => unreachable,
     },
-    mremap = switch (builtin.cpu.arch) {
+    mremap = switch (sysinfo.cpu.arch) {
         .x86_64 => 25,
         .aarch64 => 216,
         .arm, .powerpc => 163,
         else => unreachable,
     },
-    mseal = switch (builtin.cpu.arch) {
+    mseal = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 462,
         else => unreachable,
     },
-    msgctl = switch (builtin.cpu.arch) {
+    msgctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 71,
         .aarch64 => 187,
         .arm => 304,
         .powerpc => 402,
         else => unreachable,
     },
-    msgget = switch (builtin.cpu.arch) {
+    msgget = switch (sysinfo.cpu.arch) {
         .x86_64 => 68,
         .aarch64 => 186,
         .arm => 303,
         .powerpc => 399,
         else => unreachable,
     },
-    msgrcv = switch (builtin.cpu.arch) {
+    msgrcv = switch (sysinfo.cpu.arch) {
         .x86_64 => 70,
         .aarch64 => 188,
         .arm => 302,
         .powerpc => 401,
         else => unreachable,
     },
-    msgsnd = switch (builtin.cpu.arch) {
+    msgsnd = switch (sysinfo.cpu.arch) {
         .x86_64 => 69,
         .aarch64 => 189,
         .arm => 301,
         .powerpc => 400,
         else => unreachable,
     },
-    msync = switch (builtin.cpu.arch) {
+    msync = switch (sysinfo.cpu.arch) {
         .x86_64 => 26,
         .aarch64 => 227,
         .arm, .powerpc => 144,
         else => unreachable,
     },
-    multiplexer = switch (builtin.cpu.arch) {
+    multiplexer = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[75],
         .powerpc => 201,
         else => unreachable,
     },
-    munlock = switch (builtin.cpu.arch) {
+    munlock = switch (sysinfo.cpu.arch) {
         .x86_64 => 150,
         .aarch64 => 229,
         .arm, .powerpc => 151,
         else => unreachable,
     },
-    munlockall = switch (builtin.cpu.arch) {
+    munlockall = switch (sysinfo.cpu.arch) {
         .x86_64 => 152,
         .aarch64 => 231,
         .arm, .powerpc => 153,
         else => unreachable,
     },
-    munmap = switch (builtin.cpu.arch) {
+    munmap = switch (sysinfo.cpu.arch) {
         .x86_64 => 11,
         .aarch64 => 215,
         .arm, .powerpc => 91,
         else => unreachable,
     },
-    name_to_handle_at = switch (builtin.cpu.arch) {
+    name_to_handle_at = switch (sysinfo.cpu.arch) {
         .x86_64 => 303,
         .aarch64 => 264,
         .arm => 370,
         .powerpc => 345,
         else => unreachable,
     },
-    nanosleep = switch (builtin.cpu.arch) {
+    nanosleep = switch (sysinfo.cpu.arch) {
         .x86_64 => 35,
         .aarch64 => 101,
         .arm, .powerpc => 162,
         else => unreachable,
     },
-    newfstatat = switch (builtin.cpu.arch) {
+    newfstatat = switch (sysinfo.cpu.arch) {
         .x86_64 => 262,
         .aarch64 => 79,
         .arm, .powerpc => _invalid[76],
         else => unreachable,
     },
-    nfsservctl = switch (builtin.cpu.arch) {
+    nfsservctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 180,
         .aarch64 => 42,
         .arm => 169,
         .powerpc => 168,
         else => unreachable,
     },
-    nice = switch (builtin.cpu.arch) {
+    nice = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[77],
         .arm, .powerpc => 34,
         else => unreachable,
     },
-    oldfstat = switch (builtin.cpu.arch) {
+    oldfstat = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[78],
         .powerpc => 28,
         else => unreachable,
     },
-    oldlstat = switch (builtin.cpu.arch) {
+    oldlstat = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[79],
         .powerpc => 84,
         else => unreachable,
     },
-    oldolduname = switch (builtin.cpu.arch) {
+    oldolduname = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[80],
         .powerpc => 59,
         else => unreachable,
     },
-    oldstat = switch (builtin.cpu.arch) {
+    oldstat = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[81],
         .powerpc => 18,
         else => unreachable,
     },
-    olduname = switch (builtin.cpu.arch) {
+    olduname = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[82],
         .powerpc => 109,
         else => unreachable,
     },
-    open = switch (builtin.cpu.arch) {
+    open = switch (sysinfo.cpu.arch) {
         .x86_64 => 2,
         .aarch64 => _invalid[83],
         .arm, .powerpc => 5,
         else => unreachable,
     },
-    open_by_handle_at = switch (builtin.cpu.arch) {
+    open_by_handle_at = switch (sysinfo.cpu.arch) {
         .x86_64 => 304,
         .aarch64 => 265,
         .arm => 371,
         .powerpc => 346,
         else => unreachable,
     },
-    open_tree = switch (builtin.cpu.arch) {
+    open_tree = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 428,
         else => unreachable,
     },
-    open_tree_attr = switch (builtin.cpu.arch) {
+    open_tree_attr = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 467,
         else => unreachable,
     },
-    openat = switch (builtin.cpu.arch) {
+    openat = switch (sysinfo.cpu.arch) {
         .x86_64 => 257,
         .aarch64 => 56,
         .arm => 322,
         .powerpc => 286,
         else => unreachable,
     },
-    openat2 = switch (builtin.cpu.arch) {
+    openat2 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 437,
         else => unreachable,
     },
-    pause = switch (builtin.cpu.arch) {
+    pause = switch (sysinfo.cpu.arch) {
         .x86_64 => 34,
         .aarch64 => _invalid[84],
         .arm, .powerpc => 29,
         else => unreachable,
     },
-    pciconfig_iobase = switch (builtin.cpu.arch) {
+    pciconfig_iobase = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[85],
         .arm => 271,
         .powerpc => 200,
         else => unreachable,
     },
-    pciconfig_read = switch (builtin.cpu.arch) {
+    pciconfig_read = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[86],
         .arm => 272,
         .powerpc => 198,
         else => unreachable,
     },
-    pciconfig_write = switch (builtin.cpu.arch) {
+    pciconfig_write = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[87],
         .arm => 273,
         .powerpc => 199,
         else => unreachable,
     },
-    perf_event_open = switch (builtin.cpu.arch) {
+    perf_event_open = switch (sysinfo.cpu.arch) {
         .x86_64 => 298,
         .aarch64 => 241,
         .arm => 364,
         .powerpc => 319,
         else => unreachable,
     },
-    personality = switch (builtin.cpu.arch) {
+    personality = switch (sysinfo.cpu.arch) {
         .x86_64 => 135,
         .aarch64 => 92,
         .arm, .powerpc => 136,
         else => unreachable,
     },
-    pidfd_getfd = switch (builtin.cpu.arch) {
+    pidfd_getfd = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 438,
         else => unreachable,
     },
-    pidfd_open = switch (builtin.cpu.arch) {
+    pidfd_open = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 434,
         else => unreachable,
     },
-    pidfd_send_signal = switch (builtin.cpu.arch) {
+    pidfd_send_signal = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 424,
         else => unreachable,
     },
-    pipe = switch (builtin.cpu.arch) {
+    pipe = switch (sysinfo.cpu.arch) {
         .x86_64 => 22,
         .aarch64 => _invalid[88],
         .arm, .powerpc => 42,
         else => unreachable,
     },
-    pipe2 = switch (builtin.cpu.arch) {
+    pipe2 = switch (sysinfo.cpu.arch) {
         .x86_64 => 293,
         .aarch64 => 59,
         .arm => 359,
         .powerpc => 317,
         else => unreachable,
     },
-    pivot_root = switch (builtin.cpu.arch) {
+    pivot_root = switch (sysinfo.cpu.arch) {
         .x86_64 => 155,
         .aarch64 => 41,
         .arm => 218,
         .powerpc => 203,
         else => unreachable,
     },
-    pkey_alloc = switch (builtin.cpu.arch) {
+    pkey_alloc = switch (sysinfo.cpu.arch) {
         .x86_64 => 330,
         .aarch64 => 289,
         .arm => 395,
         .powerpc => 384,
         else => unreachable,
     },
-    pkey_free = switch (builtin.cpu.arch) {
+    pkey_free = switch (sysinfo.cpu.arch) {
         .x86_64 => 331,
         .aarch64 => 290,
         .arm => 396,
         .powerpc => 385,
         else => unreachable,
     },
-    pkey_mprotect = switch (builtin.cpu.arch) {
+    pkey_mprotect = switch (sysinfo.cpu.arch) {
         .x86_64 => 329,
         .aarch64 => 288,
         .arm => 394,
         .powerpc => 386,
         else => unreachable,
     },
-    poll = switch (builtin.cpu.arch) {
+    poll = switch (sysinfo.cpu.arch) {
         .x86_64 => 7,
         .aarch64 => _invalid[89],
         .arm => 168,
         .powerpc => 167,
         else => unreachable,
     },
-    ppoll = switch (builtin.cpu.arch) {
+    ppoll = switch (sysinfo.cpu.arch) {
         .x86_64 => 271,
         .aarch64 => 73,
         .arm => 336,
         .powerpc => 281,
         else => unreachable,
     },
-    ppoll_time64 = switch (builtin.cpu.arch) {
+    ppoll_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[90],
         .aarch64, .arm, .powerpc => 414,
         else => unreachable,
     },
-    prctl = switch (builtin.cpu.arch) {
+    prctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 157,
         .aarch64 => 167,
         .arm => 172,
         .powerpc => 171,
         else => unreachable,
     },
-    pread64 = switch (builtin.cpu.arch) {
+    pread64 = switch (sysinfo.cpu.arch) {
         .x86_64 => 17,
         .aarch64 => 67,
         .arm => 180,
         .powerpc => 179,
         else => unreachable,
     },
-    preadv = switch (builtin.cpu.arch) {
+    preadv = switch (sysinfo.cpu.arch) {
         .x86_64 => 295,
         .aarch64 => 69,
         .arm => 361,
         .powerpc => 320,
         else => unreachable,
     },
-    preadv2 = switch (builtin.cpu.arch) {
+    preadv2 = switch (sysinfo.cpu.arch) {
         .x86_64 => 327,
         .aarch64 => 286,
         .arm => 392,
         .powerpc => 380,
         else => unreachable,
     },
-    prlimit64 = switch (builtin.cpu.arch) {
+    prlimit64 = switch (sysinfo.cpu.arch) {
         .x86_64 => 302,
         .aarch64 => 261,
         .arm => 369,
         .powerpc => 325,
         else => unreachable,
     },
-    process_madvise = switch (builtin.cpu.arch) {
+    process_madvise = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 440,
         else => unreachable,
     },
-    process_mrelease = switch (builtin.cpu.arch) {
+    process_mrelease = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 448,
         else => unreachable,
     },
-    process_vm_readv = switch (builtin.cpu.arch) {
+    process_vm_readv = switch (sysinfo.cpu.arch) {
         .x86_64 => 310,
         .aarch64 => 270,
         .arm => 376,
         .powerpc => 351,
         else => unreachable,
     },
-    process_vm_writev = switch (builtin.cpu.arch) {
+    process_vm_writev = switch (sysinfo.cpu.arch) {
         .x86_64 => 311,
         .aarch64 => 271,
         .arm => 377,
         .powerpc => 352,
         else => unreachable,
     },
-    prof = switch (builtin.cpu.arch) {
+    prof = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[91],
         .powerpc => 44,
         else => unreachable,
     },
-    profil = switch (builtin.cpu.arch) {
+    profil = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[92],
         .powerpc => 98,
         else => unreachable,
     },
-    pselect6 = switch (builtin.cpu.arch) {
+    pselect6 = switch (sysinfo.cpu.arch) {
         .x86_64 => 270,
         .aarch64 => 72,
         .arm => 335,
         .powerpc => 280,
         else => unreachable,
     },
-    pselect6_time64 = switch (builtin.cpu.arch) {
+    pselect6_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[93],
         .aarch64, .arm, .powerpc => 413,
         else => unreachable,
     },
-    ptrace = switch (builtin.cpu.arch) {
+    ptrace = switch (sysinfo.cpu.arch) {
         .x86_64 => 101,
         .aarch64 => 117,
         .arm, .powerpc => 26,
         else => unreachable,
     },
-    putpmsg = switch (builtin.cpu.arch) {
+    putpmsg = switch (sysinfo.cpu.arch) {
         .x86_64 => 182,
         .aarch64, .arm => _invalid[94],
         .powerpc => 188,
         else => unreachable,
     },
-    pwrite64 = switch (builtin.cpu.arch) {
+    pwrite64 = switch (sysinfo.cpu.arch) {
         .x86_64 => 18,
         .aarch64 => 68,
         .arm => 181,
         .powerpc => 180,
         else => unreachable,
     },
-    pwritev = switch (builtin.cpu.arch) {
+    pwritev = switch (sysinfo.cpu.arch) {
         .x86_64 => 296,
         .aarch64 => 70,
         .arm => 362,
         .powerpc => 321,
         else => unreachable,
     },
-    pwritev2 = switch (builtin.cpu.arch) {
+    pwritev2 = switch (sysinfo.cpu.arch) {
         .x86_64 => 328,
         .aarch64 => 287,
         .arm => 393,
         .powerpc => 381,
         else => unreachable,
     },
-    query_module = switch (builtin.cpu.arch) {
+    query_module = switch (sysinfo.cpu.arch) {
         .x86_64 => 178,
         .aarch64, .arm => _invalid[95],
         .powerpc => 166,
         else => unreachable,
     },
-    quotactl = switch (builtin.cpu.arch) {
+    quotactl = switch (sysinfo.cpu.arch) {
         .x86_64 => 179,
         .aarch64 => 60,
         .arm, .powerpc => 131,
         else => unreachable,
     },
-    quotactl_fd = switch (builtin.cpu.arch) {
+    quotactl_fd = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 443,
         else => unreachable,
     },
-    read = switch (builtin.cpu.arch) {
+    read = switch (sysinfo.cpu.arch) {
         .x86_64 => 0,
         .aarch64 => 63,
         .arm, .powerpc => 3,
         else => unreachable,
     },
-    readahead = switch (builtin.cpu.arch) {
+    readahead = switch (sysinfo.cpu.arch) {
         .x86_64 => 187,
         .aarch64 => 213,
         .arm => 225,
         .powerpc => 191,
         else => unreachable,
     },
-    readdir = switch (builtin.cpu.arch) {
+    readdir = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[96],
         .powerpc => 89,
         else => unreachable,
     },
-    readlink = switch (builtin.cpu.arch) {
+    readlink = switch (sysinfo.cpu.arch) {
         .x86_64 => 89,
         .aarch64 => _invalid[97],
         .arm, .powerpc => 85,
         else => unreachable,
     },
-    readlinkat = switch (builtin.cpu.arch) {
+    readlinkat = switch (sysinfo.cpu.arch) {
         .x86_64 => 267,
         .aarch64 => 78,
         .arm => 332,
         .powerpc => 296,
         else => unreachable,
     },
-    readv = switch (builtin.cpu.arch) {
+    readv = switch (sysinfo.cpu.arch) {
         .x86_64 => 19,
         .aarch64 => 65,
         .arm, .powerpc => 145,
         else => unreachable,
     },
-    reboot = switch (builtin.cpu.arch) {
+    reboot = switch (sysinfo.cpu.arch) {
         .x86_64 => 169,
         .aarch64 => 142,
         .arm, .powerpc => 88,
         else => unreachable,
     },
-    recv = switch (builtin.cpu.arch) {
+    recv = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[98],
         .arm => 291,
         .powerpc => 336,
         else => unreachable,
     },
-    recvfrom = switch (builtin.cpu.arch) {
+    recvfrom = switch (sysinfo.cpu.arch) {
         .x86_64 => 45,
         .aarch64 => 207,
         .arm => 292,
         .powerpc => 337,
         else => unreachable,
     },
-    recvmmsg = switch (builtin.cpu.arch) {
+    recvmmsg = switch (sysinfo.cpu.arch) {
         .x86_64 => 299,
         .aarch64 => 243,
         .arm => 365,
         .powerpc => 343,
         else => unreachable,
     },
-    recvmmsg_time64 = switch (builtin.cpu.arch) {
+    recvmmsg_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[99],
         .aarch64, .arm, .powerpc => 417,
         else => unreachable,
     },
-    recvmsg = switch (builtin.cpu.arch) {
+    recvmsg = switch (sysinfo.cpu.arch) {
         .x86_64 => 47,
         .aarch64 => 212,
         .arm => 297,
         .powerpc => 342,
         else => unreachable,
     },
-    remap_file_pages = switch (builtin.cpu.arch) {
+    remap_file_pages = switch (sysinfo.cpu.arch) {
         .x86_64 => 216,
         .aarch64 => 234,
         .arm => 253,
         .powerpc => 239,
         else => unreachable,
     },
-    removexattr = switch (builtin.cpu.arch) {
+    removexattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 197,
         .aarch64 => 14,
         .arm => 235,
         .powerpc => 218,
         else => unreachable,
     },
-    removexattrat = switch (builtin.cpu.arch) {
+    removexattrat = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 466,
         else => unreachable,
     },
-    rename = switch (builtin.cpu.arch) {
+    rename = switch (sysinfo.cpu.arch) {
         .x86_64 => 82,
         .aarch64 => _invalid[100],
         .arm, .powerpc => 38,
         else => unreachable,
     },
-    renameat = switch (builtin.cpu.arch) {
+    renameat = switch (sysinfo.cpu.arch) {
         .x86_64 => 264,
         .aarch64 => 38,
         .arm => 329,
         .powerpc => 293,
         else => unreachable,
     },
-    renameat2 = switch (builtin.cpu.arch) {
+    renameat2 = switch (sysinfo.cpu.arch) {
         .x86_64 => 316,
         .aarch64 => 276,
         .arm => 382,
         .powerpc => 357,
         else => unreachable,
     },
-    request_key = switch (builtin.cpu.arch) {
+    request_key = switch (sysinfo.cpu.arch) {
         .x86_64 => 249,
         .aarch64 => 218,
         .arm => 310,
         .powerpc => 270,
         else => unreachable,
     },
-    restart_syscall = switch (builtin.cpu.arch) {
+    restart_syscall = switch (sysinfo.cpu.arch) {
         .x86_64 => 219,
         .aarch64 => 128,
         .arm, .powerpc => 0,
         else => unreachable,
     },
-    rmdir = switch (builtin.cpu.arch) {
+    rmdir = switch (sysinfo.cpu.arch) {
         .x86_64 => 84,
         .aarch64 => _invalid[101],
         .arm, .powerpc => 40,
         else => unreachable,
     },
-    rseq = switch (builtin.cpu.arch) {
+    rseq = switch (sysinfo.cpu.arch) {
         .x86_64 => 334,
         .aarch64 => 293,
         .arm => 398,
         .powerpc => 387,
         else => unreachable,
     },
-    rseq_slice_yield = switch (builtin.cpu.arch) {
+    rseq_slice_yield = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 471,
         else => unreachable,
     },
-    rt_sigaction = switch (builtin.cpu.arch) {
+    rt_sigaction = switch (sysinfo.cpu.arch) {
         .x86_64 => 13,
         .aarch64 => 134,
         .arm => 174,
         .powerpc => 173,
         else => unreachable,
     },
-    rt_sigpending = switch (builtin.cpu.arch) {
+    rt_sigpending = switch (sysinfo.cpu.arch) {
         .x86_64 => 127,
         .aarch64 => 136,
         .arm => 176,
         .powerpc => 175,
         else => unreachable,
     },
-    rt_sigprocmask = switch (builtin.cpu.arch) {
+    rt_sigprocmask = switch (sysinfo.cpu.arch) {
         .x86_64 => 14,
         .aarch64 => 135,
         .arm => 175,
         .powerpc => 174,
         else => unreachable,
     },
-    rt_sigqueueinfo = switch (builtin.cpu.arch) {
+    rt_sigqueueinfo = switch (sysinfo.cpu.arch) {
         .x86_64 => 129,
         .aarch64 => 138,
         .arm => 178,
         .powerpc => 177,
         else => unreachable,
     },
-    rt_sigreturn = switch (builtin.cpu.arch) {
+    rt_sigreturn = switch (sysinfo.cpu.arch) {
         .x86_64 => 15,
         .aarch64 => 139,
         .arm => 173,
         .powerpc => 172,
         else => unreachable,
     },
-    rt_sigsuspend = switch (builtin.cpu.arch) {
+    rt_sigsuspend = switch (sysinfo.cpu.arch) {
         .x86_64 => 130,
         .aarch64 => 133,
         .arm => 179,
         .powerpc => 178,
         else => unreachable,
     },
-    rt_sigtimedwait = switch (builtin.cpu.arch) {
+    rt_sigtimedwait = switch (sysinfo.cpu.arch) {
         .x86_64 => 128,
         .aarch64 => 137,
         .arm => 177,
         .powerpc => 176,
         else => unreachable,
     },
-    rt_sigtimedwait_time64 = switch (builtin.cpu.arch) {
+    rt_sigtimedwait_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[102],
         .aarch64, .arm, .powerpc => 421,
         else => unreachable,
     },
-    rt_tgsigqueueinfo = switch (builtin.cpu.arch) {
+    rt_tgsigqueueinfo = switch (sysinfo.cpu.arch) {
         .x86_64 => 297,
         .aarch64 => 240,
         .arm => 363,
         .powerpc => 322,
         else => unreachable,
     },
-    rtas = switch (builtin.cpu.arch) {
+    rtas = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[103],
         .powerpc => 255,
         else => unreachable,
     },
-    sched_get_priority_max = switch (builtin.cpu.arch) {
+    sched_get_priority_max = switch (sysinfo.cpu.arch) {
         .x86_64 => 146,
         .aarch64 => 125,
         .arm, .powerpc => 159,
         else => unreachable,
     },
-    sched_get_priority_min = switch (builtin.cpu.arch) {
+    sched_get_priority_min = switch (sysinfo.cpu.arch) {
         .x86_64 => 147,
         .aarch64 => 126,
         .arm, .powerpc => 160,
         else => unreachable,
     },
-    sched_getaffinity = switch (builtin.cpu.arch) {
+    sched_getaffinity = switch (sysinfo.cpu.arch) {
         .x86_64 => 204,
         .aarch64 => 123,
         .arm => 242,
         .powerpc => 223,
         else => unreachable,
     },
-    sched_getattr = switch (builtin.cpu.arch) {
+    sched_getattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 315,
         .aarch64 => 275,
         .arm => 381,
         .powerpc => 356,
         else => unreachable,
     },
-    sched_getparam = switch (builtin.cpu.arch) {
+    sched_getparam = switch (sysinfo.cpu.arch) {
         .x86_64 => 143,
         .aarch64 => 121,
         .arm, .powerpc => 155,
         else => unreachable,
     },
-    sched_getscheduler = switch (builtin.cpu.arch) {
+    sched_getscheduler = switch (sysinfo.cpu.arch) {
         .x86_64 => 145,
         .aarch64 => 120,
         .arm, .powerpc => 157,
         else => unreachable,
     },
-    sched_rr_get_interval = switch (builtin.cpu.arch) {
+    sched_rr_get_interval = switch (sysinfo.cpu.arch) {
         .x86_64 => 148,
         .aarch64 => 127,
         .arm, .powerpc => 161,
         else => unreachable,
     },
-    sched_rr_get_interval_time64 = switch (builtin.cpu.arch) {
+    sched_rr_get_interval_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[104],
         .aarch64, .arm, .powerpc => 423,
         else => unreachable,
     },
-    sched_setaffinity = switch (builtin.cpu.arch) {
+    sched_setaffinity = switch (sysinfo.cpu.arch) {
         .x86_64 => 203,
         .aarch64 => 122,
         .arm => 241,
         .powerpc => 222,
         else => unreachable,
     },
-    sched_setattr = switch (builtin.cpu.arch) {
+    sched_setattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 314,
         .aarch64 => 274,
         .arm => 380,
         .powerpc => 355,
         else => unreachable,
     },
-    sched_setparam = switch (builtin.cpu.arch) {
+    sched_setparam = switch (sysinfo.cpu.arch) {
         .x86_64 => 142,
         .aarch64 => 118,
         .arm, .powerpc => 154,
         else => unreachable,
     },
-    sched_setscheduler = switch (builtin.cpu.arch) {
+    sched_setscheduler = switch (sysinfo.cpu.arch) {
         .x86_64 => 144,
         .aarch64 => 119,
         .arm, .powerpc => 156,
         else => unreachable,
     },
-    sched_yield = switch (builtin.cpu.arch) {
+    sched_yield = switch (sysinfo.cpu.arch) {
         .x86_64 => 24,
         .aarch64 => 124,
         .arm, .powerpc => 158,
         else => unreachable,
     },
-    seccomp = switch (builtin.cpu.arch) {
+    seccomp = switch (sysinfo.cpu.arch) {
         .x86_64 => 317,
         .aarch64 => 277,
         .arm => 383,
         .powerpc => 358,
         else => unreachable,
     },
-    security = switch (builtin.cpu.arch) {
+    security = switch (sysinfo.cpu.arch) {
         .x86_64 => 185,
         .aarch64, .arm, .powerpc => _invalid[105],
         else => unreachable,
     },
-    select = switch (builtin.cpu.arch) {
+    select = switch (sysinfo.cpu.arch) {
         .x86_64 => 23,
         .aarch64, .arm => _invalid[106],
         .powerpc => 82,
         else => unreachable,
     },
-    semctl = switch (builtin.cpu.arch) {
+    semctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 66,
         .aarch64 => 191,
         .arm => 300,
         .powerpc => 394,
         else => unreachable,
     },
-    semget = switch (builtin.cpu.arch) {
+    semget = switch (sysinfo.cpu.arch) {
         .x86_64 => 64,
         .aarch64 => 190,
         .arm => 299,
         .powerpc => 393,
         else => unreachable,
     },
-    semop = switch (builtin.cpu.arch) {
+    semop = switch (sysinfo.cpu.arch) {
         .x86_64 => 65,
         .aarch64 => 193,
         .arm => 298,
         .powerpc => _invalid[107],
         else => unreachable,
     },
-    semtimedop = switch (builtin.cpu.arch) {
+    semtimedop = switch (sysinfo.cpu.arch) {
         .x86_64 => 220,
         .aarch64 => 192,
         .arm => 312,
         .powerpc => _invalid[108],
         else => unreachable,
     },
-    semtimedop_time64 = switch (builtin.cpu.arch) {
+    semtimedop_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[109],
         .aarch64, .arm, .powerpc => 420,
         else => unreachable,
     },
-    send = switch (builtin.cpu.arch) {
+    send = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[110],
         .arm => 289,
         .powerpc => 334,
         else => unreachable,
     },
-    sendfile = switch (builtin.cpu.arch) {
+    sendfile = switch (sysinfo.cpu.arch) {
         .x86_64 => 40,
         .aarch64 => 71,
         .arm => 187,
         .powerpc => 186,
         else => unreachable,
     },
-    sendfile64 = switch (builtin.cpu.arch) {
+    sendfile64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[111],
         .arm => 239,
         .powerpc => 226,
         else => unreachable,
     },
-    sendmmsg = switch (builtin.cpu.arch) {
+    sendmmsg = switch (sysinfo.cpu.arch) {
         .x86_64 => 307,
         .aarch64 => 269,
         .arm => 374,
         .powerpc => 349,
         else => unreachable,
     },
-    sendmsg = switch (builtin.cpu.arch) {
+    sendmsg = switch (sysinfo.cpu.arch) {
         .x86_64 => 46,
         .aarch64 => 211,
         .arm => 296,
         .powerpc => 341,
         else => unreachable,
     },
-    sendto = switch (builtin.cpu.arch) {
+    sendto = switch (sysinfo.cpu.arch) {
         .x86_64 => 44,
         .aarch64 => 206,
         .arm => 290,
         .powerpc => 335,
         else => unreachable,
     },
-    set_mempolicy = switch (builtin.cpu.arch) {
+    set_mempolicy = switch (sysinfo.cpu.arch) {
         .x86_64 => 238,
         .aarch64 => 237,
         .arm => 321,
         .powerpc => 261,
         else => unreachable,
     },
-    set_mempolicy_home_node = switch (builtin.cpu.arch) {
+    set_mempolicy_home_node = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 450,
         else => unreachable,
     },
-    set_robust_list = switch (builtin.cpu.arch) {
+    set_robust_list = switch (sysinfo.cpu.arch) {
         .x86_64 => 273,
         .aarch64 => 99,
         .arm => 338,
         .powerpc => 300,
         else => unreachable,
     },
-    set_thread_area = switch (builtin.cpu.arch) {
+    set_thread_area = switch (sysinfo.cpu.arch) {
         .x86_64 => 205,
         .aarch64, .arm, .powerpc => _invalid[112],
         else => unreachable,
     },
-    set_tid_address = switch (builtin.cpu.arch) {
+    set_tid_address = switch (sysinfo.cpu.arch) {
         .x86_64 => 218,
         .aarch64 => 96,
         .arm => 256,
         .powerpc => 232,
         else => unreachable,
     },
-    setdomainname = switch (builtin.cpu.arch) {
+    setdomainname = switch (sysinfo.cpu.arch) {
         .x86_64 => 171,
         .aarch64 => 162,
         .arm, .powerpc => 121,
         else => unreachable,
     },
-    setfsgid = switch (builtin.cpu.arch) {
+    setfsgid = switch (sysinfo.cpu.arch) {
         .x86_64 => 123,
         .aarch64 => 152,
         .arm, .powerpc => 139,
         else => unreachable,
     },
-    setfsgid32 = switch (builtin.cpu.arch) {
+    setfsgid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[113],
         .arm => 216,
         else => unreachable,
     },
-    setfsuid = switch (builtin.cpu.arch) {
+    setfsuid = switch (sysinfo.cpu.arch) {
         .x86_64 => 122,
         .aarch64 => 151,
         .arm, .powerpc => 138,
         else => unreachable,
     },
-    setfsuid32 = switch (builtin.cpu.arch) {
+    setfsuid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[114],
         .arm => 215,
         else => unreachable,
     },
-    setgid = switch (builtin.cpu.arch) {
+    setgid = switch (sysinfo.cpu.arch) {
         .x86_64 => 106,
         .aarch64 => 144,
         .arm, .powerpc => 46,
         else => unreachable,
     },
-    setgid32 = switch (builtin.cpu.arch) {
+    setgid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[115],
         .arm => 214,
         else => unreachable,
     },
-    setgroups = switch (builtin.cpu.arch) {
+    setgroups = switch (sysinfo.cpu.arch) {
         .x86_64 => 116,
         .aarch64 => 159,
         .arm, .powerpc => 81,
         else => unreachable,
     },
-    setgroups32 = switch (builtin.cpu.arch) {
+    setgroups32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[116],
         .arm => 206,
         else => unreachable,
     },
-    sethostname = switch (builtin.cpu.arch) {
+    sethostname = switch (sysinfo.cpu.arch) {
         .x86_64 => 170,
         .aarch64 => 161,
         .arm, .powerpc => 74,
         else => unreachable,
     },
-    setitimer = switch (builtin.cpu.arch) {
+    setitimer = switch (sysinfo.cpu.arch) {
         .x86_64 => 38,
         .aarch64 => 103,
         .arm, .powerpc => 104,
         else => unreachable,
     },
-    setns = switch (builtin.cpu.arch) {
+    setns = switch (sysinfo.cpu.arch) {
         .x86_64 => 308,
         .aarch64 => 268,
         .arm => 375,
         .powerpc => 350,
         else => unreachable,
     },
-    setpgid = switch (builtin.cpu.arch) {
+    setpgid = switch (sysinfo.cpu.arch) {
         .x86_64 => 109,
         .aarch64 => 154,
         .arm, .powerpc => 57,
         else => unreachable,
     },
-    setpriority = switch (builtin.cpu.arch) {
+    setpriority = switch (sysinfo.cpu.arch) {
         .x86_64 => 141,
         .aarch64 => 140,
         .arm, .powerpc => 97,
         else => unreachable,
     },
-    setregid = switch (builtin.cpu.arch) {
+    setregid = switch (sysinfo.cpu.arch) {
         .x86_64 => 114,
         .aarch64 => 143,
         .arm, .powerpc => 71,
         else => unreachable,
     },
-    setregid32 = switch (builtin.cpu.arch) {
+    setregid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[117],
         .arm => 204,
         else => unreachable,
     },
-    setresgid = switch (builtin.cpu.arch) {
+    setresgid = switch (sysinfo.cpu.arch) {
         .x86_64 => 119,
         .aarch64 => 149,
         .arm => 170,
         .powerpc => 169,
         else => unreachable,
     },
-    setresgid32 = switch (builtin.cpu.arch) {
+    setresgid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[118],
         .arm => 210,
         else => unreachable,
     },
-    setresuid = switch (builtin.cpu.arch) {
+    setresuid = switch (sysinfo.cpu.arch) {
         .x86_64 => 117,
         .aarch64 => 147,
         .arm, .powerpc => 164,
         else => unreachable,
     },
-    setresuid32 = switch (builtin.cpu.arch) {
+    setresuid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[119],
         .arm => 208,
         else => unreachable,
     },
-    setreuid = switch (builtin.cpu.arch) {
+    setreuid = switch (sysinfo.cpu.arch) {
         .x86_64 => 113,
         .aarch64 => 145,
         .arm, .powerpc => 70,
         else => unreachable,
     },
-    setreuid32 = switch (builtin.cpu.arch) {
+    setreuid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[120],
         .arm => 203,
         else => unreachable,
     },
-    setrlimit = switch (builtin.cpu.arch) {
+    setrlimit = switch (sysinfo.cpu.arch) {
         .x86_64 => 160,
         .aarch64 => 164,
         .arm, .powerpc => 75,
         else => unreachable,
     },
-    setsid = switch (builtin.cpu.arch) {
+    setsid = switch (sysinfo.cpu.arch) {
         .x86_64 => 112,
         .aarch64 => 157,
         .arm, .powerpc => 66,
         else => unreachable,
     },
-    setsockopt = switch (builtin.cpu.arch) {
+    setsockopt = switch (sysinfo.cpu.arch) {
         .x86_64 => 54,
         .aarch64 => 208,
         .arm => 294,
         .powerpc => 339,
         else => unreachable,
     },
-    settimeofday = switch (builtin.cpu.arch) {
+    settimeofday = switch (sysinfo.cpu.arch) {
         .x86_64 => 164,
         .aarch64 => 170,
         .arm, .powerpc => 79,
         else => unreachable,
     },
-    setuid = switch (builtin.cpu.arch) {
+    setuid = switch (sysinfo.cpu.arch) {
         .x86_64 => 105,
         .aarch64 => 146,
         .arm, .powerpc => 23,
         else => unreachable,
     },
-    setuid32 = switch (builtin.cpu.arch) {
+    setuid32 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .powerpc => _invalid[121],
         .arm => 213,
         else => unreachable,
     },
-    setxattr = switch (builtin.cpu.arch) {
+    setxattr = switch (sysinfo.cpu.arch) {
         .x86_64 => 188,
         .aarch64 => 5,
         .arm => 226,
         .powerpc => 209,
         else => unreachable,
     },
-    setxattrat = switch (builtin.cpu.arch) {
+    setxattrat = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 463,
         else => unreachable,
     },
-    sgetmask = switch (builtin.cpu.arch) {
+    sgetmask = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[122],
         .powerpc => 68,
         else => unreachable,
     },
-    shmat = switch (builtin.cpu.arch) {
+    shmat = switch (sysinfo.cpu.arch) {
         .x86_64 => 30,
         .aarch64 => 196,
         .arm => 305,
         .powerpc => 397,
         else => unreachable,
     },
-    shmctl = switch (builtin.cpu.arch) {
+    shmctl = switch (sysinfo.cpu.arch) {
         .x86_64 => 31,
         .aarch64 => 195,
         .arm => 308,
         .powerpc => 396,
         else => unreachable,
     },
-    shmdt = switch (builtin.cpu.arch) {
+    shmdt = switch (sysinfo.cpu.arch) {
         .x86_64 => 67,
         .aarch64 => 197,
         .arm => 306,
         .powerpc => 398,
         else => unreachable,
     },
-    shmget = switch (builtin.cpu.arch) {
+    shmget = switch (sysinfo.cpu.arch) {
         .x86_64 => 29,
         .aarch64 => 194,
         .arm => 307,
         .powerpc => 395,
         else => unreachable,
     },
-    shutdown = switch (builtin.cpu.arch) {
+    shutdown = switch (sysinfo.cpu.arch) {
         .x86_64 => 48,
         .aarch64 => 210,
         .arm => 293,
         .powerpc => 338,
         else => unreachable,
     },
-    sigaction = switch (builtin.cpu.arch) {
+    sigaction = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[123],
         .arm, .powerpc => 67,
         else => unreachable,
     },
-    sigaltstack = switch (builtin.cpu.arch) {
+    sigaltstack = switch (sysinfo.cpu.arch) {
         .x86_64 => 131,
         .aarch64 => 132,
         .arm => 186,
         .powerpc => 185,
         else => unreachable,
     },
-    signal = switch (builtin.cpu.arch) {
+    signal = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[124],
         .powerpc => 48,
         else => unreachable,
     },
-    signalfd = switch (builtin.cpu.arch) {
+    signalfd = switch (sysinfo.cpu.arch) {
         .x86_64 => 282,
         .aarch64 => _invalid[125],
         .arm => 349,
         .powerpc => 305,
         else => unreachable,
     },
-    signalfd4 = switch (builtin.cpu.arch) {
+    signalfd4 = switch (sysinfo.cpu.arch) {
         .x86_64 => 289,
         .aarch64 => 74,
         .arm => 355,
         .powerpc => 313,
         else => unreachable,
     },
-    sigpending = switch (builtin.cpu.arch) {
+    sigpending = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[126],
         .arm, .powerpc => 73,
         else => unreachable,
     },
-    sigprocmask = switch (builtin.cpu.arch) {
+    sigprocmask = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[127],
         .arm, .powerpc => 126,
         else => unreachable,
     },
-    sigreturn = switch (builtin.cpu.arch) {
+    sigreturn = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[128],
         .arm, .powerpc => 119,
         else => unreachable,
     },
-    sigsuspend = switch (builtin.cpu.arch) {
+    sigsuspend = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[129],
         .arm, .powerpc => 72,
         else => unreachable,
     },
-    socket = switch (builtin.cpu.arch) {
+    socket = switch (sysinfo.cpu.arch) {
         .x86_64 => 41,
         .aarch64 => 198,
         .arm => 281,
         .powerpc => 326,
         else => unreachable,
     },
-    socketcall = switch (builtin.cpu.arch) {
+    socketcall = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[130],
         .powerpc => 102,
         else => unreachable,
     },
-    socketpair = switch (builtin.cpu.arch) {
+    socketpair = switch (sysinfo.cpu.arch) {
         .x86_64 => 53,
         .aarch64 => 199,
         .arm => 288,
         .powerpc => 333,
         else => unreachable,
     },
-    splice = switch (builtin.cpu.arch) {
+    splice = switch (sysinfo.cpu.arch) {
         .x86_64 => 275,
         .aarch64 => 76,
         .arm => 340,
         .powerpc => 283,
         else => unreachable,
     },
-    spu_create = switch (builtin.cpu.arch) {
+    spu_create = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[131],
         .powerpc => 279,
         else => unreachable,
     },
-    spu_run = switch (builtin.cpu.arch) {
+    spu_run = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[132],
         .powerpc => 278,
         else => unreachable,
     },
-    ssetmask = switch (builtin.cpu.arch) {
+    ssetmask = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[133],
         .powerpc => 69,
         else => unreachable,
     },
-    stat = switch (builtin.cpu.arch) {
+    stat = switch (sysinfo.cpu.arch) {
         .x86_64 => 4,
         .aarch64 => _invalid[134],
         .arm, .powerpc => 106,
         else => unreachable,
     },
-    stat64 = switch (builtin.cpu.arch) {
+    stat64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[135],
         .arm, .powerpc => 195,
         else => unreachable,
     },
-    statfs = switch (builtin.cpu.arch) {
+    statfs = switch (sysinfo.cpu.arch) {
         .x86_64 => 137,
         .aarch64 => 43,
         .arm, .powerpc => 99,
         else => unreachable,
     },
-    statfs64 = switch (builtin.cpu.arch) {
+    statfs64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[136],
         .arm => 266,
         .powerpc => 252,
         else => unreachable,
     },
-    statmount = switch (builtin.cpu.arch) {
+    statmount = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm, .powerpc => 457,
         else => unreachable,
     },
-    statx = switch (builtin.cpu.arch) {
+    statx = switch (sysinfo.cpu.arch) {
         .x86_64 => 332,
         .aarch64 => 291,
         .arm => 397,
         .powerpc => 383,
         else => unreachable,
     },
-    stime = switch (builtin.cpu.arch) {
+    stime = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[137],
         .powerpc => 25,
         else => unreachable,
     },
-    stty = switch (builtin.cpu.arch) {
+    stty = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[138],
         .powerpc => 31,
         else => unreachable,
     },
-    subpage_prot = switch (builtin.cpu.arch) {
+    subpage_prot = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[139],
         .powerpc => 310,
         else => unreachable,
     },
-    swapcontext = switch (builtin.cpu.arch) {
+    swapcontext = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[140],
         .powerpc => 249,
         else => unreachable,
     },
-    swapoff = switch (builtin.cpu.arch) {
+    swapoff = switch (sysinfo.cpu.arch) {
         .x86_64 => 168,
         .aarch64 => 225,
         .arm, .powerpc => 115,
         else => unreachable,
     },
-    swapon = switch (builtin.cpu.arch) {
+    swapon = switch (sysinfo.cpu.arch) {
         .x86_64 => 167,
         .aarch64 => 224,
         .arm, .powerpc => 87,
         else => unreachable,
     },
-    switch_endian = switch (builtin.cpu.arch) {
+    switch_endian = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[141],
         .powerpc => 363,
         else => unreachable,
     },
-    symlink = switch (builtin.cpu.arch) {
+    symlink = switch (sysinfo.cpu.arch) {
         .x86_64 => 88,
         .aarch64 => _invalid[142],
         .arm, .powerpc => 83,
         else => unreachable,
     },
-    symlinkat = switch (builtin.cpu.arch) {
+    symlinkat = switch (sysinfo.cpu.arch) {
         .x86_64 => 266,
         .aarch64 => 36,
         .arm => 331,
         .powerpc => 295,
         else => unreachable,
     },
-    sync = switch (builtin.cpu.arch) {
+    sync = switch (sysinfo.cpu.arch) {
         .x86_64 => 162,
         .aarch64 => 81,
         .arm, .powerpc => 36,
         else => unreachable,
     },
-    sync_file_range = switch (builtin.cpu.arch) {
+    sync_file_range = switch (sysinfo.cpu.arch) {
         .x86_64 => 277,
         .aarch64 => 84,
         .arm, .powerpc => _invalid[143],
         else => unreachable,
     },
-    sync_file_range2 = switch (builtin.cpu.arch) {
+    sync_file_range2 = switch (sysinfo.cpu.arch) {
         .x86_64, .arm => _invalid[144],
         .aarch64 => 84,
         .powerpc => 308,
         else => unreachable,
     },
-    syncfs = switch (builtin.cpu.arch) {
+    syncfs = switch (sysinfo.cpu.arch) {
         .x86_64 => 306,
         .aarch64 => 267,
         .arm => 373,
         .powerpc => 348,
         else => unreachable,
     },
-    sys_debug_setcontext = switch (builtin.cpu.arch) {
+    sys_debug_setcontext = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[145],
         .powerpc => 256,
         else => unreachable,
     },
-    syscalls = switch (builtin.cpu.arch) {
+    syscalls = switch (sysinfo.cpu.arch) {
         .x86_64, .arm, .powerpc => _invalid[146],
         .aarch64 => 472,
         else => unreachable,
     },
-    sysfs = switch (builtin.cpu.arch) {
+    sysfs = switch (sysinfo.cpu.arch) {
         .x86_64 => 139,
         .aarch64 => _invalid[147],
         .arm, .powerpc => 135,
         else => unreachable,
     },
-    sysinfo = switch (builtin.cpu.arch) {
+    sysinfo = switch (sysinfo.cpu.arch) {
         .x86_64 => 99,
         .aarch64 => 179,
         .arm, .powerpc => 116,
         else => unreachable,
     },
-    syslog = switch (builtin.cpu.arch) {
+    syslog = switch (sysinfo.cpu.arch) {
         .x86_64, .arm, .powerpc => 103,
         .aarch64 => 116,
         else => unreachable,
     },
-    tee = switch (builtin.cpu.arch) {
+    tee = switch (sysinfo.cpu.arch) {
         .x86_64 => 276,
         .aarch64 => 77,
         .arm => 342,
         .powerpc => 284,
         else => unreachable,
     },
-    tgkill = switch (builtin.cpu.arch) {
+    tgkill = switch (sysinfo.cpu.arch) {
         .x86_64 => 234,
         .aarch64 => 131,
         .arm => 268,
         .powerpc => 250,
         else => unreachable,
     },
-    time = switch (builtin.cpu.arch) {
+    time = switch (sysinfo.cpu.arch) {
         .x86_64 => 201,
         .aarch64, .arm => _invalid[148],
         .powerpc => 13,
         else => unreachable,
     },
-    timer_create = switch (builtin.cpu.arch) {
+    timer_create = switch (sysinfo.cpu.arch) {
         .x86_64 => 222,
         .aarch64 => 107,
         .arm => 257,
         .powerpc => 240,
         else => unreachable,
     },
-    timer_delete = switch (builtin.cpu.arch) {
+    timer_delete = switch (sysinfo.cpu.arch) {
         .x86_64 => 226,
         .aarch64 => 111,
         .arm => 261,
         .powerpc => 244,
         else => unreachable,
     },
-    timer_getoverrun = switch (builtin.cpu.arch) {
+    timer_getoverrun = switch (sysinfo.cpu.arch) {
         .x86_64 => 225,
         .aarch64 => 109,
         .arm => 260,
         .powerpc => 243,
         else => unreachable,
     },
-    timer_gettime = switch (builtin.cpu.arch) {
+    timer_gettime = switch (sysinfo.cpu.arch) {
         .x86_64 => 224,
         .aarch64 => 108,
         .arm => 259,
         .powerpc => 242,
         else => unreachable,
     },
-    timer_gettime64 = switch (builtin.cpu.arch) {
+    timer_gettime64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[149],
         .aarch64, .arm, .powerpc => 408,
         else => unreachable,
     },
-    timer_settime = switch (builtin.cpu.arch) {
+    timer_settime = switch (sysinfo.cpu.arch) {
         .x86_64 => 223,
         .aarch64 => 110,
         .arm => 258,
         .powerpc => 241,
         else => unreachable,
     },
-    timer_settime64 = switch (builtin.cpu.arch) {
+    timer_settime64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[150],
         .aarch64, .arm, .powerpc => 409,
         else => unreachable,
     },
-    timerfd_create = switch (builtin.cpu.arch) {
+    timerfd_create = switch (sysinfo.cpu.arch) {
         .x86_64 => 283,
         .aarch64 => 85,
         .arm => 350,
         .powerpc => 306,
         else => unreachable,
     },
-    timerfd_gettime = switch (builtin.cpu.arch) {
+    timerfd_gettime = switch (sysinfo.cpu.arch) {
         .x86_64 => 287,
         .aarch64 => 87,
         .arm => 354,
         .powerpc => 312,
         else => unreachable,
     },
-    timerfd_gettime64 = switch (builtin.cpu.arch) {
+    timerfd_gettime64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[151],
         .aarch64, .arm, .powerpc => 410,
         else => unreachable,
     },
-    timerfd_settime = switch (builtin.cpu.arch) {
+    timerfd_settime = switch (sysinfo.cpu.arch) {
         .x86_64 => 286,
         .aarch64 => 86,
         .arm => 353,
         .powerpc => 311,
         else => unreachable,
     },
-    timerfd_settime64 = switch (builtin.cpu.arch) {
+    timerfd_settime64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[152],
         .aarch64, .arm, .powerpc => 411,
         else => unreachable,
     },
-    times = switch (builtin.cpu.arch) {
+    times = switch (sysinfo.cpu.arch) {
         .x86_64 => 100,
         .aarch64 => 153,
         .arm, .powerpc => 43,
         else => unreachable,
     },
-    tkill = switch (builtin.cpu.arch) {
+    tkill = switch (sysinfo.cpu.arch) {
         .x86_64 => 200,
         .aarch64 => 130,
         .arm => 238,
         .powerpc => 208,
         else => unreachable,
     },
-    truncate = switch (builtin.cpu.arch) {
+    truncate = switch (sysinfo.cpu.arch) {
         .x86_64 => 76,
         .aarch64 => 45,
         .arm, .powerpc => 92,
         else => unreachable,
     },
-    truncate64 = switch (builtin.cpu.arch) {
+    truncate64 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[153],
         .arm, .powerpc => 193,
         else => unreachable,
     },
-    tuxcall = switch (builtin.cpu.arch) {
+    tuxcall = switch (sysinfo.cpu.arch) {
         .x86_64 => 184,
         .aarch64, .arm => _invalid[154],
         .powerpc => 225,
         else => unreachable,
     },
-    ugetrlimit = switch (builtin.cpu.arch) {
+    ugetrlimit = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64 => _invalid[155],
         .arm => 191,
         .powerpc => 190,
         else => unreachable,
     },
-    ulimit = switch (builtin.cpu.arch) {
+    ulimit = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[156],
         .powerpc => 58,
         else => unreachable,
     },
-    umask = switch (builtin.cpu.arch) {
+    umask = switch (sysinfo.cpu.arch) {
         .x86_64 => 95,
         .aarch64 => 166,
         .arm, .powerpc => 60,
         else => unreachable,
     },
-    umount = switch (builtin.cpu.arch) {
+    umount = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[157],
         .powerpc => 22,
         else => unreachable,
     },
-    umount2 = switch (builtin.cpu.arch) {
+    umount2 = switch (sysinfo.cpu.arch) {
         .x86_64 => 166,
         .aarch64 => 39,
         .arm, .powerpc => 52,
         else => unreachable,
     },
-    uname = switch (builtin.cpu.arch) {
+    uname = switch (sysinfo.cpu.arch) {
         .x86_64 => 63,
         .aarch64 => 160,
         .arm, .powerpc => 122,
         else => unreachable,
     },
-    unlink = switch (builtin.cpu.arch) {
+    unlink = switch (sysinfo.cpu.arch) {
         .x86_64 => 87,
         .aarch64 => _invalid[158],
         .arm, .powerpc => 10,
         else => unreachable,
     },
-    unlinkat = switch (builtin.cpu.arch) {
+    unlinkat = switch (sysinfo.cpu.arch) {
         .x86_64 => 263,
         .aarch64 => 35,
         .arm => 328,
         .powerpc => 292,
         else => unreachable,
     },
-    unshare = switch (builtin.cpu.arch) {
+    unshare = switch (sysinfo.cpu.arch) {
         .x86_64 => 272,
         .aarch64 => 97,
         .arm => 337,
         .powerpc => 282,
         else => unreachable,
     },
-    uprobe = switch (builtin.cpu.arch) {
+    uprobe = switch (sysinfo.cpu.arch) {
         .x86_64 => 336,
         .aarch64, .arm, .powerpc => _invalid[159],
         else => unreachable,
     },
-    uretprobe = switch (builtin.cpu.arch) {
+    uretprobe = switch (sysinfo.cpu.arch) {
         .x86_64 => 335,
         .aarch64, .arm, .powerpc => _invalid[160],
         else => unreachable,
     },
-    uselib = switch (builtin.cpu.arch) {
+    uselib = switch (sysinfo.cpu.arch) {
         .x86_64 => 134,
         .aarch64 => _invalid[161],
         .arm, .powerpc => 86,
         else => unreachable,
     },
-    userfaultfd = switch (builtin.cpu.arch) {
+    userfaultfd = switch (sysinfo.cpu.arch) {
         .x86_64 => 323,
         .aarch64 => 282,
         .arm => 388,
         .powerpc => 364,
         else => unreachable,
     },
-    ustat = switch (builtin.cpu.arch) {
+    ustat = switch (sysinfo.cpu.arch) {
         .x86_64 => 136,
         .aarch64 => _invalid[162],
         .arm, .powerpc => 62,
         else => unreachable,
     },
-    utime = switch (builtin.cpu.arch) {
+    utime = switch (sysinfo.cpu.arch) {
         .x86_64 => 132,
         .aarch64, .arm => _invalid[163],
         .powerpc => 30,
         else => unreachable,
     },
-    utimensat = switch (builtin.cpu.arch) {
+    utimensat = switch (sysinfo.cpu.arch) {
         .x86_64 => 280,
         .aarch64 => 88,
         .arm => 348,
         .powerpc => 304,
         else => unreachable,
     },
-    utimensat_time64 = switch (builtin.cpu.arch) {
+    utimensat_time64 = switch (sysinfo.cpu.arch) {
         .x86_64 => _invalid[164],
         .aarch64, .arm, .powerpc => 412,
         else => unreachable,
     },
-    utimes = switch (builtin.cpu.arch) {
+    utimes = switch (sysinfo.cpu.arch) {
         .x86_64 => 235,
         .aarch64 => _invalid[165],
         .arm => 269,
         .powerpc => 251,
         else => unreachable,
     },
-    vfork = switch (builtin.cpu.arch) {
+    vfork = switch (sysinfo.cpu.arch) {
         .x86_64 => 58,
         .aarch64 => _invalid[166],
         .arm => 190,
         .powerpc => 189,
         else => unreachable,
     },
-    vhangup = switch (builtin.cpu.arch) {
+    vhangup = switch (sysinfo.cpu.arch) {
         .x86_64 => 153,
         .aarch64 => 58,
         .arm, .powerpc => 111,
         else => unreachable,
     },
-    vm86 = switch (builtin.cpu.arch) {
+    vm86 = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[167],
         .powerpc => 113,
         else => unreachable,
     },
-    vmsplice = switch (builtin.cpu.arch) {
+    vmsplice = switch (sysinfo.cpu.arch) {
         .x86_64 => 278,
         .aarch64 => 75,
         .arm => 343,
         .powerpc => 285,
         else => unreachable,
     },
-    vserver = switch (builtin.cpu.arch) {
+    vserver = switch (sysinfo.cpu.arch) {
         .x86_64 => 236,
         .aarch64, .powerpc => _invalid[168],
         .arm => 313,
         else => unreachable,
     },
-    wait4 = switch (builtin.cpu.arch) {
+    wait4 = switch (sysinfo.cpu.arch) {
         .x86_64 => 61,
         .aarch64 => 260,
         .arm, .powerpc => 114,
         else => unreachable,
     },
-    waitid = switch (builtin.cpu.arch) {
+    waitid = switch (sysinfo.cpu.arch) {
         .x86_64 => 247,
         .aarch64 => 95,
         .arm => 280,
         .powerpc => 272,
         else => unreachable,
     },
-    waitpid = switch (builtin.cpu.arch) {
+    waitpid = switch (sysinfo.cpu.arch) {
         .x86_64, .aarch64, .arm => _invalid[169],
         .powerpc => 7,
         else => unreachable,
     },
-    write = switch (builtin.cpu.arch) {
+    write = switch (sysinfo.cpu.arch) {
         .x86_64 => 1,
         .aarch64 => 64,
         .arm, .powerpc => 4,
         else => unreachable,
     },
-    writev = switch (builtin.cpu.arch) {
+    writev = switch (sysinfo.cpu.arch) {
         .x86_64 => 20,
         .aarch64 => 66,
         .arm, .powerpc => 146,

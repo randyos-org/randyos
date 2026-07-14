@@ -9,10 +9,14 @@
 		"files.exclude": {
 			"**/node_modules/**": true,
 			"**/.zig-cache/**": true,
+			"**/zig-pkg/**": true,
+			"**/zig-cache*/**": true,
 		},
 		"files.watcherExclude": {
 			"**/node_modules/**": true,
 			"**/.zig-cache/**": true,
+			"**/zig-pkg/**": true,
+			"**/zig-cache*/**": true,
 		},
     "files.associations": {
       "VERSION": "plaintext",

@@ -4,8 +4,6 @@
 
 Very basic OS for a very basic dude.
 
-This project is a fork of [zig_os](https://codeberg.org/sfiedler/zig_os) and [loup-os](https://codeberg.org/loup-os).
-
 ## Target Machines
 
 RandyOS is being built toward this specific set of machines, not general
@@ -60,3 +58,35 @@ There are two OVMF files that are needed to run QEMU with UEFI support:
 These can also be combined into a single OVMF file, such as the one in this repository, which has its benefits and downsides.
 
 You can read the license for the `OVMF.fd` BLOB in the `OVMF.fd.LICENSE.txt` file.
+
+## Licensing and Source Code Availability
+
+This project uses the MIT License.
+
+RandyOS started as a hard fork of [zig_os](https://codeberg.org/sfiedler/zig_os) and [loup-os](https://codeberg.org/loup-os).  LoupOS has since changed to a GPL3 license, so this was forked at the last MIT commit to preserve our license.
+
+The source code is primarily hosted at [Codeberg](https://codeberg.org/randyos/randyos) and is mirrored on [GitHub](https://github.com/randyos-org/randyos).
+
+## Development details
+
+### Code organization
+
+This repo emulates a Python packaging scheme, where each package is defined by a `__root__.zig` file (in lieu of `__init__.py`).  This shall contain mostly import statements to other files in the directory or other packages to be make public for that package.  The file containing the entry point for executables shall be named `__main__.zig`.
+
+Package names shall be less than eight lowercased alphanumeric characters.  Where possible, filenames should strive to be kept as short as possible.  Files defining module-level structs shall use PascalCased (aka TitleCased) names.
+
+### Building the vendored Ghostty terminal (Windows target)
+
+On Windows, `zig build -fincremental` against the vendored Ghostty terminal in `vendor/ghostty` reliably hangs partway through a full build when using the default (full-core) job count, both with and without `--watch`. This was root-caused with gdb to an upstream Zig bug in the `-fincremental` build-runner's scheduler under concurrency: a compiler worker process finishes compiling and sits waiting for the runner to tell it to proceed to linking, while the runner's own dispatch thread is asleep waiting on an internal signal that never arrives (a "lost wakeup"). It is not caused by anything in Ghostty's own `build.zig` or build tooling.
+
+Passing `-j4` (or lower, e.g. `-j1`) avoids the hang; `-j8` still hangs. Non-incremental builds (plain `zig build`) are unaffected. This is specific to this project's pinned Zig toolchain -- re-test if that pin ever moves.
+
+### Windows Hypervisor Platform
+
+To use the WHPX with QEMU, you must first open an administrative `cmd` and then run:
+
+```bat
+DISM /online /Enable-Feature /FeatureName:HypervisorPlatform /All
+```
+
+per the instruction on the [QEMU website](https://www.qemu.org/docs/master/system/whpx.html).

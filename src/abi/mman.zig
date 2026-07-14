@@ -58,8 +58,8 @@
 //! `MapFlags{}`/`PkeyDisableFlags{}` (every field defaulted false) already
 //! mean the same thing structurally.
 
+const sysinfo = @import("builtin");
 const std = @import("std");
-const builtin = @import("builtin");
 const log = std.log.scoped(.abi_mman);
 
 // PROT_* -- mmap()/mprotect() protection flags.
@@ -155,7 +155,7 @@ const PowerpcProtFlags = packed struct(u32) {
 /// arch-specific range) hold different flags per architecture: aarch64 uses
 /// them for `bti`/`mte`, powerpc uses bit 4 alone for `sao`; x86_64/arm
 /// leave both unused.
-pub const ProtFlags = switch (builtin.cpu.arch) {
+pub const ProtFlags = switch (sysinfo.cpu.arch) {
     .x86_64, .arm => GenericProtFlags,
     .aarch64 => Aarch64ProtFlags,
     .powerpc => PowerpcProtFlags,
@@ -380,7 +380,7 @@ const PowerpcMapFlags = packed struct(u32) {
 
 /// mmap() flags for whichever architecture is actually being built. See
 /// each private per-arch type above for exactly which bits diverge.
-pub const MapFlags = switch (builtin.cpu.arch) {
+pub const MapFlags = switch (sysinfo.cpu.arch) {
     .x86_64 => X86_64MapFlags,
     .aarch64, .arm => GenericMapFlags,
     .powerpc => PowerpcMapFlags,
@@ -449,7 +449,7 @@ const PowerpcMclFlags = packed struct(u32) {
 };
 
 /// mlockall() flags for whichever architecture is actually being built.
-pub const MclFlags = switch (builtin.cpu.arch) {
+pub const MclFlags = switch (sysinfo.cpu.arch) {
     .x86_64, .aarch64, .arm => GenericMclFlags,
     .powerpc => PowerpcMclFlags,
     else => @compileError("No mman ABI data for this architecture"),
@@ -474,7 +474,7 @@ const GenericShadowStackSetFlags = packed struct(u32) {
     _align1: u30 = 0,
 };
 
-pub const ShadowStackSetFlags = switch (builtin.cpu.arch) {
+pub const ShadowStackSetFlags = switch (sysinfo.cpu.arch) {
     .x86_64, .aarch64, .arm => GenericShadowStackSetFlags,
     else => @compileError("ShadowStackSetFlags does not exist on powerpc"),
 };
@@ -636,7 +636,7 @@ const PowerpcPkeyDisableFlags = packed struct(u32) {
 /// actually being built. aarch64 and powerpc each override part of the
 /// generic set with their own extra bits (see the private per-arch types
 /// above); x86_64/arm use the plain generic two bits only.
-pub const PkeyDisableFlags = switch (builtin.cpu.arch) {
+pub const PkeyDisableFlags = switch (sysinfo.cpu.arch) {
     .x86_64, .arm => GenericPkeyDisableFlags,
     .aarch64 => Aarch64PkeyDisableFlags,
     .powerpc => PowerpcPkeyDisableFlags,
@@ -647,7 +647,7 @@ pub const PkeyDisableFlags = switch (builtin.cpu.arch) {
 /// computed from the type itself (every real field set to `true`) rather
 /// than a hand-maintained magic number, so it can't drift out of sync with
 /// the struct above.
-pub const PKEY_ACCESS_MASK: u32 = switch (builtin.cpu.arch) {
+pub const PKEY_ACCESS_MASK: u32 = switch (sysinfo.cpu.arch) {
     .x86_64, .arm => @bitCast(PkeyDisableFlags{ .access = true, .write = true }),
     .aarch64 => @bitCast(PkeyDisableFlags{
         .access = true,

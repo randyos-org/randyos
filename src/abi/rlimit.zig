@@ -16,11 +16,11 @@
 //! below is resolved at comptime so one struct definition is correct for all
 //! four architectures.
 
+const sysinfo = @import("builtin");
 const std = @import("std");
-const builtin = @import("builtin");
 const log = std.log.scoped(.abi_rlimit);
 
-const Word = switch (builtin.cpu.arch) {
+const Word = switch (sysinfo.cpu.arch) {
     .x86_64, .aarch64 => u64,
     .arm, .powerpc => u32,
     else => @compileError("unsupported architecture for rlimit ABI"),

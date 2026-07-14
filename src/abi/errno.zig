@@ -15,8 +15,8 @@
 //! Aliases are exposed as `pub const` bindings to the canonical
 //! `Number` member.
 
+const sysinfo = @import("builtin");
 const std = @import("std");
-const builtin = @import("builtin");
 const log = std.log.scoped(.abi_errno);
 
 pub const Number = enum(u16) {
@@ -415,7 +415,7 @@ pub const Number = enum(u16) {
     ///
     /// Meaning is the same as generic `EDEADLK`/`EDEADLOCK`: resource deadlock
     /// would occur.
-    pub const EDEADLOCK = switch (builtin.cpu.arch) {
+    pub const EDEADLOCK = switch (sysinfo.cpu.arch) {
         .powerpc => 58,
         else => Number.EDEADLK,
     };
