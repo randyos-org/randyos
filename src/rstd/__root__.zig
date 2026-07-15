@@ -27,6 +27,7 @@ pub const file = @import("file.zig");
 pub const memory = @import("memory.zig");
 pub const logging = @import("logging.zig");
 pub const Terminal = @import("Terminal.zig");
+pub const io = @import("io.zig");
 
 // const std = @import("std");
 // const log = std.log.scoped(.rstd);
