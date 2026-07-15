@@ -4,10 +4,10 @@
 
 const std = @import("std");
 const uefi = std.os.uefi;
+const Io = std.Io;
 const log = std.log.scoped(.bootimg);
 
 const memory = @import("../memory.zig");
-const file_io = @import("file.zig");
 const elf_image = @import("elf.zig");
 const segments = @import("segments.zig");
 const debug_info = @import("debug.zig");
@@ -15,10 +15,12 @@ const load_address = @import("loadaddr.zig");
 
 /// Load the kernel image
 pub fn loadKernelImage(
-    /// Pointer pointing to the root file system
-    root_file_system: *const uefi.protocol.File,
-    /// UEFI (16-bit) string with the file name of the kernel
-    kernel_image_filename: [*:0]const u16,
+    io: Io,
+    /// The boot volume root (see the io/ implementation's `openRootDir`)
+    root_dir: Io.Dir,
+    /// Path of the kernel image relative to the volume root, UTF-8; the Io
+    /// layer handles the UCS-2/backslash conversion UEFI wants
+    kernel_image_path: []const u8,
     /// The current UEFI memory map, used to plan where the kernel gets
     /// loaded/staged once its segment sizes are known (see
     /// `load_address.planKernelLoad`)
@@ -35,13 +37,16 @@ pub fn loadKernelImage(
     const boot_services = uefi.system_table.boot_services.?;
 
     log.debug("opening kernel image", .{});
-    const kernel_img_file = try file_io.openFile(root_file_system, kernel_image_filename);
-    defer kernel_img_file.close() catch {};
+    const kernel_img_file = root_dir.openFile(io, kernel_image_path, .{}) catch |err| {
+        log.err("opening kernel image failed: {s}", .{@errorName(err)});
+        return err;
+    };
+    defer kernel_img_file.close(io);
 
-    const header = try elf_image.readHeader(kernel_img_file);
+    const header = try elf_image.readHeader(io, kernel_img_file);
     kernel_entry_point.* = header.entry;
 
-    const headers = try elf_image.readProgramAndSectionHeaders(kernel_img_file, header);
+    const headers = try elf_image.readProgramAndSectionHeaders(io, kernel_img_file, header);
     defer boot_services.freePool(@alignCast(headers.program_headers_buffer.ptr)) catch {};
     defer boot_services.freePool(@alignCast(headers.section_headers_buffer.ptr)) catch {};
 
@@ -59,11 +64,12 @@ pub fn loadKernelImage(
     // Load the segments themselves, then whatever debug info happens to be
     // alongside them.
     try segments.loadProgramSegments(
+        io,
         kernel_img_file,
         headers.program_headers,
         plan,
     );
-    try debug_info.loadDebugInfo(kernel_img_file, &header, headers.section_headers, dwarf_info);
+    try debug_info.loadDebugInfo(io, kernel_img_file, &header, headers.section_headers, dwarf_info);
 }
 
 /// Everything `loadKernelImage` hands back about where the kernel ended up
@@ -84,13 +90,9 @@ const LoadedKernel = struct {
     }
 };
 
-/// Load `\kernel.elf` from `root_file_system` into memory described by `mm`.
-pub fn loadKernel(root_file_system: *const uefi.protocol.File, mm: memory.MemoryMap) !LoadedKernel {
+/// Load `\kernel.elf` from `root_dir` into memory described by `mm`.
+pub fn loadKernel(io: Io, root_dir: Io.Dir, mm: memory.MemoryMap) !LoadedKernel {
     log.info("loading kernel image", .{});
-
-    // UEFI strings are UTF-16LE, but Zig strings are UTF-8, so we need to
-    // convert it.
-    const kernel_executable_path: [*:0]const u16 = std.unicode.utf8ToUtf16LeStringLiteral("\\kernel.elf");
 
     var loaded: LoadedKernel = .{
         .plan = undefined,
@@ -105,8 +107,9 @@ pub fn loadKernel(root_file_system: *const uefi.protocol.File, mm: memory.Memory
     //
     // Feel free to look into the function "loadKernelImage" above!
     loadKernelImage(
-        root_file_system,
-        kernel_executable_path,
+        io,
+        root_dir,
+        "kernel.elf",
         mm,
         &loaded.plan,
         &loaded.kernel_entry_point,

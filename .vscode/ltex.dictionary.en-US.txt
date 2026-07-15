@@ -34,6 +34,7 @@ bootefi
 bootfs
 bootgfx
 bootimg
+bootio
 bootseg
 bootwdog
 bootx
@@ -637,6 +638,7 @@ readlink
 readlinkat
 readv
 reboot
+recancel
 recompiles
 recvfrom
 recvmmsg
@@ -849,6 +851,7 @@ umask
 umip
 umount2
 uname
+Uncancelable
 uncompr
 unlink
 unlinkat

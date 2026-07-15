@@ -1,52 +1,39 @@
-//! Generic UEFI file-reading helpers shared by the rest of the loader.
+//! Generic file-reading helpers shared by the rest of the loader, built on
+//! `std.Io` positional reads (backed by the UEFI file protocol via the
+//! bootloader's `Io` implementation in ../io/).
 
 const std = @import("std");
 const uefi = std.os.uefi;
+const Io = std.Io;
 const log = std.log.scoped(.bootfile);
 
-/// Open `filename` off `root_file_system`, read-only.
-pub fn openFile(
-    root_file_system: *const uefi.protocol.File,
-    filename: [*:0]const u16,
-) !*uefi.protocol.File {
-    return root_file_system.open(
-        filename,
-        .read,
-        .{ .read_only = true },
-    ) catch |err| {
-        log.err("opening file failed: {s}", .{@errorName(err)});
-        return err;
-    };
-}
-
-/// Read a UEFI file
+/// Read exactly `buffer.len` bytes from absolute `position` in `file`.
+/// Callers always know the exact size they want (from ELF headers), so a
+/// short read here means a truncated/corrupt image, not a normal EOF.
 pub fn readFile(
+    io: Io,
     /// This is our file we want to read
-    file: *uefi.protocol.File,
+    file: Io.File,
     /// This is the start position we want to read from
     position: u64,
     /// And the buffer we want to read into
     buffer: []u8,
 ) !void {
-    // We set the position in the file we want to read from
-    file.setPosition(position) catch |err| {
-        log.err("setting file position failed: {s}", .{@errorName(err)});
+    const n = file.readPositionalAll(io, buffer, position) catch |err| {
+        log.err("reading file failed: {s}", .{@errorName(err)});
         return err;
     };
-
-    // Now, we can read the file. `read` returns the number of bytes actually
-    // read, which we don't need here (the caller already knows the size it
-    // asked for), so we discard it.
-    // You may have recognized I return the error immediately (not handling it
-    // as above). But this is the last thing we do, so we may as well just
-    // "try" it.
-    _ = try file.read(buffer);
+    if (n != buffer.len) {
+        log.err("short read: wanted 0x{x} bytes at offset 0x{x}, got 0x{x}", .{ buffer.len, position, n });
+        return error.EndOfStream;
+    }
 }
 
-/// Read a UEFI file and allocate free memory for it
+/// Read a file range and allocate free memory for it
 pub fn readAndAllocate(
+    io: Io,
     /// This is our file we want to read
-    file: *uefi.protocol.File,
+    file: Io.File,
     /// This is the start position we want to read from
     position: u64,
     /// How much we want to read
@@ -66,7 +53,5 @@ pub fn readAndAllocate(
         return err;
     };
 
-    // As described above (in readFile), we just return the status of another
-    // function.
-    try readFile(file, position, buffer.*);
+    try readFile(io, file, position, buffer.*);
 }

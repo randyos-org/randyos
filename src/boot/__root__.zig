@@ -14,3 +14,4 @@ const impl = switch (sysinfo.target.os.tag) {
 
 pub const main = impl.main;
 pub const std_options = impl.std_options;
+pub const std_options_debug_io = impl.std_options_debug_io;

@@ -7,9 +7,9 @@ const log = std.log.scoped(.bootmain);
 const loader = @import("loader/__root__.zig");
 const memory = @import("memory.zig");
 const logging = @import("logging.zig");
+const io = @import("io/__root__.zig");
 const graphics = @import("graphics.zig");
 const bootinfomod = @import("bootinfo.zig");
-const filesys = @import("filesys.zig");
 const watchdog = @import("watchdog.zig");
 
 // const bootloader = @import("demos/hello1.zig").bootloader;
@@ -23,7 +23,9 @@ const watchdog = @import("watchdog.zig");
 /// entry point. It is just separated from the main function so the main entry
 /// point can catch errors, though we are unlikely to be able to handle them.
 pub fn bootloader() !void {
-    // in case of error, initialize logging before anything else
+    // in case of error, initialize console output and logging before anything else
+    io.init();
+    log.debug("pre-init log test", .{});
     logging.initLogging();
 
     const system_table = uefi.system_table;
@@ -32,7 +34,7 @@ pub fn bootloader() !void {
 
     // get essential system services initialized
     const gfx = try graphics.locateGraphicsOutput(boot_services);
-    const root_file_system = try filesys.openRootFileSystem(boot_services);
+    const root_dir = try io.openRootDir();
 
     // The loader needs the memory map to pick a physical location for the
     // kernel once it knows how big the kernel's segments actually are (see
@@ -41,7 +43,7 @@ pub fn bootloader() !void {
     log.debug("getting memory map to find free addresses", .{});
     var mm = try memory.fetch(boot_services, 0);
 
-    var kernel = try loader.loadKernel(root_file_system, mm);
+    var kernel = try loader.loadKernel(io.uefi_io, root_dir, mm);
     var kernel_boot_info = try bootinfomod.buildKernelBootInfo(system_table, gfx, &kernel.dwarf_info);
 
     // now that it looks likely we will boot into the kernel, disable watchdog
@@ -54,6 +56,7 @@ pub fn bootloader() !void {
     // touching them afterwards jumps into whatever now lives there instead.
     try memory.exitBootServices(boot_services, uefi.handle, &mm);
     logging.stopLogging(); // since con_out is freed, we can no longer log anything
+    io.stop(); // drop our pointers to boot services now
 
     // update boot info with final memory details after exiting boot services
     try bootinfomod.finalizeKernelBootInfo(&kernel_boot_info, runtime_services, mm, kernel.plan.dest, kernel.plan.size);

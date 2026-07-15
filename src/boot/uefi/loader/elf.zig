@@ -7,6 +7,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const uefi = std.os.uefi;
+const Io = std.Io;
 const elf = std.elf;
 const log = std.log.scoped(.bootelf);
 
@@ -21,12 +22,12 @@ const file_io = @import("file.zig");
 /// `elf.Header.read` already validates the magic/version/class/endianness
 /// bytes itself (see its `ReadError` set below) -- there's nothing left for
 /// us to check by hand before parsing.
-pub fn readHeader(file: *uefi.protocol.File) !elf.Header {
+pub fn readHeader(io: Io, file: Io.File) !elf.Header {
     const boot_services = uefi.system_table.boot_services.?;
 
     log.debug("loading ELF header", .{});
     var header_buffer: []u8 = undefined;
-    file_io.readAndAllocate(file, 0, @sizeOf(elf.Elf64_Ehdr), &header_buffer) catch |err| {
+    file_io.readAndAllocate(io, file, 0, @sizeOf(elf.Elf64_Ehdr), &header_buffer) catch |err| {
         log.err("reading ELF header failed: {s}", .{@errorName(err)});
         return err;
     };
@@ -81,12 +82,12 @@ pub const ProgramAndSectionHeaders = struct {
 /// Read the ELF program and section header tables and cast them to their
 /// proper types (letting callers use field access instead of manual byte
 /// math), sliced down to however many entries `header` says are present.
-pub fn readProgramAndSectionHeaders(file: *uefi.protocol.File, header: elf.Header) !ProgramAndSectionHeaders {
+pub fn readProgramAndSectionHeaders(io: Io, file: Io.File, header: elf.Header) !ProgramAndSectionHeaders {
     const boot_services = uefi.system_table.boot_services.?;
 
     log.debug("loading program headers", .{});
     var program_headers_buffer: []u8 = &.{};
-    file_io.readAndAllocate(file, header.phoff, header.phentsize * header.phnum, &program_headers_buffer) catch |err| {
+    file_io.readAndAllocate(io, file, header.phoff, header.phentsize * header.phnum, &program_headers_buffer) catch |err| {
         log.err("reading ELF program headers failed: {s}", .{@errorName(err)});
         return err;
     };
@@ -96,7 +97,7 @@ pub fn readProgramAndSectionHeaders(file: *uefi.protocol.File, header: elf.Heade
     errdefer boot_services.freePool(@alignCast(program_headers_buffer.ptr)) catch {};
 
     var section_headers_buffer: []u8 = &.{};
-    file_io.readAndAllocate(file, header.shoff, header.shentsize * header.shnum, &section_headers_buffer) catch |err| {
+    file_io.readAndAllocate(io, file, header.shoff, header.shentsize * header.shnum, &section_headers_buffer) catch |err| {
         log.err("reading ELF section headers failed: {s}", .{@errorName(err)});
         return err;
     };
@@ -110,8 +111,8 @@ pub fn readProgramAndSectionHeaders(file: *uefi.protocol.File, header: elf.Heade
 }
 
 /// Get contents of an ELF section
-pub fn getSectionContents(file: *uefi.protocol.File, section_header: elf.Elf64.Shdr, buffer: *[]u8) !void {
-    try file_io.readAndAllocate(file, section_header.offset, section_header.size, buffer);
+pub fn getSectionContents(io: Io, file: Io.File, section_header: elf.Elf64.Shdr, buffer: *[]u8) !void {
+    try file_io.readAndAllocate(io, file, section_header.offset, section_header.size, buffer);
 }
 
 /// Get the name of an ELF section

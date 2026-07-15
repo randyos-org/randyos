@@ -12,6 +12,7 @@
 
 const std = @import("std");
 const uefi = std.os.uefi;
+const Io = std.Io;
 const elf = std.elf;
 const log = std.log.scoped(.bootseg);
 
@@ -25,8 +26,9 @@ const KernelLoadPlan = @import("loadaddr.zig").KernelLoadPlan;
 /// happened when the load plan zeroed the whole image span, so only the
 /// file-backed bytes need reading here.
 pub fn loadSegment(
+    io: Io,
     /// This is the ELF file
-    file: *uefi.protocol.File,
+    file: Io.File,
     /// This is the offset of the program segment we want to load
     segment_file_offset: u64,
     /// How big the segment is (in the file)
@@ -43,7 +45,7 @@ pub fn loadSegment(
     segment_buffer.len = segment_file_size;
 
     log.debug("reading segment data with file size '0x{x}' to 0x{x}", .{ segment_file_size, load_address });
-    file_io.readFile(file, segment_file_offset, segment_buffer) catch |err| {
+    file_io.readFile(io, file, segment_file_offset, segment_buffer) catch |err| {
         log.err("reading segment data failed: {s}", .{@errorName(err)});
         return err;
     };
@@ -51,8 +53,9 @@ pub fn loadSegment(
 
 /// Load all ELF program segments according to `plan`.
 pub fn loadProgramSegments(
+    io: Io,
     /// Our Kernel file
-    file: *uefi.protocol.File,
+    file: Io.File,
     /// The ELF Program Headers (where we will get information about the
     /// program segments from)
     /// This is a slice, which is basically a pointer associated with a length.
@@ -97,6 +100,7 @@ pub fn loadProgramSegments(
             // whenever the image had to be staged above its link address.
             const load_address = plan.staging + (phdr.vaddr - plan.dest);
             loadSegment(
+                io,
                 file,
                 phdr.offset,
                 phdr.filesz,

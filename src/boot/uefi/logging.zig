@@ -1,31 +1,23 @@
-const std = @import("std");
-const uefi = std.os.uefi;
-const log = std.log.scoped(.bootlog);
+//! Bootloader logging: hooks the project-wide `rstd.logging.logFn`
+//! (timestamp/level/scope prefix) up to std.log. The output path itself is
+//! `std.Options.debug_io` (see io/), so the only thing left to manage here
+//! is the timestamp source for the log-line prefix.
 
 const rstd = @import("rstd");
 const logging = rstd.logging;
 
-pub const uefi_time = @import("time.zig");
-pub const uefi_term_mod = @import("term.zig");
+const io_time = @import("io/time.zig");
 
 pub const logFn = logging.logFn;
 
+/// Call after `io.init()` (which starts the tick clock backing
+/// `getTimeSeconds`) so log lines carry real timestamps instead of -1.
 pub fn initLogging() void {
-    const term = &uefi_term_mod.uefi_term;
-    logging.log_term = term;
-    term.init(.{});
-
-    // make terminal connection first so we can log if there's an error starting the clock
-    uefi_time.init(uefi.system_table.boot_services.?) catch |err| {
-        // an error, but not fatal, no need to panic.
-        // ...not sure where this log message would go if the terminal isn't
-        // working, but we can at least try to log it
-        log.err("starting bootloader timer failed: {s}", .{@errorName(err)});
-    };
-    logging.get_time = &uefi_time.getTime;
+    logging.get_time = &io_time.getTimeSeconds;
 }
 
+/// After this, any further log lines fall back to a -1 timestamp; the
+/// output itself goes dark when `io.stop()` severs the console.
 pub fn stopLogging() void {
-    logging.log_term = null;
     logging.get_time = null;
 }
