@@ -1,6 +1,6 @@
 # RandyOS
 
-![RandyOS logo](src/kernel/gfx/logo/randyos-logo.svg)
+![RandyOS logo](src/randyos/gfx/logo/randyos-logo.svg)
 
 Very basic OS for a very basic dude.
 
@@ -77,7 +77,7 @@ Package names shall be less than eight lowercased alphanumeric characters.  Wher
 
 ### Building the vendored Ghostty terminal (Windows target)
 
-On Windows, `zig build -fincremental` against the vendored Ghostty terminal in `vendor/ghostty` reliably hangs partway through a full build when using the default (full-core) job count, both with and without `--watch`. This was root-caused with gdb to an upstream Zig bug in the `-fincremental` build-runner's scheduler under concurrency: a compiler worker process finishes compiling and sits waiting for the runner to tell it to proceed to linking, while the runner's own dispatch thread is asleep waiting on an internal signal that never arrives (a "lost wakeup"). It is not caused by anything in Ghostty's own `build.zig` or build tooling.
+On Windows, `zig build -fincremental` against the vendored Ghostty terminal in `vendor/ghostty` reliably hangs partway through a full build when using the default (full-core) job count, both with and without `--watch`. This was root-caused with gdb to an upstream Zig bug in the `-fincremental` build-runner's scheduler under concurrency: a compiler worker process finishes compiling and sits waiting for the runner to tell it to proceed to linking, while the runner's own dispatch thread is asleep waiting on an internal signal that never arrives (a "lost wake-up"). It is not caused by anything in Ghostty's own `build.zig` or build tooling.
 
 Passing `-j4` (or lower, e.g. `-j1`) avoids the hang; `-j8` still hangs. Non-incremental builds (plain `zig build`) are unaffected. This is specific to this project's pinned Zig toolchain -- re-test if that pin ever moves.
 

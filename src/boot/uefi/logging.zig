@@ -5,8 +5,7 @@
 
 const rstd = @import("rstd");
 const logging = rstd.logging;
-
-const io_time = @import("io/time.zig");
+const io_time = rstd.io.time;
 
 pub const logFn = logging.logFn;
 
