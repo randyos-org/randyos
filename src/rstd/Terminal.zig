@@ -5,7 +5,7 @@ const log = std.log.scoped(.common_term);
 const Terminal = @This();
 const ansi = @import("ansi.zig");
 
-/// The active default Terminal instance, if any
+/// active default Terminal instance, if any
 pub var default_term: ?*Terminal = null;
 
 writer: Writer = .{
@@ -17,29 +17,22 @@ writer: Writer = .{
 vtable: *const VTable,
 ready: bool = false,
 supports_color: bool = false,
-/// Storage for the writer's vtable, so that defaultInit can rebuild
-/// `writer` at runtime without the vtable pointer dangling into a
-/// stack frame that's already returned.
+/// storage for writer's vtable so defaultInit can rebuild writer at runtime
+/// without dangling into a returned stack frame
 writer_vtable: Writer.VTable = .{ .drain = &defaultDrain },
-/// Backing storage for `writer`'s buffer. Without real capacity here,
-/// every fragment `std.Io.Writer.print` hands to `writeAll` (each literal
-/// chunk of the format string, each formatted arg) triggers its own
-/// `drain` -> `puts` -> (for graphical terminals) `render` call. That's
-/// harmless for terminals with a cheap `render`, but visibly slow --
-/// one full render pass per fragment instead of per line -- for ones
-/// that do real work there (e.g. a VT render-state diff). Buffering a
-/// whole line and flushing it once fixes that.
+/// backing storage for writer's buffer. Without real capacity, every
+/// print() fragment triggers its own drain -> puts -> render call --
+/// slow for terminals with real render work (e.g. VT diff). Buffering a
+/// whole line fixes that.
 writer_buffer: [512]u8 = undefined,
 
 pub const VTable = struct {
-    /// for graphical terminals, should always call vtable.render inside puts
-    /// after writing so that output shows up immediately, even if the kernel
-    /// never makes it back to the idle loop
+    /// graphical terminals: call vtable.render inside puts so output shows
+    /// immediately even if kernel never reaches idle loop
     puts: *const fn (term: *Terminal, s: []const u8) void,
     init: *const fn (term: *Terminal, args: ?*const anyopaque) void = defaultInit,
-    /// for graphical terminals, should always call vtable.render inside puts
-    /// after writing so that output shows up immediately, even if the kernel
-    /// never makes it back to the idle loop
+    /// graphical terminals: call vtable.render inside puts so output shows
+    /// immediately even if kernel never reaches idle loop
     cls: *const fn (term: *Terminal) void = defaultCls,
     printf: *const fn (term: *Terminal, comptime fmt: []const u8, args: anytype) void = defaultPrintf,
     drain: *const fn (w: *Writer, data: []const []const u8, splat: usize) Writer.Error!usize = defaultDrain,
@@ -78,7 +71,7 @@ pub fn inputs(term: *Terminal) void {
 }
 
 pub fn defaultInputs(term: *Terminal) void {
-    _ = term; // currently no input handling, but this may change one day
+    _ = term; // no input handling yet
 }
 
 pub fn defaultInit(term: *Terminal, args: ?*const anyopaque) void {
@@ -95,14 +88,14 @@ pub fn defaultInit(term: *Terminal, args: ?*const anyopaque) void {
 }
 
 pub fn defaultCls(term: *Terminal) void {
-    // clear screen and move cursor to home position
+    // clear screen, cursor home
     term.vtable.puts(term, ansi.CSI ++ ansi.CLS ++ ansi.CSI ++ ansi.HOME);
     term.vtable.render(term);
 }
 
 pub fn defaultRender(term: *Terminal) void {
     _ = term;
-    // no-op by default, but can be overridden by terminals that need it
+    // no-op by default, overridable
 }
 
 pub fn defaultPrintf(term: *Terminal, comptime fmt: []const u8, args: anytype) void {
@@ -123,7 +116,7 @@ pub fn defaultDrain(w: *Writer, data: []const []const u8, splat: usize) Writer.E
         term.vtable.puts(term, item);
         total += item.len;
     }
-    // repeat the last element `splat` number of times
+    // repeat last elem splat times
     for (0..splat) |i| {
         _ = i;
         term.vtable.puts(term, data[last_index]);

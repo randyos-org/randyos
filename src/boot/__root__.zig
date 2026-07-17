@@ -1,4 +1,4 @@
-//! Bootloader entry point dispatcher.
+//! Boot entry dispatcher.
 
 const sysinfo = @import("builtin");
 const std = @import("std");
@@ -15,3 +15,4 @@ const impl = switch (sysinfo.target.os.tag) {
 pub const main = impl.main;
 pub const std_options = impl.std_options;
 pub const std_options_debug_io = impl.std_options_debug_io;
+pub const std_options_cwd: ?fn () std.Io.Dir = if (@hasDecl(impl, "std_options_cwd")) impl.std_options_cwd else null;

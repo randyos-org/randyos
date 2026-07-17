@@ -8,31 +8,25 @@ const port_io = @import("port_io.zig");
 const ioapic = @import("ioapic.zig");
 const lapic = @import("lapic.zig");
 
-/// Pending-scancode ring buffer between the ISR (producer) and
-/// `processPending` (consumer). Single-producer/single-consumer, so plain
-/// (non-atomic) indices are fine on this single-core target -- word-sized
-/// reads/writes are already atomic on x86, and there's no SMP yet to race
-/// with. Revisit if SMP ever lands.
+/// Scancode ring buffer, ISR (producer) to `processPending` (consumer).
+/// SPSC, so plain non-atomic indices are fine here (word r/w already
+/// atomic on x86, no SMP to race with yet -- revisit if SMP lands).
 const ring_size = 64;
 var ring: [ring_size]u8 = undefined;
 var ring_head: usize = 0;
 var ring_tail: usize = 0;
 
-/// PS/2 controller data port (scan code in/out).
+/// PS/2 controller data port (scan code in/out)
 const ps2_data_port: u16 = 0x60;
 
-/// Scan code set 1 convention: codes below this are "make" (key press)
-/// codes; a set high bit (code >= 128) marks the corresponding "break" (key
-/// release) code for the same key.
+/// scan code set 1: codes below this are "make" (press); high bit set
+/// (>= 128) marks the "break" (release) code for the same key
 const scancode_break_threshold: u8 = 128;
 
-/// Interrupt Handler (top half)
-/// Must stay fast: this runs with interrupts disabled for its entire
-/// duration. Do the minimum required at interrupt time -- ack, read the
-/// hardware register, queue the byte -- and defer everything else (logging,
-/// eventually keymap translation) to `processPending`.
+/// Top-half ISR. Must stay fast (runs with interrupts disabled): ack, read
+/// reg, queue byte, defer everything else to `processPending`.
 pub fn keyboardHandler() void {
-    // trigger mode is edge, so we need to EOI before we read the byte
+    // edge-triggered, so EOI before reading the byte
     lapic.eoi();
     const scan_code = port_io.inb(ps2_data_port);
     const next_head = (ring_head + 1) % ring_size;
@@ -44,10 +38,8 @@ pub fn keyboardHandler() void {
     }
 }
 
-/// Bottom half: drains and processes whatever scancodes have piled up since
-/// the last call. Deliberately just an ordinary function -- meant to be
-/// called from the idle loop today, and to become the body of a dedicated
-/// input task once a scheduler exists, with no changes needed here.
+/// Bottom half: drains scancodes piled up since last call. Called from the
+/// idle loop today; becomes an input task's body once a scheduler exists.
 pub fn processPending() void {
     while (ring_tail != ring_head) {
         const scan_code = ring[ring_tail];

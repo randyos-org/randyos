@@ -1,35 +1,57 @@
 const std = @import("std");
 const uefi = std.os.uefi;
-
-const time = @import("time.zig");
+const Io = std.Io;
 const log = std.log.scoped(.iostate);
 
-/// Set by `init()`, cleared by `stop()`. When null, console output is
-/// dropped (same behavior as logging before the console exists).
+const time = @import("time.zig");
+const stderr_mod = @import("stderr.zig");
+const random = @import("random.zig");
+const dir = @import("dir.zig");
+const net = @import("net.zig");
+const file = @import("file.zig");
+const progress = @import("progress.zig");
+const async = @import("async.zig");
+const proc = @import("proc.zig");
+const operate = @import("operate.zig");
+
+/// set by init(), cleared by stop(); null = console output dropped
 pub var con_out: ?*uefi.protocol.SimpleTextOutput = null;
 
-/// Set by `stop()`. Guards every Boot Services use in this file, so that a
-/// late `std.debug.print`/panic after `exitBootServices()` degrades to
-/// dropped output instead of a wild call into reclaimed firmware memory.
-/// Deliberately not derived from `uefi.system_table.boot_services == null`:
-/// the firmware is supposed to null that pointer on exit, but this must not
-/// depend on the firmware getting that right.
+/// set by stop(); guards all Boot Services use so late print/panic after
+/// exitBootServices() drops output instead of touching reclaimed memory.
+/// Not derived from `boot_services == null` -- don't trust firmware for that.
 pub var stopped: bool = false;
 
-/// The opened boot-volume root directory (see `dir.openRootDir`). A single
-/// slot rather than a table because `std.Io.Dir` carries no handle bits on
-/// UEFI targets (`posix.fd_t` is `void`), so `Io.Dir` values cannot be told
-/// apart -- there is exactly one directory this implementation can mean.
+/// opened boot-volume root dir (see dir.openRootDir). single slot, not a
+/// table: `Io.Dir` has no handle bits on UEFI, so values can't be told apart.
 pub var root_dir: ?*uefi.protocol.File = null;
 
-/// The single open-file slot backing `Io.File`, with the same
-/// zero-handle-bits story as `root_dir`: at most one file can be open at a
-/// time, and every `Io.File` value refers to it.
+/// single open-file slot backing `Io.File`; same zero-handle-bits story as
+/// root_dir -- at most one file open, every Io.File value refers to it.
 pub var open_file: ?*uefi.protocol.File = null;
 
-/// Wire the UEFI console and tick clock into this `Io` implementation.
-/// Call once, before anything logs; in case of a bootloader error we want
-/// output working before all else.
+/// per-task cancel-protection state; only one task here
+pub var cancel_protection: Io.CancelProtection = .unblocked;
+
+/// recursion depth not a mutex: single thread, but lock is recursive so
+/// panic handler can re-enter while a log line holds it.
+pub var stderr_lock_count: u32 = 0;
+
+/// `file_writer` must point at Io.File.Writer, but stderr path never
+/// touches `.file` -- writes go through `.interface`, vtable is ours. `File`
+/// here is a dummy; `stderr.stderrDrain` does the real work. `.io` set by
+/// init() once io(t) can be formed.
+pub var stderr_writer: Io.File.Writer = .{
+    .io = undefined,
+    .file = .{ .handle = {}, .flags = .{ .nonblocking = false } },
+    .mode = .streaming_simple,
+    .interface = .{
+        .vtable = &@import("stderr.zig").stderr_writer_vtable,
+        .buffer = &.{},
+    },
+};
+
+/// wire UEFI console + tick clock in. call once, before anything logs.
 pub fn init() void {
     if (con_out == null) {
         if (uefi.system_table.con_out) |out| {
@@ -38,20 +60,16 @@ pub fn init() void {
         }
     }
     time.init() catch |err| {
-        // an error, but not fatal: log lines just won't have a monotonic
-        // clock behind them. The console is already up, so this is loggable.
+        // not fatal: log lines just lack a monotonic clock; console's already up
         log.err("starting bootloader timer failed: {s}", .{@errorName(err)});
     };
 }
 
-/// Sever this `Io` implementation from Boot Services. Must be called as soon
-/// as `exitBootServices()` succeeds: `con_out`, `stall`, and the RNG protocol
-/// all live in Boot Services-owned memory that the firmware is free to
-/// reclaim at that point.
+/// sever from Boot Services. call right after exitBootServices() succeeds --
+/// con_out/stall/RNG live in memory firmware may reclaim then.
 pub fn stop() void {
     con_out = null;
-    // No close() calls here: these protocols are Boot Services-owned and
-    // already gone; all that's left to do is drop the dangling pointers.
+    // no close() calls: protocols already gone, just drop dangling pointers
     root_dir = null;
     open_file = null;
     stopped = true;
@@ -61,3 +79,135 @@ pub fn bootServices() ?*uefi.tables.BootServices {
     if (stopped) return null;
     return uefi.system_table.boot_services;
 }
+
+/// Comptime-known `Io` value -- `userdata` is a fixed global pointer and
+/// `vtable` a fixed function table, so this is safe to use directly as
+/// `std_options_debug_io` (evaluated at comptime; see `std.Options.debug_io`
+/// and `src/boot/uefi/__root__.zig`). Runtime state (the stderr writer,
+/// `state.io`) is wired separately by `io()`, which must run before this is
+/// used for real output.
+pub const io_inst: Io = .{
+    .userdata = Io.Threaded.global_single_threaded,
+    .vtable = &.{
+        .crashHandler = async.crashHandler,
+        .async = async.async,
+        .concurrent = async.concurrent,
+        .await = async.await,
+        .cancel = async.cancel,
+        .groupAsync = async.groupAsync,
+        .groupConcurrent = async.groupConcurrent,
+        .groupAwait = async.groupAwait,
+        .groupCancel = async.groupCancel,
+        .recancel = async.recancel,
+        .swapCancelProtection = async.swapCancelProtection,
+        .checkCancel = async.checkCancel,
+        .futexWait = async.futexWait,
+        .futexWaitUncancelable = async.futexWaitUncancelable,
+        .futexWake = async.futexWake,
+
+        .operate = operate.operate,
+
+        .batchAwaitAsync = async.batchAwaitAsync,
+        .batchAwaitConcurrent = async.batchAwaitConcurrent,
+        .batchCancel = async.batchCancel,
+
+        .dirCreateDir = dir.dirCreateDir,
+        .dirCreateDirPath = dir.dirCreateDirPath,
+        .dirCreateDirPathOpen = dir.dirCreateDirPathOpen,
+        .dirOpenDir = dir.dirOpenDir,
+        .dirStat = dir.dirStat,
+        .dirStatFile = dir.dirStatFile,
+        .dirAccess = dir.dirAccess,
+        .dirCreateFile = dir.dirCreateFile,
+        .dirCreateFileAtomic = dir.dirCreateFileAtomic,
+        .dirOpenFile = dir.dirOpenFile,
+        .dirClose = dir.dirClose,
+        .dirRead = dir.dirRead,
+        .dirRealPath = dir.dirRealPath,
+        .dirRealPathFile = dir.dirRealPathFile,
+        .dirDeleteFile = dir.dirDeleteFile,
+        .dirDeleteDir = dir.dirDeleteDir,
+        .dirRename = dir.dirRename,
+        .dirRenamePreserve = dir.dirRenamePreserve,
+        .dirSymLink = dir.dirSymLink,
+        .dirReadLink = dir.dirReadLink,
+        .dirSetOwner = dir.dirSetOwner,
+        .dirSetFileOwner = dir.dirSetFileOwner,
+        .dirSetPermissions = dir.dirSetPermissions,
+        .dirSetFilePermissions = dir.dirSetFilePermissions,
+        .dirSetTimestamps = dir.dirSetTimestamps,
+        .dirHardLink = dir.dirHardLink,
+
+        .fileStat = file.fileStat,
+        .fileLength = file.fileLength,
+        .fileClose = file.fileClose,
+        .fileWritePositional = file.fileWritePositional,
+        .fileWriteFileStreaming = file.fileWriteFileStreaming,
+        .fileWriteFilePositional = file.fileWriteFilePositional,
+        .fileReadPositional = file.fileReadPositional,
+        .fileSeekBy = file.fileSeekBy,
+        .fileSeekTo = file.fileSeekTo,
+        .fileSync = file.fileSync,
+        .fileIsTty = file.fileIsTty,
+        .fileEnableAnsiEscapeCodes = file.fileEnableAnsiEscapeCodes,
+        .fileSupportsAnsiEscapeCodes = file.fileSupportsAnsiEscapeCodes,
+        .fileSetLength = file.fileSetLength,
+        .fileSetOwner = file.fileSetOwner,
+        .fileSetPermissions = file.fileSetPermissions,
+        .fileSetTimestamps = file.fileSetTimestamps,
+        .fileLock = file.fileLock,
+        .fileTryLock = file.fileTryLock,
+        .fileUnlock = file.fileUnlock,
+        .fileDowngradeLock = file.fileDowngradeLock,
+        .fileRealPath = file.fileRealPath,
+        .fileHardLink = file.fileHardLink,
+
+        .fileMemoryMapCreate = file.fileMemoryMapCreate,
+        .fileMemoryMapDestroy = file.fileMemoryMapDestroy,
+        .fileMemoryMapSetLength = file.fileMemoryMapSetLength,
+        .fileMemoryMapRead = file.fileMemoryMapRead,
+        .fileMemoryMapWrite = file.fileMemoryMapWrite,
+
+        .processExecutableOpen = proc.processExecutableOpen,
+        .processExecutablePath = proc.processExecutablePath,
+
+        .lockStderr = stderr_mod.lockStderr,
+        .tryLockStderr = stderr_mod.tryLockStderr,
+        .unlockStderr = stderr_mod.unlockStderr,
+
+        .processCurrentPath = proc.processCurrentPath,
+        .processSetCurrentDir = proc.processSetCurrentDir,
+        .processSetCurrentPath = proc.processSetCurrentPath,
+        .processReplace = proc.processReplace,
+        .processReplacePath = proc.processReplacePath,
+        .processSpawn = proc.processSpawn,
+        .processSpawnPath = proc.processSpawnPath,
+        .childWait = proc.childWait,
+        .childKill = proc.childKill,
+
+        .progressParentFile = progress.progressParentFile,
+
+        .now = time.now,
+        .clockResolution = time.clockResolution,
+        .sleep = time.sleep,
+
+        .random = random.random,
+        .randomSecure = random.randomSecure,
+
+        .netListenIp = net.netListenIp,
+        .netAccept = net.netAccept,
+        .netBindIp = net.netBindIp,
+        .netConnectIp = net.netConnectIp,
+        .netListenUnix = net.netListenUnix,
+        .netConnectUnix = net.netConnectUnix,
+        .netSocketCreatePair = net.netSocketCreatePair,
+        .netSend = net.netSend,
+        .netWrite = net.netWrite,
+        .netWriteFile = net.netWriteFile,
+        .netClose = net.netClose,
+        .netShutdown = net.netShutdown,
+        .netInterfaceNameResolve = net.netInterfaceNameResolve,
+        .netInterfaceName = net.netInterfaceName,
+        .netLookup = net.netLookup,
+    },
+};

@@ -1,26 +1,23 @@
-//! Port I/O functionality
+//! Port I/O
 //! 2024 by Samuel Fiedler
 
 const std = @import("std");
 const log = std.log.scoped(.arch_port_io);
 
-/// POST diagnostic-code port. Unused for its original purpose on modern
-/// hardware; writing to it costs one bus I/O cycle with no side effects,
-/// which is the classic cheap delay for chips (e.g. the PIC) that need a
-/// breather between commands -- see `ioWait`.
+/// POST diagnostic-code port; unused today, but writing costs one bus
+/// cycle with no side effects -- classic cheap delay for chips (e.g. PIC)
+/// needing a breather between commands, see `ioWait`
 const post_diagnostic_port: u16 = 0x80;
 
-/// Input bytes
 pub inline fn inb(port: u16) u8 {
     return in(u8, port);
 }
 
-/// Output bytes
 pub inline fn outb(port: u16, val: u8) void {
     out(u8, port, val);
 }
 
-/// Input 8bit-, 16bit- or 32bit-wide unsigned integers
+/// Input 8/16/32-bit unsigned int
 pub inline fn in(comptime T: type, port: u16) T {
     return switch (T) {
         u8 => asm volatile ("inb %[port], %[ret]"
@@ -39,7 +36,7 @@ pub inline fn in(comptime T: type, port: u16) T {
     };
 }
 
-/// Output 8bit-, 16bit- or 32bit-wide unsigned integers
+/// Output 8/16/32-bit unsigned int
 pub inline fn out(comptime T: type, port: u16, val: T) void {
     switch (T) {
         u8 => asm volatile ("outb %[val], %[port]"
@@ -61,7 +58,7 @@ pub inline fn out(comptime T: type, port: u16, val: T) void {
     }
 }
 
-/// Wait a very small amount of time
+/// tiny delay
 pub inline fn ioWait() void {
     outb(post_diagnostic_port, 0);
 }

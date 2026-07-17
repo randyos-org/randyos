@@ -8,44 +8,30 @@ pub const ChecksumError = error{
     InvalidChecksum,
 };
 
-/// Size, in bytes, of the ACPI 1.0 RSDP structure (bytes 0-19) -- the region
-/// a revision-0 table's checksum covers. Later fields (`length`, `xsdt_addr`,
-/// `ext_checksum`, `res1`) don't exist in that revision.
+/// Size of ACPI 1.0 RSDP (bytes 0-19) -- what a rev-0 checksum covers.
+/// Later fields (length/xsdt_addr/ext_checksum/res1) don't exist in rev 0.
 const acpi_v1_rsdp_size: usize = 20;
 
-/// Root System Descriptor Pointer
 pub const RSDP = extern struct {
-    /// "RSD PTR " (Notice that this signature must contain a trailing blank character)
+    /// "RSD PTR " (trailing blank required)
     signature: [8]u8 align(1),
-    /// This is the checksum of the fields defined in the ACPI 1.0 specification.
-    /// This includes only the first 20 bytes of this table, bytes 0 to 19, including the checksum field.
-    /// These bytes must sum to zero.
+    /// ACPI 1.0 checksum: first 20 bytes must sum to zero
     checksum: u8 align(1),
-    /// An OEM-supplied string that identifies the OEM.
+    /// OEM id string
     oem_id: [6]u8 align(1),
-    /// The revision of this structure.
-    /// Larger revision numbers are backward compatible to lower revision numbers.
-    /// The ACPI version 1.0 revision number of this table is zero.
-    /// The ACPI version 1.0 RSDP Structure only includes the first 20 bytes of this table, bytes 0 to 19. It does not include the Length field and beyond.
-    /// The current value for this field is 2.
+    /// struct revision; 0 = ACPI 1.0 (first 20 bytes only), current is 2
     revision: u8 align(1),
-    /// 32bit physical address of the RSDT
+    /// 32bit phys addr of RSDT
     rsdt_addr: u32 align(1),
-    /// The length of the table, in bytes, including the header, starting from offset 0.
-    /// This field is used to record the size of the entire table.
-    /// This field is not available in the ACPI version 1.0 RSDP Structure.
+    /// table length in bytes incl header; rev 2+ only
     length: u32 align(1),
-    /// 64bit physical address of the XSDT.
-    /// This field is not available in the ACPI version 1.0 RSDP Structure.
+    /// 64bit phys addr of XSDT; rev 2+ only
     xsdt_addr: u64 align(1),
-    /// This is a checksum of the entire table, including both checksum fields.
-    /// This field is not available in the ACPI version 1.0 RSDP Structure.
+    /// checksum of entire table; rev 2+ only
     ext_checksum: u8 align(1),
-    /// Reserved field
-    /// This field is not available in the ACPI version 1.0 RSDP Structure.
+    /// reserved; rev 2+ only
     res1: [3]u8 align(1),
 
-    /// Verify the checksum
     pub fn verifyChecksum(self: *RSDP) ChecksumError!void {
         var sum: u8 = 0;
         const arr: [*]u8 = @ptrCast(self);

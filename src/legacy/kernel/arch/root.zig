@@ -1,4 +1,4 @@
-//! Architecture-specific kernel code
+//! Arch-specific kernel code
 //! 2024 by Samuel Fiedler
 
 const std = @import("std");

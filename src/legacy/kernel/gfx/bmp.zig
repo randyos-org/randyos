@@ -1,10 +1,7 @@
-//! BMP (Windows Bitmap) file parsing.
-//! Only supports the common uncompressed (BI_RGB), 24-bit-per-pixel case --
-//! that covers the vast majority of BMP files in the wild and keeps this
-//! simple; anything else is reported as an error rather than guessed at.
+//! BMP file parsing.
+//! Only uncompressed 24bpp (BI_RGB); else error.
 //!
-//! Decodes into a `draw.PixelBuffer`, which is format-agnostic -- `draw.zig`
-//! doesn't know or care that the source was a BMP.
+//! Decodes into `draw.PixelBuffer` (format-agnostic).
 
 const std = @import("std");
 const log = std.log.scoped(.bmp);
@@ -18,19 +15,17 @@ pub const BmpError = std.mem.Allocator.Error || error{
     Truncated,
 };
 
-/// `InfoHeader.compression` value for `BI_RGB` (uncompressed) -- the only
-/// compression mode this parser supports.
+/// BI_RGB (uncompressed) -- only mode supported.
 const bi_rgb_compression: u32 = 0;
-/// The only `InfoHeader.bits_per_pixel` this parser supports.
+/// Only bpp supported.
 const supported_bits_per_pixel: u16 = 24;
-/// Bytes per pixel in the (24bpp) pixel data this parser supports.
+/// Bytes per pixel (24bpp).
 const bytes_per_pixel: usize = supported_bits_per_pixel / 8;
-/// BMP rows are padded out to a multiple of this many bytes.
+/// Row padding boundary.
 const row_alignment: usize = 4;
 
 /// BMP file header ("BITMAPFILEHEADER").
-/// Every field is `align(1)` because this overlays raw file bytes directly
-/// -- there is no compiler-inserted padding to match.
+/// align(1): overlays raw file bytes, no padding.
 const FileHeader = extern struct {
     magic: [2]u8 align(1),
     file_size: u32 align(1),
@@ -38,10 +33,9 @@ const FileHeader = extern struct {
     pixel_data_offset: u32 align(1),
 };
 
-/// BMP bitmap info header ("BITMAPINFOHEADER"). Later BMP variants
-/// (V4/V5) extend this with more fields, but `pixel_data_offset` from the
-/// file header is what actually locates the pixel data, so only these
-/// leading fields (common to every variant) need to be read.
+/// BMP info header ("BITMAPINFOHEADER"). V4/V5 add fields, but
+/// pixel_data_offset (file header) locates pixels, so only these
+/// common leading fields matter.
 const InfoHeader = extern struct {
     header_size: u32 align(1),
     width: i32 align(1),
@@ -56,10 +50,8 @@ const InfoHeader = extern struct {
     colors_important: u32 align(1),
 };
 
-/// Parse and fully decode an uncompressed (`BI_RGB`), 24-bit color BMP file
-/// into a `PixelBuffer`. The returned buffer's `pixels` slice is allocated
-/// from `allocator`; the caller owns it and is responsible for freeing it.
-/// `bmp_data` is the raw contents of a `.bmp` file, e.g. from `@embedFile`.
+/// Decode uncompressed 24bpp BMP into a `PixelBuffer`. Caller owns/frees
+/// the returned `pixels` slice. `bmp_data`: raw `.bmp` bytes.
 pub fn parse(allocator: std.mem.Allocator, bmp_data: []const u8) BmpError!PixelBuffer {
     if (bmp_data.len < @sizeOf(FileHeader) + @sizeOf(InfoHeader)) return error.Truncated;
     const file_header: *const FileHeader = @ptrCast(bmp_data.ptr);
@@ -77,10 +69,9 @@ pub fn parse(allocator: std.mem.Allocator, bmp_data: []const u8) BmpError!PixelB
 
     const width: usize = @intCast(@abs(info_header.width));
     const height: usize = @intCast(@abs(info_header.height));
-    // A negative height means the rows are stored top-down; BMP's default
-    // (positive height) is bottom-up.
+    // negative height = top-down; default is bottom-up
     const top_down = info_header.height < 0;
-    // Each row is padded to a 4 byte boundary.
+    // row padded to 4 bytes
     const row_size = std.mem.alignForward(usize, width * bytes_per_pixel, row_alignment);
 
     if (bmp_data.len < file_header.pixel_data_offset) return error.Truncated;
@@ -89,11 +80,11 @@ pub fn parse(allocator: std.mem.Allocator, bmp_data: []const u8) BmpError!PixelB
 
     const pixels = try allocator.alloc(Color, width * height);
     for (0..height) |dst_row| {
-        // `PixelBuffer` is top-down; BMP's default row order is bottom-up.
+        // PixelBuffer is top-down; BMP default is bottom-up
         const src_row = if (top_down) dst_row else height - 1 - dst_row;
         const row_bytes = pixel_data[src_row * row_size ..][0 .. width * bytes_per_pixel];
         for (0..width) |col| {
-            // BMP pixel data is stored blue, green, red.
+            // stored as B,G,R
             const px = row_bytes[col * bytes_per_pixel ..][0..bytes_per_pixel];
             pixels[dst_row * width + col] = .{ .blue = px[0], .green = px[1], .red = px[2] };
         }

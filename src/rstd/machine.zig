@@ -17,10 +17,8 @@ pub const Firmware = enum {
     none,
 };
 
-/// Firmware-neutral classification of a physical memory region, as reported
-/// by whatever firmware/bootloader actually handed the kernel its boot
-/// info -- the kernel only ever sees this shape, never a raw
-/// firmware-native memory map format.
+/// firmware-neutral memory region classification; kernel only sees this
+/// shape, never raw firmware-native format
 pub const MemoryRegionKind = enum {
     usable,
     reserved,
@@ -32,14 +30,14 @@ pub const MemoryRegionKind = enum {
     bad,
 };
 
-/// A single physical memory region, in firmware-neutral form.
+/// single physical memory region, firmware-neutral
 pub const MemoryRegion = struct {
     phys_start: u64,
     page_count: u64,
     kind: MemoryRegionKind,
 };
 
-/// Framebuffer pixel channel order, in firmware-neutral form.
+/// framebuffer pixel channel order, firmware-neutral
 pub const FramebufferPixelFormat = enum {
     /// Red, Green, Blue, Reserved
     rgb,
@@ -68,7 +66,6 @@ pub const KernelBootInfo = struct {
     kernel_virt_start: usize,
     kernel_virt_end: usize,
     dwarf_info: *?std.debug.Dwarf,
-    /// Unix epoch seconds at boot, as reported by firmware. `null` if the
-    /// bootloader couldn't determine a wall-clock time.
+    /// unix epoch seconds at boot per firmware; null if undetermined
     boot_wall_clock_unix_seconds: ?i64,
 };

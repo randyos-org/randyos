@@ -7,8 +7,7 @@ pub const GraphicsDev = @import("../Device.zig");
 pub const bmp = @import("../bmp.zig");
 pub const transform = @import("../transform.zig");
 
-/// Parse and draw the embedded RandyOS logo, scaled down to fit the current
-/// display resolution.
+/// Parse and draw embedded logo, scaled to fit current resolution.
 pub fn drawLogo(gd: *GraphicsDev) void {
     const allocator = memory.kernel_page_allocator.allocator;
 

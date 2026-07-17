@@ -1,16 +1,13 @@
 //! System time.
 //!
-//! `arch.platform.tsc` already gives a monotonic "seconds since boot" clock
-//! for log timestamps, but that's not wall-clock time. The bootloader reads
-//! the platform's wall clock (however it does that -- UEFI Runtime
-//! Services, a devicetree RTC, etc. -- is a bootloader/firmware concern) and
-//! hands the kernel a plain Unix epoch-seconds snapshot in `KernelBootInfo`;
-//! `init()` stores that and combines it with the TSC's elapsed-seconds count
-//! afterward, avoiding repeated firmware calls (slow, and of dubious safety
-//! once our own GDT/paging are active) while still tracking wall-clock time.
+//! tsc gives monotonic seconds-since-boot, not wall-clock. Bootloader
+//! reads wall clock (UEFI/devicetree RTC/etc, its concern) and hands
+//! kernel a Unix epoch-seconds snapshot; init() stores it and adds TSC's
+//! elapsed seconds after, avoiding repeated (slow, unsafe post-paging)
+//! firmware calls.
 //!
-//! This also provides `sleep`, a busy-wait built on the same TSC clock.
-//! There's no scheduler yet, so busy-waiting is the only option.
+//! Also provides sleep, a TSC busy-wait -- no scheduler yet, so that's
+//! the only option.
 
 const std = @import("std");
 const log = std.log.scoped(.time);
@@ -19,7 +16,7 @@ const epoch = std.time.epoch;
 const arch = @import("../arch/root.zig");
 const tsc = arch.platform.tsc;
 
-/// Wall-clock date/time, as returned by `now()`.
+/// wall-clock date/time from now()
 pub const DateTime = struct {
     year: epoch.Year,
     month: epoch.Month,
@@ -33,12 +30,10 @@ pub const DateTime = struct {
     second: u8,
 };
 
-/// Unix epoch seconds captured at the moment `init()` ran. `null` if
-/// `init()` was never called or the bootloader couldn't determine the time.
+/// epoch secs at init(); null if never called or unknown
 var boot_epoch_seconds: ?i64 = null;
 
-/// Record the wall-clock snapshot the bootloader captured at boot. Call
-/// this once, early in kernel init, after `arch.platform.tsc.init()`.
+/// Record boot wall-clock snapshot. Call once, early, after tsc.init().
 pub fn init(epoch_seconds: ?i64) void {
     if (epoch_seconds == null) {
         log.warn("no wall-clock time available from bootloader", .{});
@@ -47,9 +42,7 @@ pub fn init(epoch_seconds: ?i64) void {
     logNow();
 }
 
-/// Current wall-clock date/time (UTC), derived from the boot-time snapshot
-/// plus TSC-measured elapsed seconds. `null` if `init()` never captured a
-/// valid snapshot.
+/// Current UTC time: boot snapshot + TSC elapsed. null if never captured.
 pub fn now() ?DateTime {
     const boot = boot_epoch_seconds orelse return null;
     const secs = boot + @as(i64, @intFromFloat(tsc.getTime()));
@@ -67,16 +60,14 @@ pub fn now() ?DateTime {
     };
 }
 
-/// Busy-wait for approximately `seconds`, using the TSC-based monotonic
-/// clock. There's no scheduler yet, so this simply spins the CPU -- fine for
-/// spacing out boot-time test output, not for anything latency-sensitive or
-/// power-conscious.
+/// Busy-wait ~seconds via TSC. No scheduler yet, so it just spins the
+/// CPU -- fine for boot output spacing, not latency/power-sensitive uses.
 pub fn sleep(seconds: f64) void {
     const deadline = tsc.getTime() + seconds;
     while (tsc.getTime() < deadline) {}
 }
 
-/// Convenience wrapper around `sleep` for millisecond durations.
+/// sleep() wrapper for ms
 pub fn sleepMs(ms: u64) void {
     sleep(@as(f64, @floatFromInt(ms)) / 1000.0);
 }

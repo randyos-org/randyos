@@ -2,48 +2,14 @@ const std = @import("std");
 const uefi = std.os.uefi;
 const Io = std.Io;
 
-const unsupported = @import("__root__.zig").unsupported;
-
-pub fn processExecutableOpen(_: ?*anyopaque, _: Io.Dir.OpenFileOptions) std.process.OpenExecutableError!Io.File {
-    unsupported(@src());
-}
-
-pub fn processExecutablePath(_: ?*anyopaque, _: []u8) std.process.ExecutablePathError!usize {
-    unsupported(@src());
-}
-
-pub fn processCurrentPath(_: ?*anyopaque, _: []u8) std.process.CurrentPathError!usize {
-    unsupported(@src());
-}
-
-pub fn processSetCurrentDir(_: ?*anyopaque, _: Io.Dir) std.process.SetCurrentDirError!void {
-    unsupported(@src());
-}
-
-pub fn processSetCurrentPath(_: ?*anyopaque, _: []const u8) std.process.SetCurrentPathError!void {
-    unsupported(@src());
-}
-
-pub fn processReplace(_: ?*anyopaque, _: std.process.ReplaceOptions) std.process.ReplaceError {
-    unsupported(@src());
-}
-
-pub fn processReplacePath(_: ?*anyopaque, _: Io.Dir, _: std.process.ReplaceOptions) std.process.ReplaceError {
-    unsupported(@src());
-}
-
-pub fn processSpawn(_: ?*anyopaque, _: std.process.SpawnOptions) std.process.SpawnError!std.process.Child {
-    unsupported(@src());
-}
-
-pub fn processSpawnPath(_: ?*anyopaque, _: Io.Dir, _: std.process.SpawnOptions) std.process.SpawnError!std.process.Child {
-    unsupported(@src());
-}
-
-pub fn childWait(_: ?*anyopaque, _: *std.process.Child) std.process.Child.WaitError!std.process.Child.Term {
-    unsupported(@src());
-}
-
-pub fn childKill(_: ?*anyopaque, _: *std.process.Child) void {
-    unsupported(@src());
-}
+pub const processExecutableOpen = Io.failingProcessExecutableOpen;
+pub const processExecutablePath = Io.failingProcessExecutablePath;
+pub const processCurrentPath = Io.failingProcessCurrentPath;
+pub const processSetCurrentDir = Io.failingProcessSetCurrentDir;
+pub const processSetCurrentPath = Io.failingProcessSetCurrentPath;
+pub const processReplace = Io.failingProcessReplace;
+pub const processReplacePath = Io.failingProcessReplacePath;
+pub const processSpawn = Io.failingProcessSpawn;
+pub const processSpawnPath = Io.failingProcessSpawnPath;
+pub const childWait = Io.unreachableChildWait;
+pub const childKill = Io.unreachableChildKill;

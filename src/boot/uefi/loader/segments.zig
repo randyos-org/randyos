@@ -1,14 +1,11 @@
-//! Materializing ELF `PT_LOAD` program segments into the memory reserved by
-//! `load_address.planKernelLoad` -- the part of kernel image loading that
-//! walks program headers, as opposed to debug_info.zig, which walks section
-//! headers instead.
+//! Materializes ELF `PT_LOAD` segments into memory reserved by
+//! `load_address.planKernelLoad` -- walks program headers (debug.zig walks
+//! section headers instead).
 //!
-//! Memory for the whole image span is allocated (and zeroed) up front by
-//! the load plan, so all this file does is read each segment's file bytes
-//! into place. Segments land at `plan.staging + (vaddr - plan.dest)`: when
-//! the destination was free that's just `vaddr` itself, and in the staging
-//! case `main.zig` moves the finished image down to `plan.dest` after
-//! `exitBootServices` -- see load_address.zig for the full story.
+//! Image span is already allocated+zeroed by the load plan, so this just
+//! reads each segment's file bytes into place at
+//! `plan.staging + (vaddr - plan.dest)`. See loadaddr.zig for the full
+//! staging story.
 
 const std = @import("std");
 const uefi = std.os.uefi;
@@ -21,23 +18,21 @@ const pages = rstd.memory;
 const file_io = @import("file.zig");
 const KernelLoadPlan = @import("loadaddr.zig").KernelLoadPlan;
 
-/// Load an ELF program segment's file bytes to `load_address`. The
-/// zero-fill of `memsz - filesz` (.bss) that the ELF spec requires already
-/// happened when the load plan zeroed the whole image span, so only the
+/// Load a segment's file bytes to `load_address`. .bss zero-fill already
+/// happened when the load plan zeroed the whole image span, so only
 /// file-backed bytes need reading here.
 pub fn loadSegment(
     io: Io,
-    /// This is the ELF file
+    /// ELF file
     file: Io.File,
-    /// This is the offset of the program segment we want to load
+    /// segment file offset
     segment_file_offset: u64,
-    /// How big the segment is (in the file)
+    /// segment size in file
     segment_file_size: usize,
     /// Where the segment's bytes go (staging-adjusted physical address)
     load_address: u64,
 ) !void {
-    // Nothing to read for pure-bss segments; the plan's zeroing already
-    // produced their final contents.
+    // pure-bss segment: plan's zeroing already produced final contents
     if (segment_file_size == 0) return;
 
     var segment_buffer: []u8 = &.{};
@@ -54,50 +49,37 @@ pub fn loadSegment(
 /// Load all ELF program segments according to `plan`.
 pub fn loadProgramSegments(
     io: Io,
-    /// Our Kernel file
+    /// kernel file
     file: Io.File,
-    /// The ELF Program Headers (where we will get information about the
-    /// program segments from)
-    /// This is a slice, which is basically a pointer associated with a length.
+    /// ELF program headers
     program_headers: []const elf.Elf64.Phdr,
-    /// Where the image lives now (staging) and must end up (dest) -- see
-    /// load_address.zig
+    /// staging/dest info, see loadaddr.zig
     plan: KernelLoadPlan,
 ) !void {
-    // Running count of segments actually loaded so far (used below to catch
-    // an ELF with no LOAD-type program headers at all)
+    // count of segments loaded so far
     var n_segments_loaded: u64 = 0;
 
-    // If the ELF file has no program headers, then the kernel is probably
-    // empty.
+    // no program headers means an empty/invalid kernel
     if (program_headers.len == 0) {
         log.err("no program segments to load", .{});
         return error.InvalidParameter;
     }
     log.debug("loading {} segments", .{program_headers.len});
 
-    // Because we have the program headers as a slice, we can easily iterate
-    // over it using "for". If we used a many-item pointer, we would have to
-    // use a separate index.
     for (program_headers, 0..) |phdr, index| {
-        // We only load the segment if ELF tells us to do so.
-        // There are some segments that are in the ELF file but that we don't
-        // have to load.
+        // only LOAD-type segments get loaded
         if (phdr.type == .LOAD) {
             log.debug("loading program segment {}", .{index});
 
-            // Page alignment is a hard requirement of the load plan's
-            // page-granular allocation; a misaligned segment would silently
-            // share pages with its neighbor.
+            // page alignment required; a misaligned segment would share
+            // pages with its neighbor
             if (phdr.vaddr & pages.page_mask != 0) {
                 log.err("segment {} vaddr 0x{x} is not page-aligned", .{ index, phdr.vaddr });
                 return error.Unaligned;
             }
 
-            // `vaddr >= plan.dest` always holds (plan.dest is the minimum
-            // LOAD vaddr by construction), so this can't underflow --
-            // unlike the previous `vaddr - base` scheme, which underflowed
-            // whenever the image had to be staged above its link address.
+            // vaddr >= plan.dest always holds (dest is the min LOAD vaddr
+            // by construction), so this can't underflow
             const load_address = plan.staging + (phdr.vaddr - plan.dest);
             loadSegment(
                 io,
@@ -110,16 +92,12 @@ pub fn loadProgramSegments(
                 return err;
             };
 
-            // And if everything succeeded, we increase the number of segments
-            // that were loaded.
-            // We need this because not all program segments want to be loaded,
-            // but we have to ensure that there is at least something.
+            // track count: not all segments are LOAD-type, need at least one
             n_segments_loaded += 1;
         }
     }
 
-    // We do not only have to return an error (above) if there are no segments
-    // we can iterate over, but also if we find no loadable segments.
+    // also error if headers existed but none were loadable
     if (n_segments_loaded == 0) {
         log.err("no loadable program segments found in executable", .{});
         return error.NotFound;

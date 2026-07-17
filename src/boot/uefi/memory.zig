@@ -1,6 +1,5 @@
-//! UEFI memory map handling: fetching the current map and installing the
-//! virtual address map firmware expects before `exitBootServices` hands
-//! control to the kernel.
+//! UEFI memory map handling: fetch map, install virtual addr map before
+//! `exitBootServices` hands control to the kernel.
 
 const std = @import("std");
 const uefi = std.os.uefi;
@@ -13,41 +12,35 @@ const efi_page_mask = pages.page_mask;
 const MemoryRegion = rstd.machine.MemoryRegion;
 const MemoryRegionKind = rstd.machine.MemoryRegionKind;
 
-/// Extra whole descriptor slots of headroom `exitBootServices` requests on
-/// each retry fetch, on top of whatever `getMemoryMapInfo` reports needing --
-/// covers firmware growing the map again between this fetch and the retry.
-/// The map can (and, empirically, reliably does) grow by a full new
-/// descriptor between the size query inside `fetch` and its actual
-/// `getMemoryMap` call a few lines later -- a few slack *bytes* per existing
-/// descriptor (the previous scheme) doesn't cover that; a few slack
-/// *descriptors* does.
+/// Extra descriptor slots of headroom for `exitBootServices` retry fetches,
+/// covering firmware growing the map between fetch and retry. Slack in
+/// whole descriptors, not bytes -- the map reliably grows by a full
+/// descriptor between the size query and the actual `getMemoryMap` call.
 const exit_boot_services_retry_padding: usize = 8;
 
-/// Convert a memory size to memory pages (4096 bytes each)
+/// Convert byte size to page count (4096B pages)
 pub inline fn efiSizeToPages(value: anytype) @TypeOf(value) {
     const addition: @TypeOf(value) = if (value & efi_page_mask != 0) 1 else 0;
     const ret = (value >> efi_page_shift) + addition;
     return ret;
 }
 
-/// A UEFI memory map together with the metadata (descriptor size/count/key)
-/// needed to walk or re-submit it.
+/// A UEFI memory map plus the metadata (descriptor size/count/key) needed
+/// to walk or re-submit it.
 pub const MemoryMap = struct {
     info: uefi.tables.MemoryMapInfo,
     buffer: []u8,
     map: uefi.tables.MemoryMapSlice,
 };
 
-/// Fetch the current UEFI memory map (info, then a matching allocation,
-/// then the map itself).
+/// Fetch the current UEFI memory map: info, then a matching allocation,
+/// then the map itself.
 ///
-/// `extra_descriptors` pads the allocation, beyond what `getMemoryMapInfo`
-/// reports needing, by this many whole extra descriptor slots: firmware can
-/// grow the map between the info call and the actual `getMemoryMap` call
-/// (any allocation can do it, including the one this function just made),
-/// so a snug buffer can undersize by the time it's used. Pass 0 for a
-/// one-off read; pass a nonzero pad when about to retry `exitBootServices`
-/// (see `exitBootServices` below).
+/// `extra_descriptors` pads the allocation by this many extra descriptor
+/// slots, since firmware can grow the map between the info call and the
+/// `getMemoryMap` call (any allocation can do it, including this
+/// function's own). Pass 0 for a one-off read, nonzero when about to
+/// retry `exitBootServices` (see below).
 pub fn fetch(boot_services: *uefi.tables.BootServices, extra_descriptors: usize) !MemoryMap {
     var info = boot_services.getMemoryMapInfo() catch |err| {
         log.err("getting memory map info failed: {s}", .{@errorName(err)});
@@ -60,11 +53,8 @@ pub fn fetch(boot_services: *uefi.tables.BootServices, extra_descriptors: usize)
         log.err("allocating memory map buffer failed: {s}", .{@errorName(err)});
         return err;
     };
-    // Re-read the info (in particular, the key) after allocating: the
-    // allocation above is itself a change to the map, so the pre-allocation
-    // info/key is already stale by the time getMemoryMap below runs. Using
-    // it anyway would hand `exitBootServices` a key that can never match,
-    // since it's stale before this function even returns.
+    // re-read info/key after allocating: the allocation itself changes the
+    // map, so the pre-allocation info is already stale by getMemoryMap time
     info = boot_services.getMemoryMapInfo() catch |err| {
         log.err("getting memory map info failed: {s}", .{@errorName(err)});
         return err;
@@ -76,20 +66,15 @@ pub fn fetch(boot_services: *uefi.tables.BootServices, extra_descriptors: usize)
     return .{ .info = info, .buffer = buffer, .map = map };
 }
 
-/// Repeatedly re-fetch the memory map and retry `exitBootServices` until it
-/// succeeds. A stale map key is the expected first failure -- fetching the
-/// map itself is an allocation, and any allocation between the last fetch
-/// and this call can invalidate the key -- so UEFI expects a retry loop
-/// here rather than a single attempt.
+/// Re-fetch the memory map and retry `exitBootServices` until it succeeds.
+/// A stale key is the expected first failure -- fetching the map is
+/// itself an allocation that can invalidate the previous key.
 pub fn exitBootServices(boot_services: *uefi.tables.BootServices, handle: uefi.Handle, current: *MemoryMap) !void {
     while (true) {
         boot_services.exitBootServices(handle, current.info.key) catch {
             log.info("getting memory map and trying to exit boot services", .{});
-            // The failed attempt's buffer is about to be replaced below and
-            // was never freed -- every retry through here otherwise leaks
-            // one boot_services_data allocation, which itself perturbs the
-            // memory map (new allocations are exactly what invalidates map
-            // keys in the first place), compounding with each retry.
+            // free the stale buffer before replacing it, else each retry
+            // leaks an allocation (which itself perturbs the map further)
             boot_services.freePool(@alignCast(current.buffer.ptr)) catch |err| {
                 log.warn("freeing stale memory map buffer failed: {s}", .{@errorName(err)});
             };
@@ -100,14 +85,11 @@ pub fn exitBootServices(boot_services: *uefi.tables.BootServices, handle: uefi.H
     }
 }
 
-/// Identity-remap `mm` for `runtime_services.setVirtualAddressMap` and
-/// install it.
+/// Identity-remap `mm` and install it via `setVirtualAddressMap`.
 ///
 /// Everything is identity-mapped: the kernel is non-relocatable and always
-/// ends up physically at its link address before the jump (staged and moved
-/// there after exitBootServices if necessary -- see
-/// uefi/loader/load_address.zig), so even the kernel's own memory needs no
-/// special-casing here.
+/// ends up physically at its link address before the jump (see
+/// loader/loadaddr.zig), so no special-casing is needed here.
 pub fn installVirtualAddressMap(
     runtime_services: *uefi.tables.RuntimeServices,
     mm: MemoryMap,
@@ -120,31 +102,24 @@ pub fn installVirtualAddressMap(
     try runtime_services.setVirtualAddressMap(mm.map);
 }
 
-/// Upper bound on how many regions `toGenericMemoryMap` can emit. Real and
-/// virtualized UEFI firmware typically report well under 100 descriptors
-/// (plus at most two extra from splitting regions around the kernel image);
-/// this is generous headroom, not a tight fit.
+/// Max regions `toGenericMemoryMap` can emit. Real/virtualized firmware
+/// typically reports well under 100 descriptors; generous headroom.
 const max_memory_regions = 256;
 
-/// Backing storage for `toGenericMemoryMap`'s result. Static rather than
-/// allocated: this runs from `finalizeKernelBootInfo`, i.e. after
-/// `exitBootServices` has already succeeded, so Boot Services' pool
-/// allocator is no longer callable -- only Runtime Services and the raw
-/// memory the firmware already handed us remain usable.
+/// Backing storage for `toGenericMemoryMap`'s result. Static, not
+/// allocated: runs after `exitBootServices`, so Boot Services' pool
+/// allocator is gone.
 var memory_region_storage: [max_memory_regions]MemoryRegion = undefined;
 
 /// Translate a raw UEFI memory map into the firmware-neutral
-/// `[]const MemoryRegion` shape the kernel actually consumes -- the kernel
-/// never needs to know about UEFI's per-descriptor stride or its firmware-
-/// specific type enum.
+/// `[]const MemoryRegion` shape the kernel consumes -- the kernel never
+/// needs UEFI's descriptor stride or type enum.
 ///
-/// `[kernel_start, kernel_start + kernel_size)` -- the physical range the
-/// kernel image occupies once `main.zig`'s post-exitBootServices move has
-/// run -- is force-marked `kernel_and_modules` no matter what UEFI type
-/// covers it, splitting regions as needed. Without this, any part of that
-/// range the loader couldn't pre-reserve (it may have been firmware-owned
-/// until exitBootServices) would be reported `usable` and the kernel's page
-/// allocator would hand out pages the kernel itself lives in.
+/// `[kernel_start, kernel_start + kernel_size)` is force-marked
+/// `kernel_and_modules` no matter what UEFI type covers it, splitting
+/// regions as needed. Otherwise a firmware-owned-until-exit part of that
+/// range would report `usable`, and the kernel's page allocator would
+/// hand out pages the kernel itself lives in.
 pub fn toGenericMemoryMap(mm: MemoryMap, kernel_start: u64, kernel_size: u64) []const MemoryRegion {
     const page_size: u64 = pages.page_size;
     const kernel_end = kernel_start + (efiSizeToPages(kernel_size) * page_size);
@@ -169,13 +144,12 @@ pub fn toGenericMemoryMap(mm: MemoryMap, kernel_start: u64, kernel_size: u64) []
         const overlap_end = @min(region_end, kernel_end);
 
         if (overlap_start >= overlap_end or kind == .kernel_and_modules) {
-            // No kernel overlap (or already the right kind): pass through.
+            // no overlap, or already right kind: pass through
             count = appendRegion(count, region_start, (region_end - region_start) / page_size, kind);
             continue;
         }
 
-        // Split around the kernel image: the part before, the overlap
-        // itself (as kernel_and_modules), and the part after.
+        // split around kernel image: before, overlap (as kernel_and_modules), after
         if (overlap_start > region_start) {
             count = appendRegion(count, region_start, (overlap_start - region_start) / page_size, kind);
         }
@@ -187,8 +161,8 @@ pub fn toGenericMemoryMap(mm: MemoryMap, kernel_start: u64, kernel_size: u64) []
     return memory_region_storage[0..count];
 }
 
-/// Append one region to `memory_region_storage` (bounds-checked), returning
-/// the new count. Zero-page regions are dropped.
+/// Append one region to `memory_region_storage` (bounds-checked). Drops
+/// zero-page regions.
 fn appendRegion(count: usize, phys_start: u64, page_count: u64, kind: MemoryRegionKind) usize {
     if (page_count == 0 or count >= max_memory_regions) return count;
     memory_region_storage[count] = .{

@@ -2,7 +2,7 @@ const std = @import("std");
 const log = std.log.scoped(.bootuefi);
 
 const rstd = @import("rstd");
-const io = rstd.io.io;
+const rio = rstd.io;
 
 pub const loader = @import("loader/__root__.zig");
 pub const memory = @import("memory.zig");
@@ -20,6 +20,7 @@ pub const std_options = std.Options{
 
 /// Routes `std.debug.print`, `std.log`, and the default panic handler
 /// through the UEFI console.
-pub const std_options_debug_io = io;
+pub const std_options_debug_io = rio.io_inst;
+pub const std_options_cwd: ?fn () std.Io.Dir = rio.cwd;
 
 pub const main = @import("__main__.zig").main;

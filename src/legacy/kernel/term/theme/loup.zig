@@ -1,7 +1,6 @@
 //! Loup color theme
-//! The original hardcoded VGA-standard palette this framebuffer console
-//! shipped with, named in honor of https://codeberg.org/loup-os/kernel,
-//! the project it was originally forked from
+//! Original hardcoded VGA palette; named for
+//! https://codeberg.org/loup-os/kernel, the fork origin
 
 const std = @import("std");
 const log = std.log.scoped(.loup);

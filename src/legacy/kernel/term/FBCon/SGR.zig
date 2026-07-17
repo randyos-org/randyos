@@ -8,12 +8,10 @@ const Color = @import("../../gfx/color.zig").Color;
 const theme_mod = @import("../theme/root.zig");
 const themes = theme_mod.themes;
 
-/// Select Graphic Rendition
 pub fn selectGraphicRendition(self: *FBCon, control_sequence: FBCon.ControlSequence) void {
     var len: usize = 0;
     const pxfmt = self.gd.pixel_format;
-    // args are packed contiguously from index 0 -- the first null marks the
-    // end, so this just counts how many were actually supplied.
+    // args packed from index 0; first null marks end, so count supplied
     for (control_sequence.args) |arg| {
         if (arg) |_| {
             len += 1;
@@ -21,8 +19,7 @@ pub fn selectGraphicRendition(self: *FBCon, control_sequence: FBCon.ControlSeque
             break;
         }
     }
-    // ANSI defaults a bare `ESC[m` (no explicit parameters) to SGR 0
-    // (reset), same as `ESC[0m`.
+    // bare ESC[m defaults to SGR 0 (reset), same as ESC[0m
     const default_args = [1]?FBCon.ControlSequenceArgument{.{ .number = 0 }};
     const args = if (len == 0) default_args[0..] else control_sequence.args[0..len];
     for (args) |arg| {

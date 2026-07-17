@@ -1,15 +1,11 @@
-//! Project-wide log formatting: a `std.log` callback that prefixes every
-//! line with a seconds-since-boot timestamp and the (colored) level/scope,
-//! e.g. `12.3456 [info](kmain): ...`. That prefix is the whole reason this
-//! exists instead of `std.log.defaultLog`.
+//! Project-wide log format: std.log callback prefixing each line with
+//! seconds-since-boot + colored level/scope, e.g. `12.3456 [info](kmain): ...`.
+//! That's why this exists instead of std.log.defaultLog.
 //!
-//! Output goes through `std.Options.debug_io` (the same stderr lock
-//! `std.debug.print` and the panic handler use), exactly like std's default
-//! logger -- each platform provides its `Io` implementation via
-//! `std_options_debug_io` and this module needs no per-platform wiring
-//! beyond the `get_time` hook. `logToTerm` remains for writing directly to
-//! an rstd `Terminal` instance, bypassing `debug_io` (e.g. mirroring log
-//! lines to a secondary console).
+//! Goes through std.Options.debug_io (same stderr lock as std.debug.print/
+//! panic), like std's default logger -- needs no per-platform wiring beyond
+//! the get_time hook. logToTerm writes directly to an rstd Terminal instead,
+//! bypassing debug_io (e.g. mirror log lines to a 2nd console).
 
 // const sysinfo = @import("builtin");
 const build_options = @import("build_options");
@@ -20,28 +16,24 @@ const log = std.log.scoped(.logging);
 const Terminal = @import("Terminal.zig");
 // const ansi = @import("ansi.zig");
 
-/// Platform-specific default logging terminal for `logToTerm` callers.
-/// The std.log path (`logFn`) does not use this: it writes to whatever
-/// `std.Options.debug_io` provides instead.
+/// default logging terminal for logToTerm callers; logFn doesn't use this,
+/// writes to std.Options.debug_io instead
 pub var log_term: ?*Terminal = null;
 
-/// Platform-specific hook for getting a "seconds since boot" timestamp for
-/// log lines
+/// platform hook for "seconds since boot" timestamp
 pub var get_time: ?*const fn () f64 = null;
 
-/// timestamp, start_color, level, end_color, scope (then caller's own format string/args)
+/// fmt: timestamp, start_color, level, end_color, scope, then caller fmt/args
 // const log_prefix_fmt = "{d:.4} [{s}{s}{s}]({s}): ";
 
-/// Guards against re-entrant logging. Terminals that parse their own output
-/// (e.g. the framebuffer console's ANSI/SGR handling) can call back into
-/// `std.log` while a log line is still being written; without this guard,
-/// printing the very first color code would recurse into itself forever.
+/// guards re-entrant logging: terminals parsing their own output (e.g.
+/// framebuffer ANSI/SGR) can call back into std.log mid-line; without this,
+/// first color code recurses forever.
 var logging_in_progress: bool = false;
 
-/// std.log callback (wired up via `std_options.logFn`). Writes through
-/// `std.Options.debug_io` the same way `std.log.defaultLog` does -- taking
-/// the shared stderr lock so log lines can't tear against `std.debug.print`
-/// or a panic dump -- but with this project's own line format.
+/// std.log callback (via std_options.logFn). Writes through debug_io like
+/// std.log.defaultLog -- shared stderr lock so lines don't tear against
+/// debug.print/panic -- but with this project's line format.
 pub fn logFn(
     comptime level: std.log.Level,
     comptime scope: @TypeOf(.EnumLiteral),
@@ -61,11 +53,9 @@ pub fn logFn(
     logToTerminal(stderr, level, @tagName(scope), format, args, true) catch @panic("log print failed");
 }
 
-/// Formats and writes a single log line (scope filtering, timestamp prefix,
-/// colored level tag) to any `std.Io.Terminal`. Shared by `logFn` (the
-/// debug_io stderr terminal) and `logToTerm` (an rstd `Terminal` wrapped in
-/// one); color degrades to plain text wherever the terminal mode is
-/// `.no_color`.
+/// Formats + writes one log line (scope filter, timestamp, colored level)
+/// to any std.Io.Terminal. Shared by logFn and logToTerm; color degrades to
+/// plain text when mode is .no_color.
 pub fn logToTerminal(
     t: std.Io.Terminal,
     comptime level: std.log.Level,
@@ -93,9 +83,7 @@ pub fn logToTerminal(
     if (use_color) t.setColor(.reset) catch {};
     try t.writer.print("]({s}): " ++ format ++ "\n", .{scope_name} ++ args);
 
-    // Flush explicitly: buffering the whole line lets
-    // it go out as a single `puts`/`render` pair instead of one per
-    // formatting fragment, but we still want it on screen immediately --
-    // e.g. if the kernel panics before ever returning to the idle loop.
+    // flush explicitly: buffer whole line for one puts/render, but still
+    // want it on screen now -- e.g. kernel panics before idle loop
     t.writer.flush() catch @panic("log flush failed");
 }

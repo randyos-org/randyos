@@ -28,85 +28,74 @@ pub const StateValue = struct {
     values: [8]u8,
 };
 
-/// The State of the Special Character "parser"
+/// special-char parser state
 pub const State = union(enum) {
-    /// Currently no control sequence detected
+    /// no sequence active
     none,
-    /// Escape char (could be a control sequence)
+    /// ESC seen, maybe a sequence
     escape_statement,
-    /// Escape char AND "[" (CSI)
+    /// ESC + [ (CSI)
     control_sequence_start,
-    /// Control Sequence Value
+    /// parsing an arg value
     control_sequence_value: StateValue,
-    /// Control Sequence Value Delimiter
+    /// arg delimiter (;)
     control_sequence_delimiter,
-    /// Control Sequence Final
+    /// final byte (command)
     control_sequence_command,
 };
 
-/// The control sequence type
 pub const ControlSequence = struct {
-    /// The control sequence "command" (final byte)
+    /// final byte
     command: u8,
-    /// The control sequence "command" args
+    /// command args
     args: [8]?ControlSequenceArgument,
-    /// The control sequence "command" arg index
+    /// arg index
     index: usize,
-    /// Indicator whether the control sequence is ready to be executed or not
+    /// ready to execute?
     ready_for_exec: bool,
 };
 
-/// The control sequence argument union
 pub const ControlSequenceArgument = union(enum) {
     char: u8,
     number: u32,
 };
 
-/// The graphical features supported by the framebuffer console
-/// No italic because VT510 does not do that (see https://vt100.net/docs/vt510-rm/chapter4.html#S4.6)
+/// No italic -- VT510 doesn't do that either
+/// (see https://vt100.net/docs/vt510-rm/chapter4.html#S4.6)
 pub const GraphicalFeatures = struct {
-    /// Bold
     bold: bool,
-    /// Underline
     underline: bool,
-    /// Reverse (bg and fg are exchanged)
+    /// bg/fg swapped
     reversed: bool,
-    /// Invisible (text will not be printed out)
+    /// text not printed
     invisible: bool,
 };
 
 const Self = @This();
-// according to wikipedia, control sequences can have a maximum number of 5 args
-// we make maximum 8 args, just in case
+// spec allows max 5 args; we allow 8 to be safe
 var control_sequence_arg_buffer: [8]u32 = undefined;
 
-/// The underline is drawn this many glyph rows up from the bottom edge --
-/// roughly a typical underline's thickness-from-baseline offset, scaled to
-/// the font's height.
+/// underline offset from bottom edge, in glyph rows
 const underline_offset_divisor: u8 = 8;
 
-/// The pointer to the graphics device
 gd: *GraphicsDev = undefined,
-/// ANSI Escape Code Parser State
+/// ANSI escape parser state
 state: State = .none,
-/// ANSI Escape Command
+/// current ANSI command
 control_sequence: ControlSequence = undefined,
-/// Current output color (foreground)
+/// fg color
 color_int: u32 = 0xffffffff,
-/// Current output color (background)
+/// bg color
 bgcolor_int: u32 = 0,
-/// Current Font
 font: fonts.FontDesc = fonts.vga_8x16,
-/// Current Cursor Position
 curpos: CursorPosition = CursorPosition{
     .column = 0,
     .row = 0,
 },
-/// Maximal width, in character columns (not pixels)
+/// width in columns, not px
 max_width: u32 = 80,
-/// Maximal height, in character rows (not pixels)
+/// height in rows, not px
 max_height: u32 = 25,
-/// Graphical Features
 graphical_features: GraphicalFeatures = .{
     .bold = false,
     .underline = false,
@@ -116,11 +105,8 @@ graphical_features: GraphicalFeatures = .{
 term: Terminal = undefined,
 term_vtable: Terminal.VTable = undefined,
 
-/// Setup the Framebuffer Console
-/// `clear`: whether to clear the screen immediately. Pass `false` to bring
-/// up the terminal (and its logging plumbing) without disturbing whatever
-/// is already on screen (e.g. a boot logo) -- call `clearScreen()`
-/// explicitly later to switch over.
+/// Setup FBCon. `clear=false` inits without disturbing screen (e.g. boot
+/// logo); call `clearScreen()` later to switch over.
 pub fn init(self: *Self, gd: *GraphicsDev, clear: bool) void {
     self.gd = gd;
     self.state = .none;
@@ -154,26 +140,21 @@ pub fn init(self: *Self, gd: *GraphicsDev, clear: bool) void {
     self.term.init(.{});
 }
 
-/// Clear the Screen (effectively set the color of everything to the theme's
-/// background color) and home the cursor to (0, 0)
+/// Clear screen to theme bg, home cursor to (0,0).
 pub fn clearScreen(self: *Self) void {
     const gd = self.gd;
     const total_size: usize = gd.pixels_per_scanline * gd.pixel_height;
     const bg_int = themes.get_current().primary.background.getInt(gd.pixel_format);
-    // The framebuffer pointer is `volatile` so scattered single-pixel writes
-    // elsewhere (drawChar, drawRect) aren't eliminated as dead stores, but
-    // that same qualifier stops the compiler from vectorizing this bulk
-    // fill. We're the only writer and no read-back matters here, so cast it
-    // away just for this one bulk op.
+    // volatile normally protects scattered writes (drawChar) from being
+    // eliminated, but blocks vectorizing this bulk fill; sole writer here
+    // so drop it just for this op
     const fb: []u32 = @volatileCast(gd.framebuffer_pointer[0..total_size]);
     @memset(fb, bg_int);
     self.curpos.column = 0;
     self.curpos.row = 0;
 }
 
-/// Draw a single character (CP437). `x`/`y` are character-cell (column/row)
-/// coordinates, not pixel coordinates -- they get multiplied by the font
-/// size below to find the actual pixel origin.
+/// Draw a CP437 char. x/y are cell (column/row) coords, not pixels.
 pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
     const width = self.font.width;
     const height = self.font.height;
@@ -186,15 +167,12 @@ pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
     var row: u8 = 0;
     var bgcolor: u32 = self.bgcolor_int;
     var color: u32 = self.color_int;
-    // main rendering logic
     if (self.graphical_features.reversed == true) {
         bgcolor = self.color_int;
         color = self.bgcolor_int;
     }
     if (self.graphical_features.invisible == true) {
-        // Hidden text still occupies a cell -- paint it as a plain background
-        // rect instead of skipping the draw entirely, so it doesn't leave
-        // the previous glyph's pixels on screen.
+        // hidden text still occupies cell; paint bg so old glyph doesn't show
         while (row < height) : ({
             row += 1;
             col = 0;
@@ -213,13 +191,11 @@ pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
         while (col < width) : (col += 1) {
             var index: usize = base_index + col;
             index += row *% px_per_scanline;
-            // Glyph rows are MSB-first (bit 7 = leftmost pixel), so column
-            // `col` (0 = leftmost) lives at bit `width - 1 - col`.
+            // MSB-first glyph rows: col 0 (leftmost) is bit width-1
             const value = self.font.data[char_start + row] & @as(u16, 1) << (width - 1 - col);
             fb[index] = if (value == 0) bgcolor else color;
         }
     }
-    // graphical features
     if (self.graphical_features.bold == true) {
         // bold: OR 1pxl to left
         row = 0;
@@ -237,7 +213,7 @@ pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
         }
     }
     if (self.graphical_features.underline == true) {
-        // underline: OR 1pxl with height/8 pxls offset from bottom
+        // underline: 1px line, offset from bottom
         row = height - @divFloor(height, underline_offset_divisor);
         col = 0;
         while (col < width) : (col += 1) {
@@ -247,52 +223,41 @@ pub fn drawChar(self: *Self, char_index: u8, x: usize, y: usize) void {
     }
 }
 
-/// Set font
 pub fn setFont(self: *Self, new_font: fonts.FontDesc) void {
     self.font = new_font;
     self.updateDimensions();
 }
 
-/// Recompute `max_width`/`max_height` (in character cells) to fill the
-/// screen at the current font size, based on the graphics device's
-/// resolution. Any leftover pixels that don't make up a full cell (the
-/// screen dimensions need not be an exact multiple of the font size) are
-/// left blank at the right/bottom edge, same as most terminal emulators.
+/// Recompute max_width/max_height in cells for current font+resolution.
+/// Leftover pixels (not a full cell) left blank at right/bottom edge.
 fn updateDimensions(self: *Self) void {
     self.max_width = @divTrunc(self.gd.pixel_width, @as(u32, self.font.width));
     self.max_height = @divTrunc(self.gd.pixel_height, @as(u32, self.font.height));
 }
 
-/// Set colors
 pub fn setColor(self: *Self, color: Color, bgcolor: Color) void {
     const pxfmt = self.gd.pixel_format;
     self.color_int = color.getInt(pxfmt);
     self.bgcolor_int = bgcolor.getInt(pxfmt);
 }
 
-/// Scroll
 pub fn scroll(self: *Self) void {
     const gd = self.gd;
     const px_per_scanline = gd.pixels_per_scanline;
     const px_height = gd.pixel_height;
     const amount_to_discard: usize = px_per_scanline * self.font.height;
     const max_addr: usize = px_per_scanline * px_height;
-    // Cast away volatility just for this bulk shift-up, same reasoning as
-    // clearScreen(): we're the sole writer, so the compiler is free to
-    // vectorize this instead of being forced into a per-element copy.
+    // sole writer, drop volatile to vectorize the shift, same as clearScreen()
     const fb: []u32 = @volatileCast(gd.framebuffer_pointer[0..max_addr]);
     std.mem.copyForwards(u32, fb[0 .. max_addr - amount_to_discard], fb[amount_to_discard..max_addr]);
-    // the copy above only shifts existing rows up -- the row it just
-    // exposed at the bottom still holds whatever was there before (usually
-    // a stale duplicate of the line that just triggered this scroll), so it
-    // must be cleared explicitly.
+    // shift only moves rows up; bottom row exposed still has stale content
     const bg_int = themes.get_current().primary.background.getInt(gd.pixel_format);
     @memset(fb[max_addr - amount_to_discard .. max_addr], bg_int);
 }
 
-/// Handle a control sequence argument value (basically just a number parser)
+/// Parse a control-sequence arg value (number parser).
 pub fn handleVal(self: *Self, val: StateValue) void {
-    // find out last num index
+    // find digit count
     var number_end: u32 = 0;
     var number: u32 = 0;
     for (val.values) |value| {
@@ -314,16 +279,14 @@ pub fn handleVal(self: *Self, val: StateValue) void {
     self.control_sequence.index += 1;
 }
 
-/// Check whether a character is special (newline, CR, ESC, or part of an
-/// in-progress control sequence) rather than plain printable text.
-///
-/// Also drives the control-sequence parser's state machine as a side effect.
+/// True if char is special (newline/CR/ESC/in-progress seq), not plain
+/// text. Also drives the control-sequence parser's state machine.
 pub fn isSpecialChar(self: *Self, char: u8) bool {
     return switch (char) {
         '\n' => true,
         '\r' => true,
         '\x1b' => blk: {
-            // perhaps a control sequence
+            // maybe a control sequence
             self.state = .escape_statement;
             self.control_sequence.args = .{ null, null, null, null, null, null, null, null };
             self.control_sequence.index = 0;
@@ -342,15 +305,15 @@ pub fn isSpecialChar(self: *Self, char: u8) bool {
             }
         },
         '0'...':', '<'...'?' => blk: {
-            // control sequence "argument"
+            // seq arg
             switch (self.state) {
                 .control_sequence_start, .control_sequence_delimiter => {
                     if ('<' <= char and char <= '?') {
-                        // DEC private-mode prefix byte (e.g. '?' in `CSI ?25h`) -- stored as-is, not parsed as a digit
+                        // DEC private-mode prefix (e.g. '?'), stored as-is
                         self.control_sequence.args[self.control_sequence.index] = ControlSequenceArgument{ .char = char };
                         self.control_sequence.index += 1;
                     } else {
-                        // first digit of a new numeric argument
+                        // first digit of new arg
                         self.state = State{
                             .control_sequence_value = .{
                                 .values = [_]u8{ char, 0, 0, 0, 0, 0, 0, 0 },
@@ -369,7 +332,7 @@ pub fn isSpecialChar(self: *Self, char: u8) bool {
             }
         },
         ';' => blk: {
-            // control sequence "argument" delimiter
+            // arg delimiter
             switch (self.state) {
                 .control_sequence_value => |val| {
                     self.handleVal(val);
@@ -377,7 +340,7 @@ pub fn isSpecialChar(self: *Self, char: u8) bool {
                     break :blk true;
                 },
                 .control_sequence_delimiter => {
-                    // empty arguments are treated as 0
+                    // empty args treated as 0
                     self.control_sequence.args[self.control_sequence.index] = ControlSequenceArgument{ .number = 0 };
                     self.control_sequence.index += 1;
                     break :blk true;
@@ -386,7 +349,7 @@ pub fn isSpecialChar(self: *Self, char: u8) bool {
             }
         },
         '@'...'Z', '\\'...'~' => blk: {
-            // control sequence "command" (final byte)
+            // final byte (command)
             switch (self.state) {
                 .control_sequence_start => {
                     self.control_sequence.command = char;
@@ -405,9 +368,7 @@ pub fn isSpecialChar(self: *Self, char: u8) bool {
             }
         },
         else => blk: {
-            // any other byte aborts an in-progress sequence (back to `.none`)
-            // rather than trying to recover -- malformed sequences are just
-            // dropped, and the byte itself is treated as plain text
+            // any other byte aborts sequence back to .none; treated as plain text
             if (self.state != .none) {
                 self.state = .none;
             }
@@ -416,22 +377,18 @@ pub fn isSpecialChar(self: *Self, char: u8) bool {
     };
 }
 
-/// Handle a control sequence
-/// See https://vt100.net/docs/vt510-rm/chapter4.html#S4.6 for all control sequences to be handled
+/// Handle a control sequence.
+/// See https://vt100.net/docs/vt510-rm/chapter4.html#S4.6
 pub fn handleControlSequence(self: *Self, control_sequence: ControlSequence) void {
-    // check for the control sequence command to be executed
     switch (control_sequence.command) {
-        // change color
         'm' => self.selectGraphicRendition(control_sequence),
         'J' => self.eraseInDisplay(control_sequence),
         else => log.warn("Unknown control sequence, skipping", .{}),
     }
 }
 
-/// Handle a special character: `\n`/`\r` move the cursor directly. Any other
-/// special character (ESC or part of an in-progress control sequence) is a
-/// no-op here unless it's the final byte that just completed the sequence,
-/// in which case it's dispatched via `handleControlSequence`.
+/// \n/\r move cursor directly; other special chars no-op unless they
+/// complete a sequence, then dispatch to handleControlSequence.
 pub fn handleSpecialChar(self: *Self, char: u8) void {
     switch (char) {
         '\n' => {
@@ -461,7 +418,6 @@ pub fn handleSpecialChar(self: *Self, char: u8) void {
     }
 }
 
-/// Put out text
 pub fn puts(self: *Self, msg: []const u8) void {
     for (msg) |char| {
         if (!self.isSpecialChar(char)) {
@@ -476,8 +432,7 @@ pub fn puts(self: *Self, msg: []const u8) void {
             self.curpos.row += 1;
         }
         if (self.curpos.row == self.max_height) {
-            // ran off the bottom edge -- pull back onto the last row and
-            // scroll its contents up, rather than growing past max_height
+            // past bottom edge: pull back to last row, scroll up
             self.curpos.row -= 1;
             self.scroll();
         }
@@ -488,8 +443,7 @@ pub fn fbconTermPuts(term: *Terminal, s: []const u8) void {
     const self: *Self = @fieldParentPtr("term", term);
     if (term.ready) {
         self.puts(s);
-        // not strictly necessary here since puts does drawing directly,
-        // but that may change one day
+        // not strictly needed now, puts draws directly; may change
         term.vtable.render(term);
     }
 }

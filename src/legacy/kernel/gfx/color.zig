@@ -6,20 +6,19 @@ const common = @import("common");
 
 /// Pixel formats
 pub const PixelFormat = enum {
-    /// Red, Green, Blue, Reserved
+    /// R,G,B,Reserved
     rgb,
-    /// Blue, Green, Red, Reserved
+    /// B,G,R,Reserved
     bgr,
 };
 
-/// Color struct
 pub const Color = struct {
     red: u8 = 0,
     green: u8 = 0,
     blue: u8 = 0,
     _align: u8 = 0,
 
-    /// Get the values of the color as u32
+    /// pack as u32 per format
     pub fn getInt(self: Color, pxl_fmt: PixelFormat) u32 {
         const red: u32 = self.red;
         const green: u32 = self.green;
@@ -27,11 +26,11 @@ pub const Color = struct {
         const _align: u32 = self._align;
         switch (pxl_fmt) {
             .rgb => {
-                // RedGreenBlueReserved8BitPerColor
+                // RGB order
                 return red + (green << 8) + (blue << 16) + (_align << 24);
             },
             .bgr => {
-                // BlueGreenRedReserved8BitPerColor
+                // BGR order
                 return blue + (green << 8) + (red << 16) + (_align << 24);
             },
             // else => {

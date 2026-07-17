@@ -1,5 +1,5 @@
-//! Kernel Framebuffer Console: Color Themes
-//! A full terminal color theme (loosely modeled after the Alacritty color scheme layout)
+//! FBCon color themes
+//! Loosely modeled on Alacritty's theme layout
 
 const std = @import("std");
 const log = std.log.scoped(.theme);
@@ -14,7 +14,7 @@ selection: SelectionColors,
 normal: Palette,
 bright: Palette,
 
-/// The 8 "normal"/"bright" ANSI colors of a palette
+/// 8 normal/bright ANSI colors
 pub const Palette = struct {
     black: Color,
     red: Color,
@@ -26,25 +26,24 @@ pub const Palette = struct {
     white: Color,
 };
 
-/// The default foreground/background colors of the terminal
+/// default fg/bg colors
 pub const PrimaryColors = struct {
     background: Color,
     foreground: Color,
 };
 
-/// The cursor colors
 pub const CursorColors = struct {
     cursor: Color,
     text: Color,
 };
 
-/// The colors used when text is selected
+/// selection colors
 pub const SelectionColors = struct {
     background: Color,
     text: Color,
 };
 
-/// Parse a single hex digit at comptime
+/// parse one hex digit, comptime
 fn hexNibble(comptime c: u8) u8 {
     return switch (c) {
         '0'...'9' => c - '0',
@@ -54,7 +53,7 @@ fn hexNibble(comptime c: u8) u8 {
     };
 }
 
-/// Parse a "#RRGGBB" hex color string into a `Color` at comptime
+/// parse "#RRGGBB" into a Color, comptime
 pub fn hex(comptime s: []const u8) Color {
     if (s.len != 7 or s[0] != '#') @compileError("expected \"#RRGGBB\" color string, got \"" ++ s ++ "\"");
     return .{
@@ -69,21 +68,18 @@ pub const themes = struct {
     pub const material_dark = @import("material_dark.zig").theme;
     pub const loup = @import("loup.zig").theme;
 
-    /// The currently selected theme
     var current: *const Self = &material_dark;
 
-    /// Get the currently selected theme
     pub fn get_current() *const Self {
         return current;
     }
 
-    /// Select the active theme
     pub fn set_current(theme: *const Self) void {
         current = theme;
     }
 };
 
-/// Create a Color from the ANSI color code, using the currently selected theme
+/// map ANSI color code to this theme's Color
 pub fn colorFromANSI(self: *const Self, color_code: u32) Color {
     return switch (color_code) {
         30, 40 => self.normal.black,

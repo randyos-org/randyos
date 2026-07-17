@@ -4,9 +4,7 @@
 const log = @import("std").log.scoped(.mem);
 pub const kernel_page_allocator = @import("kernel_page_allocator.zig");
 
-/// Move memory from one location to another location
-///   - Source and destination may overlap
-///   - Both slices must have the same length
+/// Move memory; may overlap, both slices same length.
 pub fn memmove(comptime T: type, dest: []T, src: []const T) void {
     if (dest.len != src.len) {
         log.err("Destination and source slices have different lengths, cannot move properly! ", .{});
@@ -14,14 +12,13 @@ pub fn memmove(comptime T: type, dest: []T, src: []const T) void {
     }
     const len = src.len;
     if (@intFromPtr(dest.ptr) < @intFromPtr(src.ptr)) {
-        // dest starts before src: copying front-to-back never overwrites a
-        // src element before it's been read.
+        // dest before src: front-to-back never overwrites unread src
         var index: usize = 0;
         while (index < len) : (index += 1) {
             dest[index] = src[index];
         }
     } else {
-        // dest starts at/after src: mirror the above by copying back-to-front.
+        // dest at/after src: mirror above, back-to-front
         var index: usize = len;
         while (index > 0) {
             index -= 1;
@@ -30,9 +27,7 @@ pub fn memmove(comptime T: type, dest: []T, src: []const T) void {
     }
 }
 
-/// Move memory from one location to another location (volatile)
-///   - Source and destination may overlap
-///   - Both slices must have the same length
+/// Move memory (volatile); may overlap, both slices same length.
 pub fn memmoveVolatile(comptime T: type, dest: []volatile T, src: []const volatile T) void {
     if (dest.len != src.len) {
         log.err("Destination and source slices have different lengths, cannot move properly! ", .{});

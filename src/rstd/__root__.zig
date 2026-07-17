@@ -23,7 +23,6 @@ pub const build_options = @import("build_options");
 pub const ansi = @import("ansi.zig");
 pub const build = @import("build.zig");
 pub const machine = @import("machine.zig");
-pub const file = @import("file.zig");
 pub const memory = @import("memory.zig");
 pub const logging = @import("logging.zig");
 pub const Terminal = @import("Terminal.zig");

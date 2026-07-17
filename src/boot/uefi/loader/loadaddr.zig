@@ -1,21 +1,17 @@
-//! Picking and reserving the physical memory the kernel's ELF `PT_LOAD`
-//! segments get loaded into.
+//! Picks/reserves the physical memory the kernel's ELF `PT_LOAD` segments
+//! load into.
 //!
-//! The kernel is not relocatable: it's linked to run at `KERNEL_PHYS_START`
-//! (1M, see the kernel linker script), the bootloader jumps to its ELF entry
-//! point under the firmware's identity-mapped paging, and the kernel itself
-//! keeps assuming link address == physical address afterwards. So the image
-//! *must* end up physically at its link address ("the destination") before
-//! the jump.
+//! Kernel is non-relocatable: linked to run at `KERNEL_PHYS_START` (1M),
+//! and always assumes link address == physical address. So the image
+//! *must* end up physically at its link address ("the destination")
+//! before the jump.
 //!
-//! The complication: the whole destination range isn't necessarily free
-//! while Boot Services are still running (firmware owns chunks of low
-//! memory for boot-services data until `exitBootServices`), and the kernel
-//! has outgrown what QEMU/OVMF leaves free at 1M. So this module produces a
-//! `KernelLoadPlan`: load directly into the destination when the firmware
-//! lets us allocate all of it, otherwise load into a `staging` area and let
-//! `main.zig` move the image down to the destination after
-//! `exitBootServices`, once the firmware's claim on that memory is void.
+//! Complication: the destination range may not be fully free yet (firmware
+//! owns chunks of low memory until `exitBootServices`), and the kernel has
+//! outgrown what QEMU/OVMF leaves free at 1M. So this module produces a
+//! `KernelLoadPlan`: load directly at the destination if the firmware
+//! allows it, else load into a `staging` area and let `main.zig` move the
+//! image down after `exitBootServices`.
 
 const std = @import("std");
 const uefi = std.os.uefi;
@@ -29,40 +25,36 @@ const memory = @import("../memory.zig");
 /// Errors from planning the kernel load
 pub const PlanKernelLoadError = error{ NoSuitableMemory, Unaligned };
 
-/// Physical regions below this address are never considered for staging --
-/// the legacy 1MiB low-memory area (BIOS data area, VGA/option ROM windows,
-/// etc.), same boundary the kernel's own page allocator applies later.
+/// Never stage below this address -- legacy 1MiB low memory (BDA,
+/// VGA/option ROM windows); same boundary the kernel's page allocator
+/// uses later.
 const min_kernel_load_address: u64 = 0x100000;
 
 /// Where the kernel image lives at each stage of the boot.
 pub const KernelLoadPlan = struct {
-    /// Physical address the image must occupy when the kernel starts
-    /// running -- the lowest `PT_LOAD` vaddr, i.e. the link address.
+    /// Physical address the kernel runs at -- lowest `PT_LOAD` vaddr, i.e.
+    /// the link address.
     dest: u64,
-    /// Total bytes from `dest` through the end of the highest segment
-    /// (`memsz`, so this includes .bss).
+    /// Bytes from `dest` through the end of the highest segment (`memsz`,
+    /// includes .bss).
     size: u64,
-    /// Where the segments are actually read while Boot Services are still
-    /// running. Equal to `dest` when the whole destination could be
-    /// allocated up front; otherwise a separately allocated area that
-    /// `main.zig` copies down to `dest` after `exitBootServices`.
+    /// Where segments are read while Boot Services still run. Equal to
+    /// `dest` if the whole destination was free up front; otherwise a
+    /// staging area `main.zig` copies down to `dest` after `exitBootServices`.
     staging: u64,
 };
 
-/// Compute the kernel image's physical footprint from its `PT_LOAD`
-/// headers, then secure memory for it:
+/// Compute the kernel's physical footprint from its `PT_LOAD` headers,
+/// then secure memory for it:
 ///
-/// 1. Try to allocate the destination range itself. If the firmware grants
-///    it, load straight there (no post-exit move needed).
-/// 2. Otherwise, reserve whatever parts of the destination *are* still
-///    free -- not to use them yet, but so no later allocation (ours or the
-///    firmware's, e.g. the DWARF pool) lands inside memory the post-exit
-///    move is going to overwrite -- and allocate a staging range big enough
-///    for the whole image elsewhere.
+/// 1. Try allocating the destination range itself. If granted, load
+///    straight there (no post-exit move needed).
+/// 2. Otherwise reserve whatever parts of the destination are still free
+///    (so no later allocation lands where the post-exit move will
+///    overwrite it), and allocate a staging range elsewhere.
 ///
-/// Either way, every allocation is `.loader_data`, which the boot-info
-/// translation maps to `kernel_and_modules` so the kernel's page allocator
-/// leaves it alone.
+/// Either way, every allocation is `.loader_data`, mapped to
+/// `kernel_and_modules` so the kernel's page allocator leaves it alone.
 pub fn planKernelLoad(
     mm: memory.MemoryMap,
     program_headers: []const elf.Elf64.Phdr,
@@ -89,8 +81,8 @@ pub fn planKernelLoad(
         return error.Unaligned;
     }
     if (min_vaddr < min_kernel_load_address) {
-        // The jump runs under identity mapping, so a link address inside
-        // legacy low memory could never be honored safely.
+        // jump runs under identity mapping; a link addr in legacy low
+        // memory could never be honored safely
         log.err("kernel link address 0x{x} is below the 1M low-memory boundary", .{min_vaddr});
         return error.NoSuitableMemory;
     }
@@ -110,9 +102,8 @@ pub fn planKernelLoad(
         .staging = undefined,
     };
 
-    // Fast path: the whole destination is free right now. Let the firmware
-    // be the judge (a single AllocateAddress attempt) rather than scanning
-    // the (possibly already stale) memory map ourselves.
+    // fast path: try allocating dest directly rather than scanning our
+    // (possibly stale) memory map
     if (boot_services.allocatePages(
         .{ .address = @ptrFromInt(plan.dest) },
         .loader_data,
@@ -126,19 +117,12 @@ pub fn planKernelLoad(
         log.debug("destination range not fully free yet; staging elsewhere", .{});
     }
 
-    // Reserve the parts of the destination that are still free, so nothing
-    // new gets allocated inside memory the post-exit move will overwrite.
-    // Failure here is survivable (whatever occupies the range is
-    // firmware-owned and dead after exitBootServices; the final memory map
-    // handed to the kernel gets the whole destination carved out
-    // regardless -- see toGenericMemoryMap), so log and continue.
+    // reserve free parts of dest so nothing else lands there; failure here
+    // is survivable (dest gets carved out regardless, see toGenericMemoryMap)
     reserveDestination(boot_services, mm, plan.dest, max_vaddr_end);
 
-    // Find and allocate a staging range. Walk the map for conventional
-    // regions big enough for the whole image that don't overlap the
-    // destination (regions we just reserved still look conventional in
-    // this pre-reservation snapshot), and let AllocateAddress verify each
-    // candidate is still actually free.
+    // find a staging range: walk map for conventional regions big enough,
+    // not overlapping dest; AllocateAddress verifies each candidate
     var mem_index: usize = 0;
     while (mem_index < mm.info.len) : (mem_index += 1) {
         const mem_point: *uefi.tables.MemoryDescriptor = @ptrCast(@alignCast(mm.map.ptr + (mem_index * mm.info.descriptor_size)));
@@ -160,9 +144,8 @@ pub fn planKernelLoad(
             zeroImageSpan(plan.staging, required_pages);
             return plan;
         } else |err| {
-            // The map snapshot predates this function's own allocations
-            // (and any pool churn since), so a candidate can be stale --
-            // just move on to the next one.
+            // map snapshot predates our own allocations, so a candidate
+            // can be stale -- move on to the next one
             log.debug("staging candidate 0x{x} not available ({s}); trying next", .{ region_start, @errorName(err) });
         }
     }
@@ -171,18 +154,14 @@ pub fn planKernelLoad(
     return error.NoSuitableMemory;
 }
 
-/// Zero the freshly allocated image span in one pass. Covers .bss and any
-/// alignment gaps between segments, so segment loading only has to read
-/// each segment's file bytes on top.
+/// Zero the freshly allocated image span (covers .bss and alignment gaps).
 fn zeroImageSpan(base: u64, page_count: u64) void {
     const span: [*]u8 = @ptrFromInt(base);
     @memset(span[0 .. page_count * pages.page_size], 0);
 }
 
-/// Best-effort reservation of the still-free portions of the destination
-/// range `[dest, dest_end)`: clip every conventional region against the
-/// range and AllocateAddress the overlap. See `planKernelLoad` for why a
-/// failure here is logged rather than fatal.
+/// Best-effort reserve of free portions of `[dest, dest_end)`. See
+/// `planKernelLoad` for why failure here is logged, not fatal.
 fn reserveDestination(
     boot_services: *uefi.tables.BootServices,
     mm: memory.MemoryMap,
@@ -212,19 +191,16 @@ fn reserveDestination(
     }
 }
 
-/// Copy the staged kernel image down to its link address. No-op when the
-/// loader was able to place it there directly. Only callable after
-/// `exitBootServices`: while Boot Services run, parts of the destination
-/// range may still be firmware-owned (that's the entire reason staging
-/// exists) -- afterwards, that claim is void and the memory map already
-/// reports the destination as `kernel_and_modules` (see
-/// `memory.toGenericMemoryMap`), so nothing else will ever use it.
+/// Copy the staged kernel image down to its link address. No-op if the
+/// loader placed it there directly. Only callable after
+/// `exitBootServices`: while Boot Services run, the destination may still
+/// be firmware-owned (the whole reason staging exists).
 pub fn moveKernelToDestination(plan: KernelLoadPlan) void {
     if (plan.staging == plan.dest) return;
     const src: [*]const u8 = @ptrFromInt(plan.staging);
     const dst: [*]u8 = @ptrFromInt(plan.dest);
-    // The ranges shouldn't overlap (staging explicitly avoids the
-    // destination), but copy in the safe direction anyway.
+    // shouldn't overlap (staging avoids the destination), but copy in the
+    // safe direction anyway
     if (plan.dest < plan.staging) {
         std.mem.copyForwards(u8, dst[0..plan.size], src[0..plan.size]);
     } else {

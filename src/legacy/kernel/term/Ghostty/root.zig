@@ -25,70 +25,49 @@ const themes = theme_mod.themes;
 
 const Self = @This();
 
-/// A character-cell (column/row) position, used to track the cursor's
-/// on-screen location across `render()` calls. A named type rather than
-/// an inline anonymous struct so `prev_cursor`'s field and the locals
-/// derived from it in `render` all unify to the same type.
+/// Cursor cell (column/row) position across `render()` calls. Named type
+/// so `prev_cursor` and its derived locals in `render` unify.
 const CursorPos = struct { x: usize, y: usize };
 
-/// `page.Cell`'s zero-value (pristine/never-written state -- see
-/// `drawn_cells`'s doc comment). `page.Cell` is a `packed struct(u64)`
-/// containing a union, which `std.mem.zeroes` refuses to zero-initialize
-/// (a union has no single well-defined zero representation in general);
-/// bit-casting a zero `u64` sidesteps that since we specifically want the
-/// all-zero-bits value, not a semantically-"default" union member.
+/// `page.Cell`'s zero value (pristine, never-written -- see
+/// `drawn_cells`). `page.Cell` is a packed(u64) struct with a union,
+/// which `std.mem.zeroes` refuses; bitcasting a zero u64 gets the
+/// all-zero-bits value directly.
 const zero_cell: ghostty_vt.Cell = @bitCast(@as(u64, 0));
 
-/// The underline is drawn this many glyph rows up from the bottom edge --
-/// roughly a typical underline's thickness-from-baseline offset, scaled to
-/// the font's height.
+/// underline offset from bottom edge, in glyph rows
 const underline_offset_divisor: u8 = 8;
 
-/// The pointer to the graphics device
 gd: *GraphicsDev = undefined,
-/// Current Font
 font: fonts.FontDesc = fonts.vga_8x16,
-/// Maximal width, in character columns (not pixels)
+/// width in columns, not px
 max_width: u32 = 80,
-/// Maximal height, in character rows (not pixels)
+/// height in rows, not px
 max_height: u32 = 25,
-/// Terminal interface to the kernel
 term: Terminal = undefined,
-/// Kernel terminal vtable
 term_vtable: Terminal.VTable = undefined,
-/// GhosttyVt Terminal instance
 gterm: ?GhosttyVtTerm = null,
-/// The VT/ANSI parser driving `gterm`. Must be persistent (not
-/// recreated per write) so escape sequences split across separate
-/// `puts()` calls still parse correctly -- a fresh stream per call would
-/// reset the parser mid-sequence. Allocation-free (`.init`, not
-/// `.initAlloc`): OSC 52 clipboard and similar allocator-requiring
-/// sequences aren't meaningful without a host clipboard, so we don't pay
-/// for the allocator-backed variant.
+/// VT/ANSI parser driving `gterm`. Must persist across `puts()` calls --
+/// a fresh stream per call would reset mid-sequence. Allocation-free
+/// (.init not .initAlloc): OSC 52 clipboard etc. aren't meaningful
+/// without a host clipboard, so skip the allocator-backed variant.
 vt_stream: ?VtStream = null,
-/// Tracks what's currently been drawn to the framebuffer. Diffed against
-/// `gterm`'s latest state on each `render()` call.
+/// What's currently drawn to the framebuffer. Diffed against `gterm`'s
+/// state each `render()`.
 render_state: RenderState = .empty,
-/// Shadow of the cell content last actually drawn to each screen
-/// position (row-major, `max_width` x `max_height`). `ghostty-vt` only
-/// tracks dirty state per *row* (see `render`'s doc comment), so a dirty
-/// row makes every cell in it a redraw *candidate* -- this is what turns
-/// that into an actual per-cell redraw: a candidate whose content is
-/// bit-identical to what's already shadowed here is left alone. Allocated
-/// (and zeroed) in `init`, matching `page.Cell`'s pristine/never-written
-/// value, so a screen position nothing has written to yet -- e.g. the boot
-/// logo, drawn directly into `gd.back_buffer` before this terminal existed
-/// -- reads as "already matches, nothing to draw" from the very first
-/// frame onward, not just a one-shot bootstrap exception. Reset to zero by
-/// `clearScreen` alongside the physical wipe, since otherwise a cell whose
-/// *content* didn't change would wrongly be skipped even though its pixels
-/// were just blanked out from under it.
+/// Shadow of last-drawn cell content per screen position (row-major,
+/// max_width x max_height). `ghostty-vt` only tracks dirty per *row*
+/// (see `render`), so a dirty row makes every cell a redraw candidate --
+/// this filters that down to cells whose content actually changed.
+/// Zeroed in `init` to match pristine `page.Cell`, so untouched
+/// positions (e.g. the boot logo) read as "already matches" from frame
+/// one. Reset by `clearScreen` alongside the physical wipe, else an
+/// unchanged cell would wrongly be skipped after its pixels were blanked.
 drawn_cells: []Cell = &.{},
-/// The viewport position the cursor block was actually drawn at on the
-/// last `render()` call, if any. When the cursor moves (or disappears),
-/// the cell it used to occupy needs a forced real-content redraw to erase
-/// the cursor block -- `drawn_cells` alone won't trigger that, since the
-/// underlying cell content there usually hasn't changed at all.
+/// Viewport position the cursor block was drawn at last `render()`, if
+/// any. When the cursor moves/disappears, that cell needs a forced
+/// redraw to erase the block -- `drawn_cells` alone won't catch it since
+/// the underlying content usually hasn't changed.
 prev_cursor: ?CursorPos = null,
 
 pub fn deinit(self: *Self) void {
@@ -98,17 +77,14 @@ pub fn deinit(self: *Self) void {
     if (self.gterm) |*gterm| gterm.deinit(kpa.allocator);
 }
 
-/// wait until after setFont to ensure `max_width`/`max_height` are correct before calling this
+/// call after setFont so max_width/max_height are correct
 fn resetCellCache(self: *Self) void {
     self.drawn_cells = kpa.allocator.alloc(Cell, @as(usize, self.max_width) * self.max_height) catch @panic("OOM allocating terminal cell shadow");
     @memset(self.drawn_cells, zero_cell);
 }
 
-/// Setup the Framebuffer Console
-/// `clear`: whether to clear the screen immediately. Pass `false` to bring
-/// up the terminal (and its logging plumbing) without disturbing whatever
-/// is already on screen (e.g. a boot logo) -- call `clearScreen()`
-/// explicitly later to switch over.
+/// Setup FBCon. `clear=false` inits without disturbing screen (e.g. boot
+/// logo); call `clearScreen()` later to switch over.
 pub fn init(self: *Self, gd: *GraphicsDev, clear: bool) void {
     self.gd = gd;
     self.setFont(fonts.vga_8x16);
@@ -144,31 +120,23 @@ pub fn init(self: *Self, gd: *GraphicsDev, clear: bool) void {
     self.term.init(.{});
 }
 
-/// Clear the Screen (effectively set the color of everything to the theme's
-/// background color) and home the cursor to (0, 0)
+/// Clear screen to theme bg, home cursor to (0,0).
 pub fn clearScreen(self: *Self) void {
     self.gd.clear(themes.get_current().primary.background);
-    // The physical wipe above invalidates `drawn_cells`' record of what's
-    // on screen -- without this reset, a cell whose content didn't change
-    // across the clear would be wrongly skipped on the next render even
-    // though its pixels were just blanked out from under it.
+    // physical wipe invalidates drawn_cells' record; without this reset
+    // an unchanged cell would wrongly be skipped after being blanked
     @memset(self.drawn_cells, zero_cell);
     self.prev_cursor = null;
-    // The render state no longer reflects what's on screen (we just wiped
-    // it), so force a full redraw next time instead of trusting stale dirty
-    // tracking -- `deinit`+reset to `.empty` is the simplest way to get
-    // `update()` to treat this as a from-scratch build.
+    // render state no longer reflects screen; force full redraw next
+    // time via deinit+reset to .empty rather than trusting stale dirty state
     self.render_state.deinit(kpa.allocator);
     self.render_state = .empty;
     self.render();
 }
 
-/// Draw a single glyph (CP437). `x`/`y` are character-cell (column/row)
-/// coordinates, not pixel coordinates -- they get multiplied by the font
-/// size below to find the actual pixel origin. `fg`/`bg` are already
-/// pixel-format-encoded colors (see `GraphicsDev.getColorInt`); the caller
-/// is responsible for resolving cell style (including reverse video and
-/// invisible text -- pass `fg == bg` for the latter) before calling this.
+/// Draw a CP437 glyph. x/y are cell coords, not pixels. fg/bg are
+/// already pixel-format-encoded (see `GraphicsDev.getColorInt`); caller
+/// resolves cell style first (pass fg == bg for invisible text).
 pub fn drawGlyph(
     self: *Self,
     char_index: u8,
@@ -179,20 +147,16 @@ pub fn drawGlyph(
     bold: bool,
     underline: bool,
 ) void {
-    // This runs per-pixel for every cell `render` actually redraws, and
-    // Debug-build bounds/overflow checking roughly doubled its cost in
-    // measurement. Every index here is derived from `x`/`y`/`col`/`row`
-    // bounded by the font and grid dimensions, so it's safe to drop.
+    // runs per-pixel per redrawn cell; debug bounds checking roughly
+    // doubled measured cost. indices are bounded by font/grid dims, safe to drop
     @setRuntimeSafety(false);
 
     const width = self.font.width;
     const height = self.font.height;
     const gd = self.gd;
     const px_per_scanline = gd.pixels_per_scanline;
-    // The back buffer once it exists, the real framebuffer directly before
-    // then -- see `GraphicsDev.drawTarget`'s doc comment. Ghostty starts
-    // logging (and therefore rendering) before that point, during platform
-    // init, so this has to handle both.
+    // back buffer once it exists, else real framebuffer (see drawTarget);
+    // Ghostty renders during platform init, before the back buffer exists
     const fb = gd.drawTarget();
     const char_start: usize = char_index * @as(usize, height);
     const base_index: usize = x * @as(usize, width) + (y * @as(usize, height)) *% px_per_scanline;
@@ -205,15 +169,13 @@ pub fn drawGlyph(
         while (col < width) : (col += 1) {
             var index: usize = base_index + col;
             index += row *% px_per_scanline;
-            // Glyph rows are MSB-first (bit 7 = leftmost pixel), so column
-            // `col` (0 = leftmost) lives at bit `width - 1 - col`.
+            // MSB-first glyph rows: col 0 (leftmost) is bit width-1
             const value = self.font.data[char_start + row] & @as(u16, 1) << (width - 1 - col);
             fb[index] = if (value == 0) bg else fg;
         }
     }
     if (bold) {
-        // bold: OR 1pxl to left -- we have no separate bold glyphs, so we
-        // fake it by smearing each stroke one pixel wider.
+        // no separate bold glyphs; fake it by smearing strokes 1px wider
         row = 0;
         col = 0;
         while (row < height) : ({
@@ -238,34 +200,27 @@ pub fn drawGlyph(
     }
 }
 
-/// Set font
 pub fn setFont(self: *Self, new_font: fonts.FontDesc) void {
     self.font = new_font;
     self.updateDimensions();
 }
 
-/// Recompute `max_width`/`max_height` (in character cells) to fill the
-/// screen at the current font size, based on the graphics device's
-/// resolution. Any leftover pixels that don't make up a full cell (the
-/// screen dimensions need not be an exact multiple of the font size) are
-/// left blank at the right/bottom edge, same as most terminal emulators.
+/// Recompute max_width/max_height in cells for current font+resolution.
+/// Leftover pixels (not a full cell) left blank at right/bottom edge.
 fn updateDimensions(self: *Self) void {
     self.max_width = @divTrunc(self.gd.pixel_width, @as(u32, self.font.width));
     self.max_height = @divTrunc(self.gd.pixel_height, @as(u32, self.font.height));
 }
 
-/// Convert a kernel `gfx.Color` (0-255 per channel, `reserved` ignored) to
-/// the `ghostty_vt.color.RGB` type `Style`/`Terminal.Colors` expect.
+/// kernel gfx.Color -> ghostty_vt.color.RGB
 fn colorToRGB(c: Color) RGB {
     return .{ .r = c.red, .g = c.green, .b = c.blue };
 }
 
-/// Build a full 256-entry ANSI palette (indices 0-15 from `theme`'s
-/// normal/bright colors, 16-255 from ghostty-vt's built-in 216-color cube
-/// + grayscale ramp) so SGR 30-37/90-97 colors (what our `std.log` color
-/// codes -- see `common/ansi.zig`'s `SgrCode` -- actually emit) resolve to
-/// the same vivid colors FBCon's hand-rolled ANSI parser used via
-/// `Theme.colorFromANSI`, instead of ghostty-vt's own (duller) built-in
+/// Build 256-entry ANSI palette: 0-15 from theme normal/bright, 16-255
+/// from ghostty-vt's built-in cube+grayscale. Makes SGR 30-37/90-97
+/// (what std.log color codes emit, see common/ansi.zig SgrCode) resolve
+/// to FBCon's vivid Theme.colorFromANSI colors, not ghostty-vt's duller
 /// defaults.
 fn themePalette(theme: *const Theme) ghostty_vt.color.Palette {
     var palette = ghostty_vt.color.default;
@@ -290,33 +245,24 @@ fn themePalette(theme: *const Theme) ghostty_vt.color.Palette {
     return palette;
 }
 
-/// Convert a `ghostty_vt.color.RGB` back to a pixel-format-encoded `u32`
-/// via the graphics device.
+/// ghostty_vt.color.RGB -> pixel-format-encoded u32
 fn rgbInt(self: *const Self, rgb: RGB) u32 {
     return self.gd.getColorInt(.{ .red = rgb.r, .green = rgb.g, .blue = rgb.b });
 }
 
-/// Diff `gterm`'s latest state against what we last drew and blit only
-/// what changed. Safe (and cheap) to call even when nothing changed --
-/// `RenderState.update` no-ops and we bail out immediately on `.false`.
+/// Diff `gterm`'s state against what we last drew, blit only changes.
+/// Cheap no-op when nothing changed (`RenderState.update` + `.false` bail).
 ///
-/// Called synchronously after every `puts` (see `gTermPuts`) so that log
-/// output is visible on screen immediately, even if the kernel panics
-/// before ever returning to the idle loop. The idle loop also calls this
-/// as a cheap safety net for state changes that don't flow through `puts`
-/// (e.g. future keyboard-echo or cursor-blink support).
+/// Called synchronously after every `puts` so log output shows up even
+/// if the kernel panics before returning to the idle loop. Idle loop
+/// also calls it as a safety net for state changes outside `puts`.
 ///
-/// `ghostty-vt` only exposes per-*row* dirty tracking (`RenderState.Row.dirty`),
-/// not per-cell, so a single changed cell still makes every other cell in
-/// its row a redraw *candidate* -- `drawn_cells` (see its doc comment) is
-/// what turns that into an actual per-cell redraw, comparing each
-/// candidate's content against what's already on screen and skipping it
-/// when nothing's changed. Row `pin` identity is stable across a scroll --
-/// `ghostty-vt` shifts cell *content* between fixed row slots internally
-/// before `RenderState` is ever built -- so it carries no reusable "this
-/// content already exists on screen elsewhere" signal; row-granularity
-/// dirty tracking is the finest this library offers, and per-cell content
-/// comparison is the finest we can add on top of it.
+/// `ghostty-vt` only tracks dirty per *row*, not per cell, so a changed
+/// cell makes its whole row a redraw candidate -- `drawn_cells` filters
+/// that to cells whose content actually differs. Row `pin` identity is
+/// stable across scroll (ghostty-vt shifts content between fixed slots
+/// internally), so there's no reuse signal beyond row granularity; this
+/// per-cell comparison is the finest we can add on top.
 pub fn render(self: *Self) void {
     const gterm = if (self.gterm) |*g| g else return;
 
@@ -336,17 +282,14 @@ pub fn render(self: *Self) void {
     const row_cells = row_slice.items(.cells);
     const stride: usize = self.max_width;
 
-    // Track the lowest/highest touched character row so we can present
-    // (bulk-copy to the real framebuffer) just that pixel-row span instead
-    // of the whole back buffer -- see `GraphicsDev.presentSpan`.
+    // track lowest/highest touched row to present just that pixel-row
+    // span (GraphicsDev.presentSpan) instead of the whole back buffer
     var min_row: usize = self.render_state.rows;
     var max_row: usize = 0;
 
-    // If the cursor moved (or disappeared) since the last render, the cell
-    // it used to occupy needs a forced real-content redraw this pass to
-    // erase the cursor block -- see `prev_cursor`'s doc comment. Otherwise
-    // the shadow-diff below would see unchanged underlying cell content
-    // there and skip it, leaving a stale cursor-shaped block on screen.
+    // if cursor moved/disappeared, its old cell needs a forced redraw
+    // this pass to erase the block -- else the shadow-diff below sees
+    // unchanged content and leaves a stale cursor-shaped block on screen
     const cursor_erase: ?CursorPos = blk: {
         const prev = self.prev_cursor orelse break :blk null;
         if (self.render_state.cursor.visible) {
@@ -360,14 +303,10 @@ pub fn render(self: *Self) void {
     for (0..self.render_state.rows) |y| {
         const force_row = cursor_erase != null and cursor_erase.?.y == y;
         if (!full_redraw and !row_dirty[y] and !force_row) continue;
-        // Consume this row's dirty flag now that we're handling it. Not
-        // done automatically by `update()` -- confirmed both by the C
-        // example (`GHOSTTY_RENDER_STATE_ROW_OPTION_DIRTY`) and the real
-        // desktop renderer (generic.zig), which both explicitly clear it
-        // per row after rendering. Leaving this unset means every row
-        // that was ever dirty once looks dirty forever after, forcing a
-        // full-grid-cost redraw on every single frame regardless of
-        // whether anything actually changed.
+        // consume dirty flag now; update() doesn't clear it automatically
+        // (confirmed by the C example and desktop renderer, both clear
+        // per row after render) -- else every row stays dirty forever,
+        // forcing a full redraw every frame
         row_dirty[y] = false;
         if (y < min_row) min_row = y;
         if (y > max_row) max_row = y;
@@ -377,19 +316,15 @@ pub fn render(self: *Self) void {
             const cell = cells.get(x);
             const shadow_idx = y * stride + x;
 
-            // Skip cells whose content is bit-identical to what's already
-            // on screen -- see `drawn_cells`'s doc comment. The cell that
-            // used to hold the cursor block is never skipped: its content
-            // usually hasn't changed, but its *pixels* still need a real
-            // redraw to erase the cursor.
+            // skip cells bit-identical to what's on screen; never skip
+            // the old cursor cell though, its pixels still need erasing
             const force_cell = force_row and cursor_erase.?.x == x;
             if (!force_cell and std.meta.eql(cell.raw, self.drawn_cells[shadow_idx])) continue;
             self.drawn_cells[shadow_idx] = cell.raw;
 
-            // `cell.style` is only meaningful when the raw cell actually
-            // has a style/color attached; otherwise it's uninitialized
-            // memory. Fall back to a blank (all-default) style so
-            // `Style.fg`/`.bg` resolve to the terminal defaults.
+            // cell.style is only meaningful if the raw cell has a
+            // style/color attached, else uninitialized memory; fall back
+            // to a blank style so fg/bg resolve to terminal defaults
             const style: Style = if (cell.raw.style_id != 0 or
                 cell.raw.content_tag == .bg_color_rgb or
                 cell.raw.content_tag == .bg_color_palette)
@@ -400,9 +335,8 @@ pub fn render(self: *Self) void {
             var fg_rgb = style.fg(.{
                 .default = default_fg,
                 .palette = palette,
-                // No separate bright/bold color mapping yet -- we fake
-                // bold by smearing the glyph a pixel wider instead (see
-                // drawGlyph), so bold text keeps the same color.
+                // no bold color mapping yet; drawGlyph fakes bold by
+                // smearing the glyph, so bold text keeps the same color
                 .bold = null,
             });
             var bg_rgb = style.bg(&cell.raw, palette) orelse default_bg;
@@ -412,9 +346,7 @@ pub fn render(self: *Self) void {
             const bg_int = self.rgbInt(bg_rgb);
             if (style.flags.invisible) fg_int = bg_int;
 
-            // Codepoints outside the BMP (astral emoji, etc.) can never
-            // match a CP437 entry anyway, so they fall back to blank
-            // (0x00) the same as any other unmapped codepoint.
+            // codepoints outside the BMP never match CP437, fall back blank
             const cp437 = fonts.unicodeToCP437(std.math.cast(u16, cell.raw.codepoint()) orelse 0);
             self.drawGlyph(
                 cp437,
@@ -428,12 +360,9 @@ pub fn render(self: *Self) void {
         }
     }
 
-    // Draw the cursor as a solid block in the foreground color. No
-    // blink timing yet -- it's just always on while visible. Drawn
-    // unconditionally (not gated on row dirty/shadow state) since it's an
-    // overlay, not real cell content -- `drawn_cells` above still holds
-    // the real content underneath it, and `cursor_erase` (next call) is
-    // what cleans this up once the cursor moves on.
+    // solid-block cursor, no blink timing yet. Drawn unconditionally
+    // since it's an overlay, not real content -- drawn_cells still holds
+    // the real content underneath; cursor_erase cleans up once it moves
     var new_cursor: ?CursorPos = null;
     if (self.render_state.cursor.visible) {
         if (self.render_state.cursor.viewport) |vp| {
@@ -448,9 +377,8 @@ pub fn render(self: *Self) void {
 
     self.render_state.dirty = .false;
 
-    // bulk-copy just the touched pixel-row span from the back
-    // buffer to the real framebuffer. `min_row > max_row` here means we
-    // only ever drew the cursor onto an otherwise-clean frame
+    // bulk-copy just the touched pixel-row span. min_row > max_row means
+    // we only drew the cursor onto an otherwise-clean frame
     if (min_row <= max_row) {
         const gd = self.gd;
         const px_per_scanline = gd.pixels_per_scanline;

@@ -1,7 +1,6 @@
-//! DWARF debug-info loading from the kernel ELF image: locates the
-//! `.debug_*` sections via the section headers -- as opposed to
-//! segments.zig, which only ever looks at program headers -- and opens them
-//! via `std.debug.Dwarf`.
+//! Loads DWARF debug info from the kernel ELF via section headers
+//! (segments.zig uses program headers instead), then opens it via
+//! `std.debug.Dwarf`.
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -14,31 +13,28 @@ const log = std.log.scoped(.bootdbg);
 
 const elf_image = @import("elf.zig");
 
-/// Scan `section_headers` for DWARF debug sections and, if any are found,
-/// open them into `dwarf_info`.
+/// Scan `section_headers` for DWARF sections, open into `dwarf_info` if found.
 pub fn loadDebugInfo(
     io: Io,
-    /// Our Kernel file
+    /// kernel file
     file: Io.File,
     header: *const elf.Header,
-    /// The ELF Section Headers (where we will get information about the
-    /// sections from)
+    /// ELF section headers
     section_headers: []const elf.Elf64.Shdr,
-    /// A pointer to the DWARF debug information structure (if available)
-    /// This allows the loader to pass debug information to the kernel.
+    /// out: DWARF debug info, for the loader to pass to the kernel
     dwarf_info: *?Dwarf,
 ) !void {
     log.debug("loading DWARF debug info sections", .{});
     var section_string_table: []u8 = &.{};
 
-    // not just "debug_info" but general debug information (so abbrev etc. too)
+    // covers all debug sections, not just .debug_info
     var found_debug_info: bool = false;
 
     var sections: Dwarf.SectionArray = @splat(null);
     try elf_image.getSectionContents(io, file, section_headers[header.shstrndx], &section_string_table);
     log.debug("section string table length is '{}'", .{section_string_table.len});
 
-    // iterate over sections to find debug sections and load them to open dwarf info
+    // find and load debug sections
     for (section_headers[0..header.shnum]) |shdr| {
         const section_name = elf_image.getSectionName(section_string_table, shdr) orelse continue;
         log.debug("section name is {s}", .{section_name});

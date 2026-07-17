@@ -2,18 +2,15 @@ const std = @import("std");
 const uefi = std.os.uefi;
 const log = std.log.scoped(.bootgfx);
 
-/// Video mode/output protocol located during boot, needed both to size the
-/// framebuffer info handed to the kernel and (via `.output`) to read the
-/// framebuffer base address itself.
+/// Video mode/output protocol found at boot; sizes the framebuffer info
+/// handed to the kernel and (via `.output`) gives the base address.
 pub const GraphicsInfo = struct {
     output: *uefi.protocol.GraphicsOutput,
     mode_info: *uefi.protocol.GraphicsOutput.Mode.Info,
 };
 
-/// Locate the graphics output protocol and read back its current mode.
-/// Also logs every mode the firmware advertises support for -- useful for
-/// debugging, since a firmware/monitor combination could support a very
-/// different set of resolutions than the current mode assumes.
+/// Locate graphics output protocol, read current mode. Logs every
+/// supported mode too, for debugging.
 pub fn locateGraphicsOutput(boot_services: *uefi.tables.BootServices) !GraphicsInfo {
     log.debug("locating graphics output protocol", .{});
     const res = boot_services.locateProtocol(uefi.protocol.GraphicsOutput, null) catch |err| {

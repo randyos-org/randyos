@@ -213,6 +213,7 @@ fcname
 fcntl
 fcobjs
 FCOMI
+fcopyfile
 fcpat
 fcprivate
 fcptrlist
@@ -887,6 +888,7 @@ vsyscall
 wait4
 waitid
 waitpid
+wasi
 wcwidth
 wght
 WHPX

@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// common lib shared with bootloader
+// shared w/ bootloader
 const common = @import("common");
 pub const build_options = common.build_options;
 pub const KernelBootInfo = common.boot_info.KernelBootInfo;
@@ -31,20 +31,17 @@ const drawLogo = @import("gfx/logo/draw.zig").drawLogo;
 const time = @import("time/root.zig");
 const hw = @import("hw/root.zig").interface;
 
-// The constants here are defined in the kernel linker script
+// defined in linker script
 pub extern const __kernel_start: u8;
 pub extern const __kernel_end: u8;
-/// End of the normal kernel stack.
+/// end of normal kernel stack
 pub extern const __stack_top: u8;
-/// End of the dedicated IST1 stack `usesTrapStack` (idt.zig) switches to for
-/// stack/GP/page-fault/double-fault exceptions -- see gdt.zig's `setIST`.
+/// end of IST1 fault stack (idt.zig usesTrapStack); see gdt.zig setIST
 pub extern const __fault_stack_top: u8;
 
-/// Pointer to `KernelBootInfo`, written by the bootloader at the very start
-/// of the loaded image (see `.start` in the linker script).
+/// KernelBootInfo ptr, written by bootloader at image start (.start section)
 pub extern const __boot_info_ptr: *KernelBootInfo;
 
-/// Zig Standard Library Options
 pub const std_options: std.Options = .{
     .log_level = .debug,
     .logFn = logging.logFn,
@@ -52,34 +49,25 @@ pub const std_options: std.Options = .{
     .page_size_max = pages.page_size,
 };
 
-// The default `std.Io` backing `std.debug` (stack trace capture, DWARF
-// unwinding, etc.) is `std.Io.Threaded`, which unconditionally references
-// OS-level primitives (e.g. POSIX `getrandom`, `IOV_MAX`) that don't exist
-// for `.freestanding`, so it can't even be instantiated on this target.
+// std.debug's default std.Io.Threaded needs OS primitives (POSIX
+// getrandom, IOV_MAX) that don't exist on .freestanding
 pub const std_options_debug_threaded_io: ?*std.Io.Threaded = null;
 pub const std_options_debug_io: std.Io = .failing;
 
-/// Kernel Entry Point.  Entering from the bootloader, the calling
-/// convention is naked, which limits our ability to call other functions from
-/// here.  This function calls out to arch.plaform.setup(), which sets up the
-/// stack and jumps to a C-calling-convention function (`_main`), which then
-/// actually calls `kmain`. This is because the bootloader doesn't necessarily
-/// set up a stack at all, and even if it does, it might not be in the shape we
-/// want -- e.g. on x86_64, we want to switch to our own kernel stack instead
-/// of using whatever the bootloader left us with, so we have to do that part
-/// in naked assembly before we can call any normal Zig code at all.
-/// The split also keeps `_main` as a named symbol with a proper
-/// prologue/epilogue, which is helpful for debuggers and backtraces.
+/// Kernel entry point. Naked calling convention (from bootloader) limits
+/// what we can call, so this just calls arch.platform.setup(), which
+/// sets up our own stack and jumps to _main (C convention). Bootloader
+/// stack may not exist or may be the wrong shape, so the switch must
+/// happen in naked asm before any normal Zig code runs. Split also
+/// keeps _main a named symbol with a real prologue, useful for debuggers.
 fn _start() linksection(".start") callconv(.naked) noreturn {
-    // an inline function that eventually calls _main()
+    // inline fn that eventually calls _main()
     arch.platform.setup();
 }
 
-/// Kernel C entry point, called by the naked `_start` after
-/// the kernel stack has been set up.
+/// C entry point, called by _start after the kernel stack is set up.
 fn _main() callconv(.c) noreturn {
-    // This is in case we want to do any prep before calling kmain that requires
-    // a stack now that we have one, but for now it, just calls kmain.
+    // room for pre-kmain prep now that we have a stack; just calls kmain for now
     kmain(__boot_info_ptr);
 }
 
@@ -88,11 +76,8 @@ comptime {
     @export(&_main, .{ .name = "_main" });
 }
 
-/// This is our kernel main function.
-/// The linker script's actual `ENTRY` is `_start` (the naked asm stub above
-/// that sets up the stack and jumps to `_main`, which calls this) -- `kmain`
-/// is still `export fn` so it stays a named, locatable symbol (e.g. for a
-/// debugger), not because the linker enters here directly.
+/// Kernel main. Linker ENTRY is _start (naked stub -> _main -> here);
+/// kmain is export fn just to stay a named, locatable symbol for debuggers.
 export fn kmain(boot_data: *KernelBootInfo) noreturn {
     const log = std.log.scoped(.kmain);
     const uart_term = initSerialTerm();
@@ -112,12 +97,11 @@ export fn kmain(boot_data: *KernelBootInfo) noreturn {
     const kernel_page_size: usize = std.math.divCeil(usize, kernel_byte_size, pages.page_size) catch unreachable;
     log.debug("kernel_start = 0x{x}, kernel_end = 0x{x}", .{ @as(usize, @intFromPtr(&__kernel_start)), @as(usize, @intFromPtr(&__kernel_end)) });
 
-    // page allocator init and debugging info
-    // needed before all other operations, including graphics
+    // page allocator + debug info; needed before graphics or anything else
     kpa.init(boot_data);
     debug.init(kpa.allocator, boot_data.dwarf_info);
 
-    // initialize graphics early so errors can be displayed to user without serial
+    // init graphics early so errors show without serial
     var gd: GraphicsDev = .{};
     initGfx(boot_data, &gd);
 
@@ -134,20 +118,14 @@ export fn kmain(boot_data: *KernelBootInfo) noreturn {
         .kernel_page_size = kernel_page_size,
     });
 
-    // The kernel's own page tables are up now, so it's finally safe to
-    // allocate the graphics back buffer (see `GraphicsDev.drawTarget`'s doc
-    // comment for why not any earlier) -- switches drawing over from the
-    // direct-to-framebuffer path `initGfx`/early Ghostty logging used,
-    // preserving whatever's already on screen.
+    // page tables up now, safe to allocate back buffer (see drawTarget);
+    // switches over from direct-framebuffer path, preserving what's on screen
     gd.initBackBuffer();
 
-    // setup driver support here (this probably requires a few other things
-    // before this, but starting to determine the order of operations now)
+    // driver support setup; ordering still TBD
     initDriverSupport();
 
-    // Check for firmware runtime pointers in kernel boot info.
-    // If present, try to load the firmware driver.
-    // This is allowed to fail without panic.
+    // load firmware driver if boot info has runtime ptrs; ok to fail silently
     initFwDriver(boot_data);
 
     if (build_options.run_demos) {
@@ -157,17 +135,13 @@ export fn kmain(boot_data: *KernelBootInfo) noreturn {
     kloop(term);
 }
 
-/// Idle loop: drain deferred interrupt work, redraw the terminal if
-/// anything changed, then halt until the next interrupt. This is the
-/// shape a scheduler's idle task will also take (drain pending work,
-/// block) -- becomes that task's body directly once one exists.
+/// Idle loop: drain interrupt work, redraw if changed, halt till next
+/// interrupt. Shape a future scheduler idle task can reuse directly.
 ///
-/// `term.render()` is also called synchronously after every `puts`
-/// (see Terminal.puts) so log output shows up immediately even if the
-/// kernel never makes it back here (e.g. a panic mid-boot). The call here
-/// is a cheap safety net -- `render()` no-ops when nothing changed -- for
-/// state changes that don't flow through `puts`, such as future keyboard
-/// echo or cursor blinking.
+/// term.render() also runs synchronously after every puts so log output
+/// shows immediately even without returning here (e.g. panic mid-boot).
+/// This call is a cheap no-op-if-unchanged safety net for state changes
+/// outside puts (future keyboard echo, cursor blink).
 fn kloop(term: ?*Terminal) noreturn {
     const log = std.log.scoped(.kmain_loop);
     log.info("Kernel initialized!  Idling...", .{});
@@ -189,7 +163,6 @@ fn initSerialTerm() ?*Terminal {
     var term: ?*Terminal = null;
     switch (builtin.cpu.arch) {
         .x86_64 => {
-            // Initialize UART terminal
             const uart_term = &uart.uart_term;
             uart_term.init(.{});
             term = uart_term;
@@ -197,7 +170,7 @@ fn initSerialTerm() ?*Terminal {
         else => return null,
     }
     logging.log_term = term;
-    // intentionally log before timing services init'd to force -1 timestamp for testing
+    // log before timing init, forces -1 timestamp (for testing)
     log.info("-------------------------", .{});
     return term;
 }
@@ -206,7 +179,7 @@ fn initTimingServices(boot_data: *KernelBootInfo) void {
     const log = std.log.scoped(.kmain_time);
     switch (builtin.cpu.arch) {
         .x86_64 => {
-            // init clock and set logging clock
+            // init clock, wire logging clock
             arch.platform.tsc.init();
             logging.get_time = &arch.platform.tsc.getTime;
             time.init(boot_data.boot_wall_clock_unix_seconds);
@@ -216,19 +189,14 @@ fn initTimingServices(boot_data: *KernelBootInfo) void {
     log.debug("timing services started", .{});
 }
 
-/// Runs before `arch.platform.init` sets up the kernel's own page tables
-/// (see `kmain`), so the graphics device's back buffer doesn't exist yet
-/// either -- both `clear` and `drawLogo` below draw straight to the real
-/// framebuffer instead (see `GraphicsDev.drawTarget`), which is why
-/// there's no `presentAll` call here: a direct-target draw is already
-/// visible the moment it happens, nothing needs presenting.
+/// Runs before page tables are up (see kmain), so no back buffer yet --
+/// clear/drawLogo draw straight to the real framebuffer (drawTarget),
+/// already visible immediately, so no presentAll needed here.
 fn initGfx(boot_data: *KernelBootInfo, gd: *GraphicsDev) void {
     // const log = std.log.scoped(.kmain_gfx);
     gd.init(boot_data);
-    // The framebuffer starts as whatever garbage the firmware/bootloader
-    // left in it, not the theme's background color -- clear it first so
-    // the logo is drawn onto a clean backdrop instead of leftover memory
-    // contents.
+    // framebuffer starts as firmware/bootloader garbage; clear first so
+    // the logo draws onto a clean backdrop
     gd.clear(themes.get_current().primary.background);
     drawLogo(gd);
 }
@@ -254,49 +222,34 @@ fn initGhostty(gd: *GraphicsDev, ghostty: *Ghostty) *Terminal {
 fn initDriverSupport() void {
     const log = std.log.scoped(.kmain_drv);
     log.debug("initialize driver support", .{});
-    // Implementation-specific driver support initialization goes here
+    // TODO: driver support init
 }
 
-/// STUB: intended eventual call site for loading a firmware runtime driver
-/// (e.g. `src/drivers/uefi/root.zig`) once `boot_data.fw_runtime_ptr` is
-/// present -- see `FirmwareRuntimeData` in `src/common/boot_info.zig` for
-/// why that field is a raw, opaque, firmware-native pointer rather than a
-/// kernel-callable capability struct, and `src/drivers/uefi/root.zig` for
-/// why loading it is deferred until a real (dynamic, not `arch`-gated)
-/// driver-loading mechanism exists. Not implemented: this only checks
-/// presence today. Must never grow an `if (builtin.cpu.arch == .x86_64)`
-/// check or similar -- UEFI isn't x86_64-specific (aarch64 has real UEFI
-/// too, see `src/bootloader/rpi/main.zig`), so which driver(s) get linked
-/// in has to be its own axis, independent of `arch.zig`'s CPU-architecture
-/// dispatch.
+/// STUB: eventual load site for a firmware runtime driver (e.g.
+/// src/drivers/uefi/root.zig) once fw_runtime_ptr is present -- see
+/// FirmwareRuntimeData (common/boot_info.zig) for why it's a raw opaque
+/// ptr, and drivers/uefi/root.zig for why loading is deferred. Only
+/// checks presence today. Never gate on cpu.arch == .x86_64 -- UEFI
+/// isn't x86_64-only (aarch64 too), so driver selection is its own
+/// axis, independent of arch.zig's dispatch.
 ///
-/// This is allowed to fail/no-op silently (no panic) -- every capability a
-/// firmware runtime driver would provide is optional and rare (see the
-/// reset/shutdown design discussion: ACPI's FADT reset register, PSCI, and
-/// direct hardware access cover the common, load-bearing cases without
-/// this at all).
+/// Allowed to fail/no-op silently: every capability here is optional
+/// and rare (ACPI FADT reset, PSCI, direct HW access cover common cases).
 fn initFwDriver(boot_data: *KernelBootInfo) void {
     const log = std.log.scoped(.kmain_fw);
     log.debug("initialize firmware driver", .{});
     if (boot_data.fw_runtime_ptr) |ptrs| {
-        // Load the firmware driver using the provided pointers
-        // Implementation-specific details go here
-        _ = ptrs; // suppress unused variable warning
+        // TODO: load driver from ptrs
+        _ = ptrs; // unused for now
     }
 }
 
-/// Breaking down/parsing the raw hardware description (ACPI table
-/// walking today; devicetree parsing eventually) is firmware-format
-/// -specific but *not* CPU-architecture-specific -- ACPI's table
-/// formats don't change based on which CPU is reading them (some
-/// arm64 servers use ACPI too) -- so that parsing happens here, in
-/// the shared body, rather than inside `arch.platform.init`. What
-/// *is* architecture-specific is what to do with the parsed result
-/// (e.g. interpreting MADT's I/O APIC entries only makes sense on
-/// x86 -- ARM's MADT variant has GIC entries instead); that part is
-/// left to `arch.platform.init` and the drivers underneath it
-/// (`ioapic.zig` reads `hw_acpi.madt_ptr` directly once this has
-/// run).
+/// Parsing the hardware description (ACPI today, devicetree later) is
+/// firmware-format specific but not CPU-arch specific (some arm64
+/// servers use ACPI too), so it happens here, not in arch.platform.init.
+/// Interpreting the result IS arch-specific (e.g. MADT's I/O APIC
+/// entries are x86-only), left to arch.platform.init and its drivers
+/// (ioapic.zig reads hw_acpi.madt_ptr after this runs).
 fn parseHardwareDescription(boot_data: *KernelBootInfo) void {
     const log = std.log.scoped(.kmain_hw);
     log.debug("parsing hardware description", .{});
@@ -339,7 +292,7 @@ fn demos(fbcon: *FBCon, uart_term: ?*Terminal, gd: *GraphicsDev) void {
         ++ "Normal text\n" //
     );
 
-    // print it to uart as well for testing purposes
+    // also print to uart for testing
     if (uart_term) |t| {
         t.puts( //
             ansi.CSI ++ ansi.SgrCode.fg_indexed ++ ";100" ++ ansi.SGR //

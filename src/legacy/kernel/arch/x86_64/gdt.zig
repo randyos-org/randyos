@@ -1,4 +1,4 @@
-//! The Global Descriptor Table
+//! Global Descriptor Table
 //! 2024 by Samuel Fiedler
 
 const std = @import("std");
@@ -12,7 +12,7 @@ const registers = @import("registers.zig");
 extern const __stack_top: u8;
 extern const __fault_stack_top: u8;
 
-/// The Task State Segment
+/// Task State Segment
 pub const TSS = extern struct {
     /// Reserved
     _0: u32 align(1) = 0,
@@ -26,79 +26,62 @@ pub const TSS = extern struct {
     _2: u64 align(1) = 0,
     /// Reserved
     _3: u16 align(1) = 0,
-    /// I/O Map Base Address: offset from the TSS base to the I/O permission
-    /// bitmap. Defaulted to `@sizeOf(TSS)`, i.e. past the end of the TSS
-    /// (and thus past its segment limit), which disables the I/O bitmap
-    /// entirely -- every port I/O instruction from ring 3 would #GP.
+    /// I/O bitmap offset from TSS base. Defaults past TSS end (disables
+    /// bitmap) -- ring3 port I/O would #GP.
     io_base: u16 align(1) = @sizeOf(@This()),
 };
 
 var global_tss = TSS{};
 const ist_vec: u8 = 1;
-/// Mask applied to `ist_vec` since the IDT gate's IST field (see
-/// `idt.Entry.ist`) is only 3 bits wide, indexing 1-7 into `TSS.ist` (0 means
-/// "don't switch stacks").
+/// Mask for `ist_vec`: IDT IST field is 3 bits, indexes 1-7 into
+/// `TSS.ist` (0 = no stack switch).
 const ist_vec_mask: u8 = 0b111;
 
-/// Set Interrupt Stack Table
+/// Set an IST slot
 pub fn setIST(value: u64) void {
     global_tss.ist[getISTVec() - 1] = value;
 }
 
-/// Get Interrupt Stack Table
+/// Get IST vector
 pub fn getISTVec() u8 {
     return ist_vec & ist_vec_mask;
 }
 
-/// Access byte of a GDT entry
+/// GDT entry access byte
 pub const Access = packed struct(u8) {
-    /// Accessed bit
-    /// The CPU will set this bit when the segment is accessed unless set to 1 in advance.
+    /// Accessed bit; CPU sets on access unless pre-set
     a: bool = false,
-    /// Readable bit/ Writable bit
-    /// For code segments: Readable bit. If clear, read access for this segment is not allowed. If set, read access is allowed. Write access is never allowed for code segments.
-    /// For data segments: Writeable bit. If clear, write access for this segment is not allowed. If set, write access is allowed. Read access is always allowed for data segments.
+    /// Readable (code) / writable (data) bit
     rw: bool = false,
-    /// Direction bit / Conforming bit
-    /// For data selectors: Direction bit. If clear, the segment grows up. If set, the segment grows down, i.e. the Offset has to be greater than the Limit.
-    /// For code selectors: Conforming bit.
-    ///   - If clear, code in this segment can only be executed from the ring set in DPL.
-    ///   - If set, code in this segment can be executed from an equal or lower privilege level.
+    /// Direction (data: grow up/down) / conforming (code) bit
     dc: bool = false,
-    /// Executable bit
-    /// If clear, the descriptor defines a data segment. If set, it defines a code segment which can be executed from.
+    /// Executable bit: set = code segment
     e: bool = false,
-    /// Descriptor type bit.
-    /// If clear, the descriptor defines a system segment (e.g. a Task State Segment). If set, it defines a code or data (=user) segment.
+    /// Descriptor type: sys vs code/data
     s: enum(u1) {
         sys = 0,
         data_code = 1,
     } = .sys,
-    /// Descriptor privilege level field.
-    /// Contains the CPU Privilege Level of the segment. 0 = highest privilege, 3 = lowest privilege.
+    /// Privilege level: 0 = kernel, 3 = user
     dpl: enum(u2) {
         kernel = 0,
         user = 3,
         _,
     } = .kernel,
-    /// Present bit
-    /// Allows an entry to refer to a valid segment. Must be set for any valid segment
+    /// Present bit; must be set for a valid segment
     p: bool = false,
 
-    /// Kernel Code Access
     pub const kernel_code = Access{
         .e = true,
         .s = .data_code,
         .p = true,
         .rw = true,
     };
-    /// Kernel Data Access
     pub const kernel_data = Access{
         .s = .data_code,
         .p = true,
         .rw = true,
     };
-    /// User Code Access
     pub const user_code = Access{
         .e = true,
         .s = .data_code,
@@ -106,7 +89,6 @@ pub const Access = packed struct(u8) {
         .rw = true,
         .dpl = .user,
     };
-    /// User Data Access
     pub const user_data = Access{
         .s = .data_code,
         .p = true,
@@ -115,40 +97,35 @@ pub const Access = packed struct(u8) {
     };
 };
 
-/// Flags half-byte of a GDT Entry
+/// Flags half-byte of a GDT entry
 pub const Flags = packed struct(u4) {
     /// Reserved
     res1: u1 = 0,
-    /// Long mode Flag
-    /// If set, the descriptor defines a 64bit code segment. When set, DB should always be clear. For any other type of segment (other code types or any data segment), it should be clear.
+    /// Long mode flag: set = 64-bit code segment (DB should be clear)
     l: bool = true,
-    /// Size Flag
-    /// If clear, the descriptor defines a 16bit protected mode segment. If set, it defines a 32bit protected mode segment.
+    /// Size flag: 16-bit (clear) vs 32-bit (set) protected mode
     db: bool = false,
-    /// Granularity Flag
-    /// Indicates the size the Limit value is scaled by. If clear, the Limit is in 1 byte blocks. If set, the Limit is in 4KB blocks.
+    /// Granularity: limit unit is 1B (clear) or 4KB (set)
     g: bool = false,
 };
 
-/// GDT Entry
-/// In 64bit mode, the Base and Limit values are ignored, each descriptor covers the entire linear address space regardless of what they are set to.
+/// GDT entry. Base/limit ignored in 64-bit mode (full linear space either
+/// way).
 pub const Entry = packed struct(u64) {
-    /// First part of the Limit (a 20-bit value, tells the maximum addressable unit, either in 1 byte units or in 4KB pages. If set to 0xfffff, the segment will span the full 4GB address space in 32bit mode)
+    /// Limit low 20 bits; 0xfffff = full 4GB span in 32-bit mode
     limit_low: u16 = 0xffff,
-    /// First part of the Base (a 32-bit value containing the linear address where the segment begins)
+    /// Base low (segment start addr)
     base_low: u24 = 0,
     /// Access bit
     access: Access = .{},
-    /// Second part of the Limit
+    /// Limit high
     limit_high: u4 = 0xf,
-    /// Flag half bit
+    /// Flags
     flags: Flags = .{},
-    /// Second part of the Base
+    /// Base high
     base_high: u8 = 0,
 
-    /// Null Segment Entry
     pub const null_segment: Entry = @bitCast(@as(u64, 0));
-    /// Kernel Code Entry
     pub const kernel_code = Entry{
         .access = Access.kernel_code,
         .flags = .{
@@ -156,7 +133,6 @@ pub const Entry = packed struct(u64) {
             .l = true,
         },
     };
-    /// Kernel Data Entry
     pub const kernel_data = Entry{
         .access = Access.kernel_data,
         .flags = .{
@@ -164,7 +140,6 @@ pub const Entry = packed struct(u64) {
             .l = true,
         },
     };
-    /// User Code Entry
     pub const user_code = Entry{
         .access = Access.user_code,
         .flags = .{
@@ -172,7 +147,6 @@ pub const Entry = packed struct(u64) {
             .l = true,
         },
     };
-    /// User Data Entry
     pub const user_data = Entry{
         .access = Access.user_data,
         .flags = .{
@@ -182,7 +156,7 @@ pub const Entry = packed struct(u64) {
     };
 };
 
-/// Access byte of a System Entry in the GDT
+/// Access byte of a system entry in the GDT
 pub const SystemAccess = packed struct(u8) {
     /// Type of system segment
     type: enum(u4) {
@@ -190,67 +164,57 @@ pub const SystemAccess = packed struct(u8) {
         tss_64bit_available = 9,
         tss_64bit_busy = 11,
     } = .tss_64bit_available,
-    /// Descriptor type bit.
-    /// If clear, the descriptor defines a system segment (e.g. a Task State Segment). If set, it defines a code or data (=user) segment.
+    /// Descriptor type: sys vs code/data
     s: enum(u1) {
         sys = 0,
         data_code = 1,
     } = .sys,
-    /// Descriptor privilege level field.
-    /// Contains the CPU Privilege Level of the segment. 0 = highest privilege, 3 = lowest privilege.
+    /// Privilege level: 0 = kernel, 3 = user
     dpl: enum(u2) {
         kernel = 0,
         user = 3,
         _,
     } = .kernel,
-    /// Present bit
-    /// Allows an entry to refer to a valid segment. Must be set for any valid segment
+    /// Present bit; must be set for a valid segment
     p: bool = false,
 
-    /// TSS Access
     pub const tss = SystemAccess{
         .type = .tss_64bit_available,
         .p = true,
     };
 };
 
-/// System GDT Entry
+/// System GDT entry
 pub const SystemEntry = packed struct(u128) {
-    /// First part of the Limit (a 20-bit value, tells the maximum
-    /// addressable unit, either in 1 byte units or in 4KB pages.
-    /// If set to 0xfffff, the segment will span the full 4GB address space
-    /// in 32bit mode)
+    /// Limit low 20 bits; 0xfffff = full 4GB span in 32-bit mode
     limit_low: u16 = 0xffff,
-    /// Low 24 bits of the Base (paired with `base_high` below to form the full
-    /// 64-bit linear address where the segment begins.
-    /// System descriptors are 16 bytes so they can hold a full 64-bit base,
-    /// unlike the 32-bit-only base in `Entry`)
+    /// Base low 24 bits, paired w/ base_high for full 64-bit base (system
+    /// descriptors are 16B, unlike the 32-bit-only base in `Entry`)
     base_low: u24 = 0,
     /// Access bit
     access: SystemAccess = .{},
-    /// Second part of the Limit
+    /// Limit high
     limit_high: u4 = 0xf,
-    /// Flag half bit
+    /// Flags
     flags: Flags = .{},
-    /// Second part of the Base
+    /// Base high
     base_high: u40 = 0,
     /// Reserved
     res1: u32 = 0,
 
-    /// Get low part of the system entry
+    /// Low half of entry
     pub fn low(self: SystemEntry) Entry {
         const ptr: *const Entry = @ptrCast(&self);
         return ptr.*;
     }
 
-    /// Get high part of the system entry
+    /// High half of entry
     pub fn high(self: SystemEntry) Entry {
         const ptr: [*]const Entry = @ptrCast(&self);
         return ptr[1];
     }
 
-    /// TSS Entry
-    /// Has to be a function because tss_addr is not comptime
+    /// TSS entry; fn because tss_addr isn't comptime
     pub fn getTSS() SystemEntry {
         const tss_addr = @intFromPtr(&global_tss);
         return SystemEntry{
@@ -267,63 +231,47 @@ pub const SystemEntry = packed struct(u128) {
     }
 };
 
-/// GDT Descriptor
+/// GDT descriptor
 pub const Descriptor = packed struct(u80) {
-    /// Size
-    /// GDT Byte Length - 1
+    /// GDT byte length - 1
     size: u16,
     /// Offset
     offset: u64,
 };
 
-/// GDT Selectors
+/// GDT selectors
 pub const Selector = enum(u16) {
-    /// Null Segment Selector
     null_segment = 0x00,
-    /// Kernel Code Selector
     kernel_code = 0x08,
-    /// Kernel Data Selector
     kernel_data = 0x10,
-    /// User Code Selector
     user_code = 0x20,
-    /// User Data Selector
     user_data = 0x28,
-    /// TSS Selector
     tss = 0x30,
-    /// Non-exhaustive
+    /// non-exhaustive
     _,
 };
 
-/// Number of entries in `global_gdt`: null, kernel code/data, an unused gap
-/// selector, user code/data, and the two-slot (16-byte) TSS system
-/// descriptor (see `SystemEntry.low`/`.high`).
+/// Entries in `global_gdt`: null, kernel code/data, unused gap selector,
+/// user code/data, 2-slot TSS (see `SystemEntry.low`/`.high`)
 const gdt_entry_count: usize = 8;
 
-/// The GDT
 pub var global_gdt: [gdt_entry_count]Entry align(pages.page_size) = undefined;
 pub var descriptor: Descriptor = undefined;
 
-/// Initialize the GDT
+/// Init GDT
 pub fn init() void {
     log.info("GDT initialization...", .{});
-    // disable interrupts
     asm volatile ("cli");
-    // set kernel stack
     global_tss.rsp[0] = @intFromPtr(&__stack_top);
-    // Dedicated stack for fault handlers that might be entered with a
-    // blown/corrupted current stack (see idt.zig's `usesTrapStack`), so the
-    // CPU can push the exception frame somewhere known-good instead of
-    // faulting again on the same broken stack.
+    // dedicated fault stack; avoids re-fault on blown stack (see
+    // idt.usesTrapStack)
     setIST(@intFromPtr(&__fault_stack_top));
-    // set the global descriptor table
     global_gdt = .{
         Entry.null_segment,
         Entry.kernel_code,
         Entry.kernel_data,
 
-        // unused: reserves selector 0x18 as a gap between the kernel and
-        // user segments; not referenced by `Selector` (which jumps straight
-        // from 0x10 to 0x20)
+        // gap selector 0x18; unused, Selector skips 0x10 -> 0x20
         Entry.null_segment,
 
         Entry.user_code,
@@ -331,17 +279,16 @@ pub fn init() void {
         SystemEntry.getTSS().low(),
         SystemEntry.getTSS().high(),
     };
-    // set the gdt descriptor
     descriptor = .{
         .size = @sizeOf(Entry) * gdt_entry_count - 1,
         .offset = @intFromPtr(&global_gdt),
     };
-    // load the gdt descriptor
+    // lgdt
     asm volatile ("lgdt (%[addr])"
         :
         : [addr] "{rax}" (&descriptor),
     );
-    // register the tss entry, the kernel data entry and the kernel code entry
+    // load tss + kernel segments
     asm volatile ("ltr %[val]"
         :
         : [val] "{ax}" (@as(u16, @intFromEnum(Selector.tss))),

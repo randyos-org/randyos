@@ -5,33 +5,30 @@ const std = @import("std");
 const expect = std.testing.expect;
 const log = std.log.scoped(.acpi_header);
 
-/// ACPI Table Header Checksum Error
 pub const ChecksumError = error{
     InvalidChecksum,
 };
 
-/// Standard ACPI Table Header
 pub const Header = extern struct {
-    /// The ASCII string representation of the table identifier.
+    /// table id (ASCII)
     signature: [4]u8 align(1),
-    /// The length of the table, in bytes, including the header, starting from offest 0. This field is used to record the size of the entire table.
+    /// table length in bytes, incl header
     length: u32 align(1),
-    /// The revision of the structure corresponding to the signature field for this table. Larger revision numbers are backward compatible to lower revision numbers with the same signature.
+    /// struct revision; higher = backward compat
     revision: u8 align(1),
-    /// The entire table, including the checksum field, must add to zero to be considered valid.
+    /// table bytes must sum to zero
     checksum: u8 align(1),
-    /// An OEM-supplied string that identifies the OEM.
+    /// OEM id string
     oem_id: [6]u8 align(1),
-    /// An OEM-supplied string that the OEM uses to identify the particular data table.
+    /// OEM's table id string
     oem_table_id: [8]u8 align(1),
-    /// An OEM-supplied revision number. Larger numbers are assumed to be newer revisions
+    /// OEM revision; higher = newer
     oem_revision: u32 align(1),
-    /// Vendor ID of utility that created the table.
+    /// creator util vendor ID
     creator_id: u32 align(1),
-    /// Revision of utility that created the table.
+    /// creator util revision
     creator_revision: u32 align(1),
 
-    /// Verify the checksum
     pub fn verifyChecksum(self: *Header) ChecksumError!void {
         var sum: u8 = 0;
         var arr: [*]u8 = @ptrCast(self);

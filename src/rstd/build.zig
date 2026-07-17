@@ -19,8 +19,7 @@ pub fn addBuildDir(b: *Build) *BuildDir {
     return b.addWriteFiles();
 }
 
-/// Install `compile`'s emitted docs under `zig-out/docs/<name>/` and make
-/// `target_step` depend on that install.
+/// install compile's docs under zig-out/docs/<name>/, target_step depends on it
 pub fn addCompileStepDocsToStep(b: *Build, target_step: *Step, compile: *CompileStep, name: []const u8) void {
     const install = b.addInstallDirectory(.{
         .source_dir = compile.getEmittedDocs(),
@@ -30,16 +29,14 @@ pub fn addCompileStepDocsToStep(b: *Build, target_step: *Step, compile: *Compile
     target_step.dependOn(&install.step);
 }
 
-/// Common docs build step handler struct
+/// common docs step handler
 pub const Docs = struct {
     step: *Step,
 
-    /// Install `compile`'s emitted docs under `zig-out/docs/<name>/` and
-    /// make the shared "docs" step (part of the default install step) depend
-    /// on that install. Only for things that are always expected to build.
-    /// Docs for other architectures should call `addCompileStepDocsToStep`
-    /// directly against their own per-arch step instead so a stub that doesn't
-    /// build yet or can't cross-compile can't break the current build.
+    /// install compile's docs, shared "docs" step depends on it. Only for
+    /// things always expected to build -- other archs should call
+    /// addCompileStepDocsToStep against their own step so a broken stub
+    /// can't break the build.
     pub fn addCompileStepDocs(docs: Docs, b: *Build, compile: *CompileStep, name: []const u8) void {
         addCompileStepDocsToStep(b, docs.step, compile, name);
     }
@@ -47,8 +44,7 @@ pub const Docs = struct {
 
 pub fn addDocs(b: *Build) Docs {
     const docs_step = b.step("docs", "Generate and install API documentation");
-    // Also run as part of the default `zig build`/`zig build install`, not
-    // just when `zig build docs` is requested explicitly.
+    // also runs as part of default zig build/install, not just explicit request
     b.getInstallStep().dependOn(docs_step);
 
     const docs_port = b.option(u16, "docs-port", "Port for `zig build run-docs` to serve documentation on") orelse 3000;

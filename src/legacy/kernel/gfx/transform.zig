@@ -1,7 +1,4 @@
-//! Transformations on decoded `draw.PixelBuffer`s (scaling, and anywhere
-//! else this grows to). Operates purely on already-decoded pixel data, so
-//! it doesn't care whether the source was a BMP, a future PNG decoder, or
-//! anything else.
+//! Transforms on decoded `draw.PixelBuffer`s (scaling, etc). Format-agnostic.
 
 const std = @import("std");
 const log = std.log.scoped(.gfx_xform);
@@ -9,18 +6,15 @@ const log = std.log.scoped(.gfx_xform);
 const PixelBuffer = @import("draw.zig").PixelBuffer;
 const Color = @import("color.zig").Color;
 
-/// The largest `(width, height)` that fits within `max_width` x
-/// `max_height` while preserving the aspect ratio of a `src_width` x
-/// `src_height` source image.
+/// Largest (width, height) fitting max_width x max_height, aspect
+/// preserved.
 pub fn fitDimensions(
     src_width: usize,
     src_height: usize,
     max_width: usize,
     max_height: usize,
 ) struct { width: usize, height: usize } {
-    // Try scaling to the full available width first; if the resulting
-    // height fits too, that's the answer. Otherwise the height is the
-    // binding constraint instead.
+    // try full width first; if height fits too, done. else height binds.
     const height_at_max_width = @max(1, src_height * max_width / src_width);
     if (height_at_max_width <= max_height) {
         return .{ .width = max_width, .height = height_at_max_width };
@@ -29,14 +23,10 @@ pub fn fitDimensions(
     return .{ .width = width_at_max_height, .height = max_height };
 }
 
-/// Resize `src` to exactly `dst_width` x `dst_height` using box-filter
-/// averaging: each destination pixel is the average of every source pixel
-/// that falls within its footprint. Intended for downscaling (e.g. a large
-/// embedded logo down to the current display resolution); this is a
-/// one-time boot-time operation, not something written for speed.
+/// Resize src to dst_width x dst_height via box-filter averaging.
+/// For downscaling; one-time boot op, not optimized for speed.
 ///
-/// The returned buffer's `pixels` slice is allocated from `allocator`; the
-/// caller owns it and is responsible for freeing it.
+/// Caller owns/frees the returned `pixels` slice.
 pub fn resize(
     allocator: std.mem.Allocator,
     src: PixelBuffer,

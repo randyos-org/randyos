@@ -13,45 +13,36 @@ const port_io = @import("port_io.zig");
 const ps2 = @import("ps2.zig");
 const uart = @import("uart.zig");
 
-/// Number of entries in an x86_64 IDT -- one slot per possible
-/// interrupt/exception vector (0-255).
+/// IDT slots: one per vector (0-255)
 const idt_entry_count: usize = 256;
 
-/// I/O APIC redirection vector the PS/2 keyboard's IRQ (1) lands on, given
-/// the vector `offset` `ioapic.init` is called with in platform.zig
-/// (`keyboard_irq` (1) + 48 = 49).
+/// I/O APIC vector for PS/2 keyboard IRQ1 (irq 1 + offset 48 = 49, see
+/// `ioapic.init` call in platform.zig)
 const keyboard_vector: u64 = 49;
 
-/// I/O APIC redirection vector legacy IRQ0 (the PIT) lands on. Not the
-/// pin the PIT is actually wired to -- the near-universal PC MADT
-/// Interrupt Source Override remaps IRQ0 from I/O APIC pin 0 to pin 2 (see
-/// `ioapic.zig`'s `redEntryMADT`) -- but that override computes its
-/// *vector* from the original legacy IRQ number (`irq_src` (0) +
-/// `ioapic_vector_offset` (48) = 48) precisely so legacy-IRQ-keyed
-/// handlers like this one still work regardless of which physical pin the
-/// override actually lands the interrupt on.
+/// I/O APIC vector for legacy IRQ0 (PIT). Not the physical pin (MADT ISO
+/// remaps IRQ0 to pin 2, see `ioapic.zig`'s `redEntryMADT`), but the
+/// override still keys its vector off the original IRQ number (0 + 48 =
+/// 48), so legacy-IRQ-keyed handlers work regardless of pin.
 const timer_vector: u64 = 48;
 
-/// Frame-dump logging for interrupts on `timer_vector` uses its own scope,
-/// separate from this file's default `arch_idt` scope, so it can be
-/// silenced independently (see the `arch_idt_frame` entry in
-/// `default_no_log_scopes`, src/build/options.zig). At the PIT's real
-/// tick rate this would otherwise flood the terminal and burn CPU time in
-/// the render pipeline -- a frame dump isn't cheap to draw -- badly enough
-/// to starve the rest of the kernel of forward progress.
+/// Separate scope for `timer_vector` frame dumps so it can be silenced
+/// independently (`arch_idt_frame` in `default_no_log_scopes`,
+/// src/build/options.zig) -- at PIT tick rate this would otherwise flood
+/// the terminal and starve the kernel.
 const frame_log = std.log.scoped(.arch_idt_frame);
 
-/// Entry in the Interrupt Descriptor Table
+/// IDT entry
 pub const Entry = packed struct(u128) {
-    /// First part of a pointer to handler code
+    /// Handler ptr low
     offset_low: u16 = 0,
-    /// Segment Selector (for example gdt.Selector.kernel_code)
+    /// Segment selector (e.g. gdt.Selector.kernel_code)
     selector: u16 = @intFromEnum(gdt.Selector.kernel_code),
-    /// A 3-bit value which is an offset into the Interrupt Stack Table, which is stored in the Task State Segment
+    /// Offset into the IST (in the TSS)
     ist: u3 = 0,
     /// Reserved
     res1: u5 = 0,
-    /// Gate Type
+    /// Gate type
     gate_type: enum(u4) {
         interrupt_64bit = 14,
         trap_64bit = 15,
@@ -59,65 +50,58 @@ pub const Entry = packed struct(u128) {
     } = .interrupt_64bit,
     /// Reserved
     res2: u1 = 0,
-    /// CPU Privilege Levels allowed to access this interrupt
+    /// Privilege levels allowed to invoke this interrupt
     dpl: enum(u2) {
         kernel = 0,
         user = 3,
         _,
     } = .kernel,
-    /// Present bit
-    /// Must be set for the descriptor to be valid
+    /// Present bit; must be set for a valid descriptor
     p: bool = true,
-    /// Second part of a pointer to handler code
+    /// Handler ptr high
     offset_high: u48 = 0,
     /// Reserved
     res3: u32 = 0,
 
-    /// Get the offset
+    /// Get offset
     pub fn getOffset(self: Entry) u64 {
         return (@as(u64, self.offset_high) << 16) | self.offset_low;
     }
 
-    /// Set the offset
+    /// Set offset
     pub fn setOffset(self: *Entry, offset: u64) void {
         self.offset_low = @truncate(offset);
         self.offset_high = @truncate(offset >> 16);
     }
 };
 
-/// IDT Descriptor
+/// IDT descriptor
 pub const Descriptor = packed struct(u80) {
-    /// Size
-    /// IDT Byte Length - 1
+    /// IDT byte length - 1
     size: u16,
     /// Offset
     offset: u64,
 };
 
-/// Interrupt Function Type
 pub const InterruptFunction = *const fn () callconv(.naked) noreturn;
 
-/// Global IDT
 pub var global_idt: [idt_entry_count]Entry = @splat(.{});
 pub var descriptor: Descriptor = .{ .size = @sizeOf(@TypeOf(global_idt)) - 1, .offset = undefined };
 pub var got_interrupt: bool = false;
 
-/// Initialize the IDT
+/// Init IDT
 pub fn init() void {
     log.info("IDT initialization...", .{});
-    // make descriptor point to global idt
     descriptor.offset = @intFromPtr(&global_idt);
-    // construct the idt generically
+    // build idt generically
     inline for (0..idt_entry_count - 1) |i| {
         if (getVector(i)) |vector| {
             switch (Exception.is(i)) {
                 true => {
-                    // trap
                     global_idt[i] = .{ .gate_type = .trap_64bit };
                     global_idt[i].setOffset(@intFromPtr(vector));
                 },
                 else => {
-                    // normal
                     global_idt[i] = .{ .gate_type = .interrupt_64bit };
                     global_idt[i].setOffset(@intFromPtr(vector));
                 },
@@ -129,24 +113,20 @@ pub fn init() void {
             global_idt[i].p = false;
         }
     }
-    // load the idt
     asm volatile ("lidt (%[addr])"
         :
         : [addr] "{rax}" (&descriptor),
     );
-    // enable interrupts
     asm volatile ("sti");
     log.info("IDT initialization successful! ", .{});
 }
 
-/// Generic Interrupt Caller
+/// Generic interrupt caller
 pub fn getVector(comptime number: u8) ?InterruptFunction {
     return switch (number) {
-        // vectors 15 and 22-31 are Intel-reserved (no exception is defined
-        // for them), so leave those IDT entries absent (not present)
+        // vectors 15, 22-31 are Intel-reserved; leave entries absent
         inline 15, 22...31 => null,
         else => blk: {
-            // normal or trap
             break :blk struct {
                 fn vector() callconv(.naked) noreturn {
                     const is_exception = Exception.is(number);
@@ -172,68 +152,46 @@ pub fn getVector(comptime number: u8) ?InterruptFunction {
     };
 }
 
-/// Interrupt Frame
+/// Interrupt frame
 pub const InterruptFrame = extern struct {
-    /// Extra Segment Selector
-    /// Pushed via "mov %%es, %%rax; push %%rax", so it occupies a full
-    /// zero-extended 8-byte stack slot, not the 2-byte width of
-    /// `gdt.Selector` -- must stay `u64` or every field below is misaligned.
+    /// ES; pushed as full zero-extended 8-byte slot (not `gdt.Selector`'s
+    /// 2-byte width) -- must stay `u64` or fields below misalign
     es: u64,
-    /// Data Segment Selector (see `es` for why this is `u64`, not `gdt.Selector`)
+    /// DS (see `es` for why `u64`)
     ds: u64,
-    /// General purpose register R15
     r15: u64,
-    /// General purpose register R14
     r14: u64,
-    /// General purpose register R13
     r13: u64,
-    /// General purpose register R12
     r12: u64,
-    /// General purpose register R11
     r11: u64,
-    /// General purpose register R10
     r10: u64,
-    /// General purpose register R9
     r9: u64,
-    /// General purpose register R8
     r8: u64,
-    /// Destination index for string operations
+    /// string-op dest index
     rdi: u64,
-    /// Source index for string operations
+    /// string-op src index
     rsi: u64,
-    /// Base Pointer (meant for stack frames)
+    /// base pointer (stack frames)
     rbp: u64,
-    /// Data (commonly extends the A register)
     rdx: u64,
-    /// Counter
     rcx: u64,
-    /// Base
     rbx: u64,
-    /// Accumulator
     rax: u64,
-    /// Interrupt Number
     vector_number: u64,
-    /// Error code
     error_code: u64,
-    /// Instruction Pointer
     rip: u64,
-    /// Code Segment
-    /// Pushed by hardware as a full 8-byte slot in long mode (see `es` above
-    /// for why this is `u64`, not `gdt.Selector`)
+    /// CS; hw-pushed as full 8-byte slot in long mode (see `es`)
     cs: u64,
-    /// RFLAGS
     rflags: registers.RFLAGS,
-    /// Stack Pointer
     rsp: u64,
-    /// Stack Segment (see `cs` for why this is `u64`, not `gdt.Selector`)
+    /// SS (see `cs` for why `u64`)
     ss: u64,
 };
 
-/// Common interrupt calling code
-/// Should be called after pushing the error code and the interrupt number
+/// Common interrupt entry; call after pushing error code + vector number
 export fn interruptCommon() callconv(.naked) void {
     asm volatile (
-    // push general-purpose registers
+    // push GP regs
         \\push %%rax
         \\push %%rbx
         \\push %%rcx
@@ -249,24 +207,23 @@ export fn interruptCommon() callconv(.naked) void {
         \\push %%r13
         \\push %%r14
         \\push %%r15
-        // push segment registers
+        // push seg regs
         \\mov %%ds, %%rax
         \\push %%rax
         \\mov %%es, %%rax
         \\push %%rax
         \\mov %%rsp, %%rdi
-        // set segment to run in
-        // does not push so we don't need to pop
+        // switch to kernel data seg; not pushed, no pop needed
         \\mov %[kernel_data], %%ax
         \\mov %%ax, %%es
         \\mov %%ax, %%ds
         \\call interruptHandler
-        // pop segment registers
+        // pop seg regs
         \\pop %%rax
         \\mov %%rax, %%es
         \\pop %%rax
         \\mov %%rax, %%ds
-        // pop general-purpose registers
+        // pop GP regs
         \\pop %%r15
         \\pop %%r14
         \\pop %%r13
@@ -303,9 +260,9 @@ pub const Exception = enum(u8) {
     OF = 4,
     /// BOUND Range Exceeded
     BR = 5,
-    /// Invalid Opcode (Undefined Opcode)
+    /// Invalid Opcode
     UD = 6,
-    /// Device Not Available (No Math Coprocessor)
+    /// Device Not Available
     NM = 7,
     /// Double Fault
     DF = 8,
@@ -321,7 +278,7 @@ pub const Exception = enum(u8) {
     GP = 13,
     /// Page Fault
     PF = 14,
-    /// x87 FPU Floating-Point Error (Math Fault)
+    /// x87 FP Error
     MF = 16,
     /// Alignment Check
     AC = 17,
@@ -334,7 +291,7 @@ pub const Exception = enum(u8) {
     /// Control Protection Exception
     CP = 21,
 
-    /// Is the given interrupt number an exception?
+    /// is interrupt an exception?
     pub inline fn is(interrupt: u8) bool {
         return switch (interrupt) {
             0, 1, 3...14, 15...21 => true,
@@ -342,7 +299,7 @@ pub const Exception = enum(u8) {
         };
     }
 
-    /// Has the exception an error code?
+    /// has error code?
     pub inline fn hasErrorCode(self: Exception) bool {
         return switch (self) {
             .DF, .TS, .NP, .SS, .GP, .PF, .AC, .CP => true,
@@ -351,12 +308,9 @@ pub const Exception = enum(u8) {
     }
 };
 
-/// Exceptions that must always run on the dedicated trap stack (IST1),
-/// since they can be triggered by a stack that's already overflowed or
-/// otherwise corrupted. Without this, entering the handler would push the
-/// exception frame onto that same broken stack and fault again, cascading
-/// into a double fault and then a triple fault (a silent reboot) instead of
-/// a diagnosable stop.
+/// Exceptions that must run on the dedicated trap stack (IST1) since they
+/// can fire on an already-broken stack; without this, entering the handler
+/// re-faults on the same stack, cascading to a silent triple-fault reboot.
 fn usesTrapStack(number: u8) bool {
     return switch (number) {
         @intFromEnum(Exception.SS), @intFromEnum(Exception.GP), @intFromEnum(Exception.PF), @intFromEnum(Exception.DF) => true,
@@ -364,12 +318,9 @@ fn usesTrapStack(number: u8) bool {
     };
 }
 
-/// Last-resort fault reporter. Writes straight to the UART hardware ports,
-/// bypassing `std.log`, the `Terminal`/framebuffer console abstraction, and
-/// any formatting or allocation -- all of which could themselves be broken
-/// by whatever caused the fault (a blown stack, corrupted heap, a clobbered
-/// `Terminal` sitting on that stack, ...). Always called before attempting
-/// the normal (nicer, but less trustworthy) logging path below.
+/// Last-resort fault reporter: raw UART writes, bypassing std.log/Terminal
+/// and any alloc/formatting that the fault itself may have broken. Always
+/// called before the nicer-but-less-trustworthy logging below.
 fn emergencyReport(frame: *const InterruptFrame) void {
     uart.uartPuts("\r\n!!! EMERGENCY FAULT REPORT (raw UART) !!!\r\nvector = ");
     uart.uartPutHex(frame.vector_number);
@@ -388,9 +339,7 @@ fn emergencyReport(frame: *const InterruptFrame) void {
     uart.uartPuts("\r\n");
 }
 
-/// Interrupt Handler
 export fn interruptHandler(frame: *InterruptFrame) void {
-    // specific interrupt handling
     switch (frame.vector_number) {
         0, 1, 3...14, 16...21 => {
             emergencyReport(frame);
@@ -411,32 +360,21 @@ export fn interruptHandler(frame: *InterruptFrame) void {
             });
             @panic("reached unhandled error");
         },
-        // IRQ1 (keyboard) remapped through the I/O APIC at offset 48 (see
-        // `ioapic.init` call in platform.zig)
+        // IRQ1 (keyboard) via I/O APIC offset 48 (see ioapic.init in platform.zig)
         keyboard_vector => ps2.keyboardHandler(),
-        // Legacy IRQ0 (PIT) -- see `timer_vector`'s doc comment for why it
-        // lands here despite `ioapic.init` disabling every non-keyboard
-        // pin by default. We don't consume ticks from it yet (this kernel
-        // uses the TSC for timekeeping -- see `tsc.zig`), but it still has
-        // to be acknowledged every time it fires: without an EOI, the
-        // LAPIC's in-service state for this vector never clears, which
-        // blocks delivery of every other same-or-lower-priority interrupt
-        // behind it (that's what silently broke keyboard input before
-        // this vector got its own case here).
+        // Legacy IRQ0 (PIT). Ticks unused (TSC does timekeeping, see
+        // tsc.zig), but still needs EOI each fire or LAPIC blocks every
+        // same-or-lower-priority interrupt behind it (silently broke
+        // keyboard input before this case existed).
         timer_vector => {
             frame_log.debug("Frame contents: {}", .{frame});
             lapic.eoi();
         },
         else => {
-            // A genuinely unanticipated vector (not an exception, not the
-            // keyboard, not the timer) -- stays on the default, non-quiet
-            // scope since this shouldn't normally happen and is worth
-            // noticing, unlike the timer's expected, high-frequency ticks.
+            // unanticipated vector; worth noticing, unlike timer's expected ticks
             log.warn("unhandled interrupt vector {}", .{frame.vector_number});
             log.debug("Frame contents: {}", .{frame});
-            // Same reasoning as `timer_vector`: must EOI or this vector
-            // (and everything same-or-lower-priority behind it) stops
-            // being delivered after the first occurrence.
+            // must EOI, same reasoning as timer_vector
             lapic.eoi();
         },
     }

@@ -1,8 +1,6 @@
-//! Parsing the kernel's ELF64 image: identity/header validation, the
-//! program/section header tables, and section lookups. Everything here
-//! only reads and interprets bytes -- what to *do* with the parsed result
-//! (materialize segments, pick a load address, load DWARF info) lives in
-//! segments.zig/load_address.zig/debug_info.zig instead.
+//! Parses the kernel's ELF64 image: header validation, program/section
+//! header tables, section lookups. Acting on the parsed result lives in
+//! segments.zig/loadaddr.zig/debug.zig instead.
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -13,15 +11,11 @@ const log = std.log.scoped(.bootelf);
 
 const file_io = @import("file.zig");
 
-/// Read and parse the ELF executable header (`Ehdr`) -- entry point, where
-/// the program/section header tables live, `is_64`/`endian`, etc. Returned
-/// by value: unlike `readProgramAndSectionHeaders` below, nothing here
-/// points back into the read buffer, so it's freed before this function
-/// even returns.
+/// Read+parse the ELF header (entry point, header table locations,
+/// is_64/endian, etc). Returned by value -- unlike
+/// `readProgramAndSectionHeaders` below, the buffer is freed before return.
 ///
-/// `elf.Header.read` already validates the magic/version/class/endianness
-/// bytes itself (see its `ReadError` set below) -- there's nothing left for
-/// us to check by hand before parsing.
+/// `elf.Header.read` already validates magic/version/class/endianness.
 pub fn readHeader(io: Io, file: Io.File) !elf.Header {
     const boot_services = uefi.system_table.boot_services.?;
 
@@ -33,7 +27,7 @@ pub fn readHeader(io: Io, file: Io.File) !elf.Header {
     };
     defer boot_services.freePool(@alignCast(header_buffer.ptr)) catch {};
 
-    // elf.Header.read wants a reader rather than a plain buffer.
+    // Header.read wants a reader, not a plain buffer
     var hdr_reader: std.Io.Reader = .fixed(header_buffer);
     const header = elf.Header.read(&hdr_reader) catch |err| {
         switch (err) {
@@ -47,15 +41,10 @@ pub fn readHeader(io: Io, file: Io.File) !elf.Header {
     };
     log.debug("loading ELF header succeeded; entry point is 0x{x}", .{header.entry});
 
-    // readProgramAndSectionHeaders below casts raw bytes directly into
-    // `Elf64.Phdr`/`Elf64.Shdr` rather than going through std.elf's own
-    // (endian/bitness-generic, but far less ergonomic -- raw integers, no
-    // `PT`/`PF` enums) iterators. That cast is only sound because this
-    // bootloader only ever loads a same-toolchain, native-endian ELF64
-    // kernel image, whose on-disk layout already matches those types'
-    // in-memory layout exactly -- so enforce that assumption explicitly
-    // here, reusing what `Header.read` above already determined, instead of
-    // silently misreading the tables if it's ever violated.
+    // readProgramAndSectionHeaders below casts raw bytes straight to
+    // Elf64.Phdr/Shdr instead of using std.elf's generic iterators -- only
+    // sound for a same-toolchain, native-endian ELF64 kernel, so enforce
+    // that here rather than silently misreading the tables.
     if (!header.is_64) {
         log.err("can only load 64-bit binaries", .{});
         return error.Unsupported;
@@ -67,21 +56,21 @@ pub fn readHeader(io: Io, file: Io.File) !elf.Header {
     return header;
 }
 
-/// The parsed program/section header tables, together with the raw
-/// allocations backing them.
+/// The parsed program/section header tables, plus the raw allocations
+/// backing them.
 pub const ProgramAndSectionHeaders = struct {
-    /// Unlike `readHeader`'s buffer, these two have to outlive this
-    /// function -- `program_headers`/`section_headers` below are views into
-    /// them, not copies -- so freeing them is the caller's responsibility.
+    /// Unlike `readHeader`'s buffer, these must outlive this function --
+    /// the header slices below are views into them, not copies -- so
+    /// freeing them is the caller's responsibility.
     program_headers_buffer: []u8,
     section_headers_buffer: []u8,
     program_headers: []const elf.Elf64.Phdr,
     section_headers: []const elf.Elf64.Shdr,
 };
 
-/// Read the ELF program and section header tables and cast them to their
-/// proper types (letting callers use field access instead of manual byte
-/// math), sliced down to however many entries `header` says are present.
+/// Read the ELF program/section header tables, cast to proper types
+/// (field access instead of manual byte math), sliced to `header`'s
+/// entry counts.
 pub fn readProgramAndSectionHeaders(io: Io, file: Io.File, header: elf.Header) !ProgramAndSectionHeaders {
     const boot_services = uefi.system_table.boot_services.?;
 
@@ -91,9 +80,8 @@ pub fn readProgramAndSectionHeaders(io: Io, file: Io.File, header: elf.Header) !
         log.err("reading ELF program headers failed: {s}", .{@errorName(err)});
         return err;
     };
-    // If reading the section headers below fails, this buffer would
-    // otherwise never get freed -- on success, ownership passes to the
-    // caller (via the returned struct) instead, so this doesn't run then.
+    // free this buffer if the section-header read below fails; on success
+    // ownership passes to the caller instead
     errdefer boot_services.freePool(@alignCast(program_headers_buffer.ptr)) catch {};
 
     var section_headers_buffer: []u8 = &.{};
@@ -110,12 +98,10 @@ pub fn readProgramAndSectionHeaders(io: Io, file: Io.File, header: elf.Header) !
     };
 }
 
-/// Get contents of an ELF section
 pub fn getSectionContents(io: Io, file: Io.File, section_header: elf.Elf64.Shdr, buffer: *[]u8) !void {
     try file_io.readAndAllocate(io, file, section_header.offset, section_header.size, buffer);
 }
 
-/// Get the name of an ELF section
 pub fn getSectionName(string_table: []const u8, section_header: elf.Elf64.Shdr) ?[]const u8 {
     const len = std.mem.indexOf(u8, string_table[section_header.name..], "\x00") orelse return null;
     return string_table[section_header.name..][0..len];

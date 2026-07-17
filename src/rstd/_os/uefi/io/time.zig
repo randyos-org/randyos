@@ -1,31 +1,28 @@
-//! Provides a "seconds since boot" clock for the bootloader.
+//! "seconds since boot" clock for the bootloader.
 //!
-//! `RuntimeServices.getTime()` reads a real hardware RTC, which may only ever
-//! tracks whole seconds.  For example, OVMF reports `nanosecond = 0`
-//! unconditionally, so there's no sub-second data to extract there no matter
-//! how much print precision is used.
+//! RuntimeServices.getTime() only tracks whole seconds (e.g. OVMF always
+//! reports nanosecond=0) -- no sub-second data there regardless of print
+//! precision.
 //!
-//! A raw cycle counter (e.g. x86_64's `rdtsc`) would give real sub-second
-//! precision, but it's architecture-specific and UEFI itself is not --
-//! this project's bootloader only targets x86_64 today, but there's no
-//! reason to bake that assumption into this module.
+//! A cycle counter (rdtsc) would give real precision but is arch-specific;
+//! UEFI isn't, so don't bake that assumption in even though we're
+//! x86_64-only today.
 //!
-//! Instead, this uses a periodic Boot Services timer event (100us), which is
-//! plain Boot Services API available on every UEFI architecture.
+//! Instead: periodic Boot Services timer event (100us), plain API on every
+//! UEFI arch.
 
 const std = @import("std");
 const uefi = std.os.uefi;
 const Io = std.Io;
 const log = std.log.scoped(.boottime);
-const state = @import("state.zig");
 // const BootServices = uefi.tables.BootServices;
 
-/// Nanoseconds elapsed since `init()` was called, updated by `tick` every
-/// time the periodic timer event fires.
+const state = @import("state.zig");
+
+/// ns elapsed since init(), updated by tick on each timer fire
 var elapsed_ns: u64 = std.math.maxInt(u64); // "-1", as a sentinel for "never started"
 
-/// Granularity of `getElapsedNanoseconds()`; pub so io.zig can report it as
-/// the monotonic clock resolution.
+/// granularity of getElapsedNanoseconds(); pub for io.zig's clock resolution
 pub const tick_period_ns: u64 = 100_000; // 100us
 /// `setTimer`'s `trigger_time` is in units of 100ns.
 const tick_period_100ns: u64 = tick_period_ns / 100;
@@ -36,21 +33,14 @@ fn tick(event: uefi.Event, context: ?*anyopaque) callconv(uefi.cc) void {
     _ = @atomicRmw(u64, &elapsed_ns, .Add, tick_period_ns, .seq_cst);
 }
 
-/// Start the periodic timer event backing `getTime()`. Call this once,
-/// early in bootloader init.
+/// Start periodic timer event backing getTime(). Call once, early in init.
 ///
-/// Nothing needs to explicitly stop this later. The event's `tick`
-/// callback is only ever invoked by Boot Services' own event-dispatch
-/// loop, which is firmware code -- once `ExitBootServices` succeeds and
-/// the OS owns the CPU, that loop simply never runs again, so `tick` can't
-/// fire anymore either way. The event's backing memory is Boot
-/// Services-owned and becomes reclaimable the moment `ExitBootServices`
-/// succeeds (see the comment in bootloader `main.zig`), so there's nothing
-/// to leak by not explicitly closing it. Tearing down whatever real
-/// hardware timer backs this event is the firmware's own responsibility as
-/// part of its `ExitBootServices` handling -- and also moot, since we
-/// couldn't call `setTimer`/`closeEvent` after that point even if we
-/// wanted to: Boot Services itself is torn down and unusable by then.
+/// Never needs explicit stop: `tick`'s callback only runs via Boot
+/// Services' event loop (firmware code) -- once ExitBootServices succeeds
+/// that loop never runs again. Event memory is Boot Services-owned,
+/// reclaimable at that point (see main.zig), nothing to leak. Tearing down
+/// the real HW timer is firmware's job during ExitBootServices anyway --
+/// moot since we can't call setTimer/closeEvent after that point either.
 pub fn init() !void {
     const bs = state.bootServices() orelse return error.BootServicesUnavailable;
     const event = try bs.createEvent(
@@ -61,15 +51,14 @@ pub fn init() !void {
     elapsed_ns = 0;
 }
 
-/// Nanoseconds elapsed since `init()` was called, in the units `std.Io`'s
-/// clock interface wants. Reads as `maxInt(u64)` (the "never started"
-/// sentinel, rather than crashing) if `init()` was never called or failed.
+/// ns elapsed since init(), in std.Io clock units. Returns maxInt(u64)
+/// sentinel (not a crash) if init() never called/failed.
 pub fn getElapsedNanoseconds() u64 {
     return @atomicLoad(u64, &elapsed_ns, .seq_cst);
 }
 
-/// Seconds since `init()` as an f64, in the shape the `rstd.logging.get_time`
-/// hook wants for log-line timestamps; -1 if the clock never started.
+/// seconds since init() as f64, shape rstd.logging.get_time wants; -1 if
+/// clock never started
 pub fn getTimeSeconds() f64 {
     const ns = getElapsedNanoseconds();
     if (ns == std.math.maxInt(u64)) return -1;
@@ -78,37 +67,38 @@ pub fn getTimeSeconds() f64 {
 
 fn monotonicNow() Io.Timestamp {
     const ns = getElapsedNanoseconds();
-    // Map the "never started" sentinel to zero: a monotonic clock stuck at
-    // zero is better behaved than one that starts at the end of time.
+    // map "never started" sentinel to zero, better than starting at end of time
     return .{ .nanoseconds = if (ns == std.math.maxInt(u64)) 0 else ns };
 }
 
-pub fn now(_: ?*anyopaque, clock: Io.Clock) Io.Timestamp {
+pub fn now(userdata: ?*anyopaque, clock: Io.Clock) Io.Timestamp {
+    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
+    _ = t;
     switch (clock) {
         .real => {
             const result = uefi.system_table.runtime_services.getTime() catch return monotonicNow();
             return .{ .nanoseconds = result[0].toEpoch() };
         },
-        // There are no other processes or threads to distinguish from wall
-        // time, so every other clock is the since-boot tick counter.
+        // no other process/thread to distinguish; every other clock = tick counter
         .awake, .boot, .cpu_process, .cpu_thread => return monotonicNow(),
     }
 }
 
-pub fn clockResolution(_: ?*anyopaque, clock: Io.Clock) Io.Clock.ResolutionError!Io.Duration {
+pub fn clockResolution(userdata: ?*anyopaque, clock: Io.Clock) Io.Clock.ResolutionError!Io.Duration {
+    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
+    _ = t;
     return switch (clock) {
-        // The RTC behind getTime() only reliably tracks whole seconds (see
-        // the doc comment in time.zig).
+        // RTC only reliably tracks whole seconds (see file doc comment)
         .real => .fromSeconds(1),
         .awake, .boot, .cpu_process, .cpu_thread => .fromNanoseconds(tick_period_ns),
     };
 }
 
-pub fn sleep(_: ?*anyopaque, timeout: Io.Timeout) Io.Cancelable!void {
+pub fn sleep(userdata: ?*anyopaque, timeout: Io.Timeout) Io.Cancelable!void {
+    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
+    _ = t;
     const ns: i96 = switch (timeout) {
-        // "No timeout" means block forever, which in a single-threaded world
-        // with no cancellation would hang the machine; returning is the only
-        // useful interpretation.
+        // "no timeout" = block forever; would hang single-threaded world, so return
         .none => return,
         .duration => |d| d.raw.nanoseconds,
         .deadline => |ts| ts.raw.nanoseconds - now(null, ts.clock).nanoseconds,

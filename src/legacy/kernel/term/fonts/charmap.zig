@@ -1,16 +1,13 @@
 //! Unicode to CP437 translation
 //! 2024 by Samuel Fiedler
 //!
-//! Several distinct Unicode code points intentionally map to the same CP437
-//! byte -- visual lookalikes (e.g. U+2666/U+25C6), legacy aliases, and
-//! accented Latin letters that CP437 has no dedicated glyph for (folded to
-//! the plain base letter). Anything unmapped falls back to 0x00, which
-//! renders as a blank glyph rather than a visible placeholder like '?'.
+//! Multiple code points map to one CP437 byte on purpose: lookalikes
+//! (U+2666/U+25C6), legacy aliases, accented letters folded to base
+//! letter. Unmapped falls back to 0x00 (blank glyph, not '?').
 
 const std = @import("std");
 const log = std.log.scoped(.term_fonts_charmap);
 
-/// Translate a unicode code point to a CP 437 code point
 pub inline fn unicodeToCP437(char: u16) u8 {
     return switch (char) {
         0x0000 => 0x00,

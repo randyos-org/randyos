@@ -208,7 +208,7 @@ fn addPersistentDriveToQemu(b: *Build, qemu_cmds: QemuCmds) void {
     // check if this file exists, if not, create it using the command:
     // qemu-img create -f qcow2 disk.qcow2 40G
     const create_drive_step = b.step("create-drive", "Create persistent drive for QEMU");
-    if (!rstd.file.fileExists(b.graph.io, drive_path.getPath2(b, null))) {
+    if (!rstd.io.fileExists(b.graph.io, drive_path.getPath2(b, null))) {
         const create_drive_cmd = b.addSystemCommand(&.{"qemu-img"});
         create_drive_cmd.addArgs(&.{ "create", "-f", "qcow2" });
         create_drive_cmd.addFileArg(drive_path);
