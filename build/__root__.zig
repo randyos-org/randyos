@@ -10,7 +10,7 @@ pub const rstdlib = @import("rstdlib.zig");
 // pub const arch_stubs = @import("arch_stubs.zig");
 pub const boot = @import("boot.zig");
 
-const rstdbuild = rstd.build;
+const rstdbuild = rstd.buildutils;
 
 pub fn build(b: *rstdbuild.Build) void {
     // standard build setup

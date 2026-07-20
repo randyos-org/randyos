@@ -16,3 +16,15 @@ pub const main = impl.main;
 pub const std_options = impl.std_options;
 pub const std_options_debug_io = impl.std_options_debug_io;
 pub const std_options_cwd: ?fn () std.Io.Dir = if (@hasDecl(impl, "std_options_cwd")) impl.std_options_cwd else null;
+
+// As of Zig 0.17.0-dev.203, the implementation of std.Io.Threaded has os-specific
+// switches in a number of places that do not protect for UEFI or other uncommon
+// OSes with safe fallbacks.  Specifically, there is a default value for
+// std.Io.Threaded.RandomFile, which depends on posix.system.getrandom and is
+// undefined for UEFI.  However, the only practical uses of this variable are in
+// fallback contexts where std_options_debug_io are not explicitly defined and
+// falls back to using the std.Io.Threaded backend.  This is likely going to be
+// an issue for all our bootloaders, so we explicitly set this to null here to
+// prevent other unexpected hidden callsites and to force our other bootloaders
+// to provide an explicit concrete implementation of std_options_debug_io.
+pub const std_options_debug_threaded_io = null;

@@ -74,7 +74,37 @@ whatever toolchain happens to be installed locally, which may be a *newer* dev s
 baseline — don't let a newer local `.zigversion` justify using APIs that post-date `0.17.0-dev.203`. If
 you're unsure whether something is available at that version, say so rather than guessing.
 
-On my local machine, this is housed currently at `/c/scratch/git/zig-build/devkit-0.17.0-dev.203+073889523/bin/zig.exe`
+On my local machine, this was previously housed at
+`/c/scratch/git/zig-build/devkit-0.17.0-dev.203+073889523/bin/zig.exe`, but is now a
+self-built-from-source toolchain at `/c/scratch/git/zig-build/bin/stage4/bin/zig.exe`
+(stage3 at `/c/scratch/git/zig-build/bin/stage3/bin/zig.exe` is the same version, built
+one bootstrap pass earlier). `/c/scratch/git/zig-build/lib` is a symlink to the std lib
+source at `/c/scratch/git/zig-build/zig-src/lib` (a full git clone of the zig source
+repo, kept up to date with upstream `master`; check `git -C /c/scratch/git/zig-build/zig-src
+log -1` for the exact commit, since this keeps moving). `zig version` on this toolchain
+currently reports `0.17.0-dev.1442+245b0ba87` (updated 2026-07-19; was dev.1437 before
+that) -- treat this as the *current* local toolchain, superseding the `0.17.0-dev.203`
+baseline noted above until this file is updated again.
+
+Two `std.Build`/`std.Io` API changes landed between dev.1437 and dev.1442 that affected
+this repo's build scripts and UEFI `std.Io` implementation (both fixed 2026-07-19):
+
+- `Build.getInstallPath` and `Build.LazyPath.getPath2` were removed. Install destinations
+  (prefix/lib/bin/header dirs) are no longer resolvable to a string during the configure
+  phase at all -- they're now `Build.LazyPath.relative` variants (`.install_prefix`,
+  `.install_lib`, `.install_bin`, `.install_include` in
+  `Build.Configuration.LazyPath.Relative.Base`) that the Maker resolves lazily once the
+  install step has actually run. Build a `LazyPath` with that `.relative` shape instead of
+  trying to get a concrete string back (see `installDirLazyPath` in `build/qemu.zig`). A
+  plain source-relative path (e.g. the build root itself, via `b.root: Cache.Path`, which
+  has `.joinString`/`.access`/`.statFile`) is still synchronously resolvable at configure
+  time -- only paths that depend on the *make* phase (installed files, step-generated
+  files) are not.
+- `Io.File.Handle` changed from `std.posix.fd_t` to `std.c.fd_t`. On UEFI/freestanding both
+  used to alias to `void` (see `src/rstd/_os/uefi/io/`'s `Handle=void` workaround), but
+  `std.c.fd_t`'s UEFI branch is `i32`, so `Io.File.Handle` is no longer `void` there --
+  only `Io.Dir.Handle` (still `std.posix.fd_t`) is. Existing single-slot-file code that
+  built `Io.File{ .handle = {}, ... }` now needs a real (if unused/dummy) `i32` value.
 
 ## Markdown
 

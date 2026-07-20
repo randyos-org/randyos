@@ -65,3 +65,18 @@ pub fn addBuildOptionsModule(b: *Build) *BuildOptions {
 pub fn addBuildOptsModToModule(build_options: *BuildOptions, module: *Module) void {
     module.addOptions("build_options", build_options);
 }
+
+/// convert a given
+pub fn installDirLazyPath(b: *Build, instdir: *InstallDir) Build.LazyPath {
+    const dest_rel_path = instdir.options.install_subdir;
+    return switch (instdir.options.install_dir) {
+        .prefix => .{ .relative = .{ .base = .install_prefix, .sub_path = dest_rel_path } },
+        .lib => .{ .relative = .{ .base = .install_lib, .sub_path = dest_rel_path } },
+        .bin => .{ .relative = .{ .base = .install_bin, .sub_path = dest_rel_path } },
+        .header => .{ .relative = .{ .base = .install_include, .sub_path = dest_rel_path } },
+        .custom => |p| .{ .relative = .{
+            .base = .install_prefix,
+            .sub_path = if (dest_rel_path.len == 0) p else b.pathJoin(&.{ p, dest_rel_path }),
+        } },
+    };
+}

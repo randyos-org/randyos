@@ -9,7 +9,7 @@
 //!
 //! * Assume the name of the library is `rstd`.
 //! * Module names should not include underscores, be all lowercase, and be as
-//!   short as possible with a maximum of eight chars.
+//!   short as possible with a maximum of ten chars.
 //! * For logger scope names, use the underscore-delimited path of the module,
 //!   e.g., `rstd_ansi` for `src/rstd/ansi.zig` and `rstd_bootinfo` for
 //!   `src/rstd/bootinfo.zig`.
@@ -21,7 +21,7 @@ pub const sysinfo = @import("builtin");
 pub const build_options = @import("build_options");
 
 pub const ansi = @import("ansi.zig");
-pub const build = @import("build.zig");
+pub const buildutils = @import("buildutils.zig");
 pub const machine = @import("machine.zig");
 pub const memory = @import("memory.zig");
 pub const logging = @import("logging.zig");

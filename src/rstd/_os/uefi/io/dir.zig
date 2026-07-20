@@ -48,8 +48,7 @@ pub const dirCreateFile = Io.failingDirCreateFile;
 pub const dirCreateFileAtomic = Io.failingDirCreateFileAtomic;
 
 pub fn dirOpenFile(userdata: ?*anyopaque, _: Io.Dir, sub_path: []const u8, options: Io.Dir.OpenFileOptions) Io.File.OpenError!Io.File {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     // only dir that exists (see state.zig); read-only
     if (options.mode != .read_only) return error.ReadOnlyFileSystem;
     const root = state.root_dir orelse return error.Unexpected; // openRootDir was never called
@@ -78,12 +77,12 @@ pub fn dirOpenFile(userdata: ?*anyopaque, _: Io.Dir, sub_path: []const u8, optio
         error.Unexpected => error.Unexpected,
     };
     state.open_file = opened;
-    return .{ .handle = {}, .flags = .{ .nonblocking = false } };
+    // handle value is unused (every fileX callback reads state.open_file instead)
+    return .{ .handle = 3, .flags = .{ .nonblocking = false } };
 }
 
 pub fn dirClose(userdata: ?*anyopaque, _: []const Io.Dir) void {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     // every Io.Dir is boot volume root (see state.zig)
     if (state.root_dir) |root| {
         root.close() catch {};

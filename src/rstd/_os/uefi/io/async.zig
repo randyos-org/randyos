@@ -41,8 +41,7 @@ pub const groupAwait = Io.unreachableGroupAwait;
 pub const groupCancel = Io.unreachableGroupCancel;
 
 pub fn swapCancelProtection(userdata: ?*anyopaque, new: Io.CancelProtection) Io.CancelProtection {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     const prev = state.cancel_protection;
     state.cancel_protection = new;
     return prev;
@@ -54,8 +53,7 @@ pub const checkCancel = Io.unreachableCheckCancel;
 pub const futexWait = Io.noFutexWait;
 
 pub fn futexWaitUncancelable(userdata: ?*anyopaque, _: *const u32, _: u32) void {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     // std.debug parks a panicking task in `while (true)`; stall so it's not a busy spin
     if (state.bootServices()) |bs| bs.stall(1000) catch {};
 }

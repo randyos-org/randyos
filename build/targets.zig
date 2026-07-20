@@ -1,7 +1,7 @@
 const std = @import("std");
 const buildroot = @import("__root__.zig");
 const rstd = buildroot.rstd;
-const rstdbuild = rstd.build;
+const rstdbuild = rstd.buildutils;
 
 const Build = rstdbuild.Build;
 const TargetQuery = rstdbuild.TargetQuery;

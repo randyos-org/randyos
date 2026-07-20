@@ -41,6 +41,7 @@ bootx
 bpf
 brk
 bufs
+buildutils
 cachestat
 capget
 capset

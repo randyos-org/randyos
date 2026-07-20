@@ -73,7 +73,7 @@ The source code is primarily hosted at [Codeberg](https://codeberg.org/randyos/r
 
 This repo emulates a Python packaging scheme, where each package is defined by a `__root__.zig` file (in lieu of `__init__.py`).  This shall contain mostly import statements to other files in the directory or other packages to be make public for that package.  The file containing the entry point for executables shall be named `__main__.zig`.
 
-Package names shall be less than eight lowercased alphanumeric characters.  Where possible, filenames should strive to be kept as short as possible.  Files defining module-level structs shall use PascalCased (aka TitleCased) names.
+Package names shall be no more than ten lowercased alphanumeric characters.  Where possible, filenames should strive to be kept as short as possible.  Files defining module-level structs shall use PascalCased (aka TitleCased) names.
 
 ### Building the vendored Ghostty terminal (Windows target)
 

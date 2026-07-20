@@ -59,8 +59,7 @@ fn stderrDrain(w: *Io.Writer, data: []const []const u8, splat: usize) Io.Writer.
 }
 
 pub fn lockStderr(userdata: ?*anyopaque, terminal_mode: ?Io.Terminal.Mode) Io.Cancelable!Io.LockedStderr {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     state.stderr_lock_count += 1;
     return .{
         .file_writer = &state.stderr_writer,
@@ -76,8 +75,7 @@ pub fn tryLockStderr(userdata: ?*anyopaque, terminal_mode: ?Io.Terminal.Mode) Io
 }
 
 pub fn unlockStderr(userdata: ?*anyopaque) void {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     // mirrors Io.Threaded.unlockStderr: lock owns final flush, clear caller buffer
     if (state.stderr_writer.err == null) state.stderr_writer.interface.flush() catch {};
     state.stderr_writer.err = null;

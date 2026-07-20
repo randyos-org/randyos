@@ -8,7 +8,7 @@ const impl = switch (sysinfo.os.tag) {
 };
 
 pub const time = impl.time;
-pub const io = impl.io;
+pub const ioFactory = impl.ioFactory;
 /// Comptime-known `Io` value; only present for targets whose impl needs one
 /// as `std_options_debug_io` (see `_os/uefi/io/__root__.zig`).
 pub const io_inst: std.Io = if (@hasDecl(impl, "io_inst")) impl.io_inst else {};

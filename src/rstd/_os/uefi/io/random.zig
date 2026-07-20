@@ -23,8 +23,7 @@ fn locateRng() ?*uefi.protocol.Rng {
 // io vtable callbacks below here
 
 pub fn randomSecure(userdata: ?*anyopaque, buffer: []u8) Io.RandomSecureError!void {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     const rng = locateRng() orelse return error.EntropyUnavailable;
     rng.getRNG(null, buffer) catch return error.EntropyUnavailable;
 }

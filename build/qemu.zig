@@ -4,7 +4,7 @@
 const std = @import("std");
 const buildroot = @import("__root__.zig");
 const rstd = buildroot.rstd;
-const rstdbuild = rstd.build;
+const rstdbuild = rstd.buildutils;
 const SysrootDirs = buildroot.sysroot.SysrootDirs;
 
 const Build = rstdbuild.Build;
@@ -186,16 +186,13 @@ fn addOvmfToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
 
 fn addSysrootToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
     const sysroot_install = sysroot.install;
-    const sysroot_path = b.getInstallPath(
-        sysroot_install.options.install_dir,
-        sysroot_install.options.install_subdir,
-    );
+    const sysroot_path = rstdbuild.installDirLazyPath(b, sysroot_install);
     inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
         const cmd: *RunStep = @field(qemu_cmds, field_name);
         cmd.addArg("-drive");
         cmd.addPrefixedDirectoryArg(
             "format=raw,index=3,media=disk,file=fat:rw:",
-            .{ .cwd_relative = sysroot_path },
+            sysroot_path,
         );
         cmd.step.dependOn(&sysroot_install.step);
     }
@@ -203,15 +200,17 @@ fn addSysrootToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
 
 fn addPersistentDriveToQemu(b: *Build, qemu_cmds: QemuCmds) void {
     const drive_args = "format=qcow2,if=virtio,file=";
-    const drive_path = b.path("disk.qcow2");
+    const drive_pathstr = "disk.qcow2";
+    const drive_abs_path = b.root.joinString(b.allocator, drive_pathstr) catch @panic("OOM");
+    const drive_lazypath = b.path(drive_pathstr);
 
     // check if this file exists, if not, create it using the command:
     // qemu-img create -f qcow2 disk.qcow2 40G
     const create_drive_step = b.step("create-drive", "Create persistent drive for QEMU");
-    if (!rstd.io.fileExists(b.graph.io, drive_path.getPath2(b, null))) {
+    if (!rstd.io.fileExists(b.graph.io, drive_abs_path)) {
         const create_drive_cmd = b.addSystemCommand(&.{"qemu-img"});
         create_drive_cmd.addArgs(&.{ "create", "-f", "qcow2" });
-        create_drive_cmd.addFileArg(drive_path);
+        create_drive_cmd.addFileArg(drive_lazypath);
         create_drive_cmd.addArg("40G");
         create_drive_step.dependOn(&create_drive_cmd.step);
     }
@@ -219,7 +218,7 @@ fn addPersistentDriveToQemu(b: *Build, qemu_cmds: QemuCmds) void {
     inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
         const cmd: *RunStep = @field(qemu_cmds, field_name);
         cmd.addArg("-drive");
-        cmd.addPrefixedFileArg(drive_args, drive_path);
+        cmd.addPrefixedFileArg(drive_args, drive_lazypath);
         cmd.step.dependOn(create_drive_step);
     }
 }

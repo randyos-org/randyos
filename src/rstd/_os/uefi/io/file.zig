@@ -7,8 +7,7 @@ const state = @import("state.zig");
 pub const fileStat = Io.failingFileStat;
 
 pub fn fileLength(userdata: ?*anyopaque, _: Io.File) Io.File.LengthError!u64 {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     const file = state.open_file orelse return error.Unexpected;
     // seek to all-ones = UEFI's "seek to EOF"; resulting pos is the length; restore after
     const saved = file.getPosition() catch return error.Unexpected;
@@ -19,8 +18,7 @@ pub fn fileLength(userdata: ?*anyopaque, _: Io.File) Io.File.LengthError!u64 {
 }
 
 pub fn fileClose(userdata: ?*anyopaque, _: []const Io.File) void {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     // Io.File is the single open-file slot (see state.zig)
     if (state.open_file) |file| {
         file.close() catch {};
@@ -33,8 +31,7 @@ pub const fileWriteFileStreaming = Io.noFileWriteFileStreaming;
 pub const fileWriteFilePositional = Io.noFileWriteFilePositional;
 
 pub fn fileReadPositional(userdata: ?*anyopaque, _: Io.File, data: []const []u8, offset: u64) Io.File.ReadPositionalError!usize {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     const file = state.open_file orelse return error.Unexpected;
     file.setPosition(offset) catch return error.Unexpected;
     var total: usize = 0;

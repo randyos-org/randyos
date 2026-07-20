@@ -13,6 +13,7 @@ const progress = @import("progress.zig");
 const async = @import("async.zig");
 const proc = @import("proc.zig");
 const operate = @import("operate.zig");
+const stream = @import("stream.zig");
 
 /// set by init(), cleared by stop(); null = console output dropped
 pub var con_out: ?*uefi.protocol.SimpleTextOutput = null;
@@ -36,20 +37,6 @@ pub var cancel_protection: Io.CancelProtection = .unblocked;
 /// recursion depth not a mutex: single thread, but lock is recursive so
 /// panic handler can re-enter while a log line holds it.
 pub var stderr_lock_count: u32 = 0;
-
-/// `file_writer` must point at Io.File.Writer, but stderr path never
-/// touches `.file` -- writes go through `.interface`, vtable is ours. `File`
-/// here is a dummy; `stderr.stderrDrain` does the real work. `.io` set by
-/// init() once io(t) can be formed.
-pub var stderr_writer: Io.File.Writer = .{
-    .io = undefined,
-    .file = .{ .handle = {}, .flags = .{ .nonblocking = false } },
-    .mode = .streaming_simple,
-    .interface = .{
-        .vtable = &@import("stderr.zig").stderr_writer_vtable,
-        .buffer = &.{},
-    },
-};
 
 /// wire UEFI console + tick clock in. call once, before anything logs.
 pub fn init() void {
@@ -87,7 +74,7 @@ pub fn bootServices() ?*uefi.tables.BootServices {
 /// `state.io`) is wired separately by `io()`, which must run before this is
 /// used for real output.
 pub const io_inst: Io = .{
-    .userdata = Io.Threaded.global_single_threaded,
+    .userdata = null, //Io.Threaded.global_single_threaded,
     .vtable = &.{
         .crashHandler = async.crashHandler,
         .async = async.async,
@@ -209,5 +196,15 @@ pub const io_inst: Io = .{
         .netInterfaceNameResolve = net.netInterfaceNameResolve,
         .netInterfaceName = net.netInterfaceName,
         .netLookup = net.netLookup,
+    },
+};
+
+pub var stderr_writer: Io.File.Writer = .{
+    .io = io_inst,
+    .file = stream.stderr(),
+    .mode = .streaming_simple,
+    .interface = .{
+        .vtable = &@import("stderr.zig").stderr_writer_vtable,
+        .buffer = &.{},
     },
 };

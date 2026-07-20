@@ -36,6 +36,7 @@ pub const time = @import("time.zig");
 
 const state = @import("state.zig");
 const dir = @import("dir.zig");
+const stream = @import("stream.zig");
 // const stderr_mod = @import("stderr.zig");
 // const random = @import("random.zig");
 // const net = @import("net.zig");
@@ -49,19 +50,14 @@ const dir = @import("dir.zig");
 //     try std.debug.print("hello\n", .{});
 // }
 
-pub const stdout = std.Io.File.stdout;
-pub const stderr = std.Io.File.stderr;
-pub const stdin = std.Io.File.stdin;
+pub const stdout = stream.stdout;
+pub const stderr = stream.stderr;
+pub const stdin = stream.stdin;
 pub const cwdFn: ?fn () std.Io.Dir = dir.openRootDir;
 pub const init: ?fn () void = state.init;
 pub const stop: ?fn () void = state.stop;
 pub const io_inst: Io = state.io_inst;
 
-/// Finish wiring runtime state and return `io_instance`. Call once, early,
-/// before anything logs (see `bootloader()`).
-pub fn io() Io {
-    const t = Io.Threaded.global_single_threaded;
-    t.stderr_writer = state.stderr_writer;
-    t.stderr_writer.io = io_inst;
+pub fn ioFactory() Io {
     return io_inst;
 }

@@ -72,8 +72,7 @@ fn monotonicNow() Io.Timestamp {
 }
 
 pub fn now(userdata: ?*anyopaque, clock: Io.Clock) Io.Timestamp {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     switch (clock) {
         .real => {
             const result = uefi.system_table.runtime_services.getTime() catch return monotonicNow();
@@ -85,8 +84,7 @@ pub fn now(userdata: ?*anyopaque, clock: Io.Clock) Io.Timestamp {
 }
 
 pub fn clockResolution(userdata: ?*anyopaque, clock: Io.Clock) Io.Clock.ResolutionError!Io.Duration {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     return switch (clock) {
         // RTC only reliably tracks whole seconds (see file doc comment)
         .real => .fromSeconds(1),
@@ -95,8 +93,7 @@ pub fn clockResolution(userdata: ?*anyopaque, clock: Io.Clock) Io.Clock.Resoluti
 }
 
 pub fn sleep(userdata: ?*anyopaque, timeout: Io.Timeout) Io.Cancelable!void {
-    const t: *Io.Threaded = @ptrCast(@alignCast(userdata));
-    _ = t;
+    _ = userdata;
     const ns: i96 = switch (timeout) {
         // "no timeout" = block forever; would hang single-threaded world, so return
         .none => return,

@@ -31,7 +31,7 @@ const BootData = struct {
 /// (unlikely we can do much about them).
 pub fn bootloader() !BootData {
     // init console/logging early, in case of error
-    const io = rio.io();
+    const io = rio.io_inst;
     rio.init.?();
     defer rio.stop.?();
 
