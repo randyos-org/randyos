@@ -225,6 +225,7 @@ fcstr
 fcweight
 fcxml
 fdatasync
+fdtable
 FERR
 fgetxattr
 file_getattr

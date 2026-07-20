@@ -4,6 +4,7 @@ const Io = std.Io;
 const log = std.log.scoped(.bootfs);
 
 const state = @import("state.zig");
+const fdtable = @import("fdtable.zig");
 
 /// Locate Simple File System protocol, open root volume into `t.root_dir`,
 /// return handle-less `Io.Dir` token (see state.zig). Idempotent.
@@ -52,10 +53,6 @@ pub fn dirOpenFile(userdata: ?*anyopaque, _: Io.Dir, sub_path: []const u8, optio
     // only dir that exists (see state.zig); read-only
     if (options.mode != .read_only) return error.ReadOnlyFileSystem;
     const root = state.root_dir orelse return error.Unexpected; // openRootDir was never called
-    if (state.open_file != null) {
-        // no handle bits on UEFI; 2nd open file indistinguishable from 1st -- limit is 1
-        return error.ProcessFdQuotaExceeded;
-    }
 
     // UEFI wants UCS-2 with backslash separators.
     var path_utf16: [128:0]u16 = undefined;
@@ -76,9 +73,11 @@ pub fn dirOpenFile(userdata: ?*anyopaque, _: Io.Dir, sub_path: []const u8, optio
         error.NoMedia, error.MediaChanged, error.DeviceError, error.VolumeCorrupted => error.NoDevice,
         error.Unexpected => error.Unexpected,
     };
-    state.open_file = opened;
-    // handle value is unused (every fileX callback reads state.open_file instead)
-    return .{ .handle = 3, .flags = .{ .nonblocking = false } };
+    const fd = fdtable.alloc(opened) orelse {
+        opened.close() catch {};
+        return error.SystemFdQuotaExceeded;
+    };
+    return .{ .handle = fd, .flags = .{ .nonblocking = false } };
 }
 
 pub fn dirClose(userdata: ?*anyopaque, _: []const Io.Dir) void {

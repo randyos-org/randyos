@@ -36,7 +36,7 @@ pub const time = @import("time.zig");
 
 const state = @import("state.zig");
 const dir = @import("dir.zig");
-const stream = @import("stream.zig");
+const fdtable = @import("fdtable.zig");
 // const stderr_mod = @import("stderr.zig");
 // const random = @import("random.zig");
 // const net = @import("net.zig");
@@ -50,9 +50,9 @@ const stream = @import("stream.zig");
 //     try std.debug.print("hello\n", .{});
 // }
 
-pub const stdout = stream.stdout;
-pub const stderr = stream.stderr;
-pub const stdin = stream.stdin;
+pub const stdout = fdtable.stdout;
+pub const stderr = fdtable.stderr;
+pub const stdin = fdtable.stdin;
 pub const cwdFn: ?fn () std.Io.Dir = dir.openRootDir;
 pub const init: ?fn () void = state.init;
 pub const stop: ?fn () void = state.stop;

@@ -3,36 +3,7 @@ const uefi = std.os.uefi;
 const Io = std.Io;
 
 const state = @import("state.zig");
-
-/// Write bytes to UEFI console as UCS-2, expand "\n" -> "\r\n" (LF doesn't
-/// return column). Assumes ASCII -- no UTF-8 decoding, multi-byte chars break.
-///
-/// `stderrDrain` only gets `*Io.Writer`, not `Threaded` userdata, so this
-/// reaches console via global singleton directly -- only one console anyway
-/// (see state.zig).
-fn putsConsole(bytes: []const u8) void {
-    const out = state.con_out orelse return;
-    // batched: outputString is a firmware call, one per char would be slow
-    var buf: [64:0]u16 = undefined;
-    var len: usize = 0;
-    for (bytes) |byte| {
-        if (len + 2 > buf.len) {
-            buf[len] = 0;
-            _ = out.outputString(buf[0..len :0]) catch false;
-            len = 0;
-        }
-        if (byte == '\n') {
-            buf[len] = '\r';
-            len += 1;
-        }
-        buf[len] = byte;
-        len += 1;
-    }
-    if (len > 0) {
-        buf[len] = 0;
-        _ = out.outputString(buf[0..len :0]) catch false;
-    }
-}
+const console = @import("console.zig");
 
 /// `Io.Writer.VTable` backing `Threaded.stderr_writer` (see state.zig).
 /// `file_writer` must point at Io.File.Writer but never touches `.file` --
@@ -44,15 +15,15 @@ pub const stderr_writer_vtable: Io.Writer.VTable = .{
 
 fn stderrDrain(w: *Io.Writer, data: []const []const u8, splat: usize) Io.Writer.Error!usize {
     const buffered = w.buffered();
-    putsConsole(buffered);
+    console.writeConsole(state.con_out, buffered);
     var n: usize = buffered.len;
     if (data.len != 0) {
         for (data[0 .. data.len - 1]) |chunk| {
-            putsConsole(chunk);
+            console.writeConsole(state.con_out, chunk);
             n += chunk.len;
         }
         const last = data[data.len - 1];
-        for (0..splat) |_| putsConsole(last);
+        for (0..splat) |_| console.writeConsole(state.con_out, last);
         n += last.len * splat;
     }
     return w.consume(n);

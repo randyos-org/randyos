@@ -2,27 +2,28 @@ const std = @import("std");
 const uefi = std.os.uefi;
 const Io = std.Io;
 
-const state = @import("state.zig");
+const fdtable = @import("fdtable.zig");
 
 pub const fileStat = Io.failingFileStat;
 
-pub fn fileLength(userdata: ?*anyopaque, _: Io.File) Io.File.LengthError!u64 {
+pub fn fileLength(userdata: ?*anyopaque, file: Io.File) Io.File.LengthError!u64 {
     _ = userdata;
-    const file = state.open_file orelse return error.Unexpected;
+    const f = fdtable.get(file.handle) orelse return error.Unexpected;
     // seek to all-ones = UEFI's "seek to EOF"; resulting pos is the length; restore after
-    const saved = file.getPosition() catch return error.Unexpected;
-    file.setPosition(std.math.maxInt(u64)) catch return error.Unexpected;
-    const end_pos = file.getPosition() catch return error.Unexpected;
-    file.setPosition(saved) catch return error.Unexpected;
+    const saved = f.getPosition() catch return error.Unexpected;
+    f.setPosition(std.math.maxInt(u64)) catch return error.Unexpected;
+    const end_pos = f.getPosition() catch return error.Unexpected;
+    f.setPosition(saved) catch return error.Unexpected;
     return end_pos;
 }
 
-pub fn fileClose(userdata: ?*anyopaque, _: []const Io.File) void {
+pub fn fileClose(userdata: ?*anyopaque, files: []const Io.File) void {
     _ = userdata;
-    // Io.File is the single open-file slot (see state.zig)
-    if (state.open_file) |file| {
-        file.close() catch {};
-        state.open_file = null;
+    for (files) |file| {
+        if (fdtable.get(file.handle)) |f| {
+            f.close() catch {};
+            fdtable.free(file.handle);
+        }
     }
 }
 
@@ -30,14 +31,14 @@ pub const fileWritePositional = Io.failingFileWritePositional;
 pub const fileWriteFileStreaming = Io.noFileWriteFileStreaming;
 pub const fileWriteFilePositional = Io.noFileWriteFilePositional;
 
-pub fn fileReadPositional(userdata: ?*anyopaque, _: Io.File, data: []const []u8, offset: u64) Io.File.ReadPositionalError!usize {
+pub fn fileReadPositional(userdata: ?*anyopaque, file: Io.File, data: []const []u8, offset: u64) Io.File.ReadPositionalError!usize {
     _ = userdata;
-    const file = state.open_file orelse return error.Unexpected;
-    file.setPosition(offset) catch return error.Unexpected;
+    const f = fdtable.get(file.handle) orelse return error.Unexpected;
+    f.setPosition(offset) catch return error.Unexpected;
     var total: usize = 0;
     for (data) |buffer| {
         if (buffer.len == 0) continue;
-        const n = file.read(buffer) catch return error.InputOutput;
+        const n = f.read(buffer) catch return error.InputOutput;
         total += n;
         // short read = EOF; return bytes available (0 at/past end)
         if (n < buffer.len) break;

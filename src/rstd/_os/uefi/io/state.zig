@@ -14,6 +14,7 @@ const async = @import("async.zig");
 const proc = @import("proc.zig");
 const operate = @import("operate.zig");
 const stream = @import("stream.zig");
+const fdtable = @import("fdtable.zig");
 
 /// set by init(), cleared by stop(); null = console output dropped
 pub var con_out: ?*uefi.protocol.SimpleTextOutput = null;
@@ -26,10 +27,6 @@ pub var stopped: bool = false;
 /// opened boot-volume root dir (see dir.openRootDir). single slot, not a
 /// table: `Io.Dir` has no handle bits on UEFI, so values can't be told apart.
 pub var root_dir: ?*uefi.protocol.File = null;
-
-/// single open-file slot backing `Io.File`; same zero-handle-bits story as
-/// root_dir -- at most one file open, every Io.File value refers to it.
-pub var open_file: ?*uefi.protocol.File = null;
 
 /// per-task cancel-protection state; only one task here
 pub var cancel_protection: Io.CancelProtection = .unblocked;
@@ -58,7 +55,7 @@ pub fn stop() void {
     con_out = null;
     // no close() calls: protocols already gone, just drop dangling pointers
     root_dir = null;
-    open_file = null;
+    fdtable.reset();
     stopped = true;
 }
 
