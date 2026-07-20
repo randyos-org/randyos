@@ -1,15 +1,18 @@
-[submodule "src/vendor/ghostty"]
+[submodule "vendor/ghostty"]
 	path = vendor/ghostty
 	url = https://github.com/randyos-org/ghostty
-[submodule "src/vendor/uucode"]
+[submodule "vendor/uucode"]
 	path = vendor/uucode
 	url = https://github.com/randyos-org/uucode
-[submodule "src/vendor/libxev"]
+[submodule "vendor/libxev"]
 	path = vendor/libxev
 	url = https://github.com/randyos-org/libxev
-[submodule "src/vendor/libvaxis"]
+[submodule "vendor/libvaxis"]
 	path = vendor/libvaxis
 	url = https://github.com/randyos-org/libvaxis.git
-[submodule "src/vendor/z2d"]
+[submodule "vendor/z2d"]
 	path = vendor/z2d
 	url = https://github.com/randyos-org/z2d
+[submodule "vendor/rstd"]
+	path = vendor/rstd
+	url = https://codeberg.org/randyos/rstd.git
