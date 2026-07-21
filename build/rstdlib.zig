@@ -1,6 +1,6 @@
 const std = @import("std");
-const buildroot = @import("__root__.zig");
-const rstdbuild = buildroot.rstd.buildutils;
+const rstd = @import("rstd");
+const rstdbuild = rstd.buildutils;
 
 const Build = rstdbuild.Build;
 const RunStep = rstdbuild.RunStep;
@@ -16,16 +16,19 @@ pub fn addRstd(
     options: *BuildOptions,
     target: ?ResolvedTarget,
 ) *Module {
-    const rstd_root = b.path("src/rstd/__root__.zig");
-    const rstd_mod = b.createModule(.{
-        .root_source_file = rstd_root,
+    const rstd_dep = b.dependency("rstd", .{
+        .target = target,
     });
+    const rstd_mod = rstd_dep.module("rstd");
     rstdbuild.addBuildOptsModToModule(options, rstd_mod);
 
     // We want the rstd docs to be built separately from the other packages,
     // so we will make a separate compile step for them and attach the docs.
+    // The registered "rstd" module has no target (consumers set their own via
+    // addImport), so build a target-bearing module of the same root for the
+    // standalone docs object.
     const rstd_docs_mod = b.createModule(.{
-        .root_source_file = rstd_root,
+        .root_source_file = rstd_dep.builder.path("src/__root__.zig"),
         .target = target,
     });
     rstdbuild.addBuildOptsModToModule(options, rstd_docs_mod);

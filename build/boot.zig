@@ -1,6 +1,7 @@
 const std = @import("std");
 const buildroot = @import("__root__.zig");
-const rstdbuild = buildroot.rstd.buildutils;
+const rstd = @import("rstd");
+const rstdbuild = rstd.buildutils;
 
 const Build = rstdbuild.Build;
 const RunStep = rstdbuild.RunStep;
@@ -17,7 +18,7 @@ pub fn addBootldr(
     b: *Build,
     optimize: OptimizeMode,
     target: ResolvedTarget,
-    rstdlib: *Module,
+    rstdlib: ?*Module,
     sysroot: SysrootDirs,
     docs: Docs,
 ) *CompileStep {
@@ -26,7 +27,9 @@ pub fn addBootldr(
         .target = target,
         .optimize = optimize,
     });
-    bootloader_mod.addImport("rstd", rstdlib);
+    if (rstdlib) |rstdlib_mod| {
+        bootloader_mod.addImport("rstd", rstdlib_mod);
+    }
 
     const bootloader_exe = b.addExecutable(.{
         // It will be named "bootx64", because that's the regular path that can

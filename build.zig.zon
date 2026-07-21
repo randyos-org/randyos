@@ -5,6 +5,7 @@
     .minimum_zig_version = "0.17.0-dev.203",
     .dependencies = .{
         .ghostty = .{ .path = "vendor/ghostty" },
+        .rstd = .{ .path = "vendor/rstd" },
     },
 
     // package hash is computed from files in .paths

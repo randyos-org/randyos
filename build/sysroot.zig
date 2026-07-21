@@ -4,7 +4,8 @@
 //! attaches to QEMU as the emulated FAT boot drive.
 
 const buildroot = @import("__root__.zig");
-const rstdbuild = buildroot.rstd.buildutils;
+const rstd = @import("rstd");
+const rstdbuild = rstd.buildutils;
 
 pub const SysrootDirs = struct {
     build: *rstdbuild.BuildDir,

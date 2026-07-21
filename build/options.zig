@@ -1,6 +1,7 @@
 const std = @import("std");
 const buildroot = @import("__root__.zig");
-const rstdbuild = buildroot.rstd.buildutils;
+const rstd = @import("rstd");
+const rstdbuild = rstd.buildutils;
 
 const targets = buildroot.targets;
 const RandyOSTarget = targets.RandyOSTarget;

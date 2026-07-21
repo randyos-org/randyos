@@ -1,6 +1,6 @@
 const std = @import("std");
 const buildroot = @import("__root__.zig");
-const rstd = buildroot.rstd;
+const rstd = @import("rstd");
 const rstdbuild = rstd.buildutils;
 
 const Build = rstdbuild.Build;

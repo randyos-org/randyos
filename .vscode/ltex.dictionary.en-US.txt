@@ -29,6 +29,7 @@ auxv
 auxvec
 bdflush
 bind
+blkcnt
 bootdbg
 bootefi
 bootfs
@@ -513,6 +514,7 @@ nflist
 nfsservctl
 ngettext
 NIDENT
+NIXOS
 NLIMITS
 nlist
 NOATIME
