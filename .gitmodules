@@ -16,3 +16,6 @@
 [submodule "vendor/rstd"]
 	path = vendor/rstd
 	url = https://codeberg.org/randyos/rstd.git
+[submodule "vendor/rgui"]
+	path = vendor/rgui
+	url = https://codeberg.org/randyos/rgui.git
