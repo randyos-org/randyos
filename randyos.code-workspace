@@ -5,7 +5,6 @@
 		}
 	],
 	"settings": {
-		"claudeCode.allowDangerouslySkipPermissions": true,
 		"files.exclude": {
 			"**/node_modules/**": true,
 			"**/.zig-cache/**": true,
@@ -23,6 +22,29 @@
       ".local-gitignore": "gitignore",
       ".github/workflows/exempt.txt": "gitignore"
     },
+    "terminal.integrated.automationProfile.windows": {
+      "path": "C:\\windows\\system32\\cmd.exe",
+    },
+    "ltex.additionalRules.motherTongue": "en-US",
+    "zig.zls.enabled": "on",
+    "zig.zls.inlayHintsShowParameterName": false,
+    "zig.zls.inlayHintsExcludeSingleArgument": false,
+    "zig.zls.inlayHintsShowBuiltin": false,
+    "zig.zls.inlayHintsShowStructLiteralFieldType": false,
+    "zig.zls.inlayHintsShowVariableTypeHints": false,
+    "zig.zls.warnStyle": true,
+	  "debug.onTaskErrors": "abort",  // will switch to problems pane otherwise
+
+    // for C deps we will compile with Zig that have CMakeLists in their repos
+    "cmake.ignoreCMakeListsMissing": true,
+
+    // CodeLLDB settings - never got this to work properly.
+    // // "lldb.library": "",
+    // "lldb.displayFormat": "auto",
+    // "lldb.showDisassembly": "auto",
+    // "lldb.dereferencePointers": true,
+    // "zig.debugAdapter": "lldb",
+
     // "zig.path": "C:/scratch/git/zig-build/devkit-0.17.0-dev.203+073889523/bin/zig.exe",
     // "zig.path": "C:/scratch/git/zig-build/bin/stage3/bin/zig.exe",
     "zig.path": "C:/scratch/git/zig-build/bin/stage4/bin/zig.exe",

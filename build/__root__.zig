@@ -4,10 +4,6 @@ pub const sysroot = @import("sysroot.zig");
 pub const qemu = @import("qemu.zig");
 pub const options = @import("options.zig");
 pub const rstdlib = @import("rstdlib.zig");
-// pub const ghostty = @import("ghostty.zig");
-// pub const abi = @import("abi.zig");
-// pub const exe = @import("exe.zig");
-// pub const arch_stubs = @import("arch_stubs.zig");
 pub const boot = @import("boot.zig");
 
 const rstdbuild = rstd.buildutils;

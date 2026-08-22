@@ -32,8 +32,7 @@ pub fn addBootldr(
     }
 
     const bootloader_exe = b.addExecutable(.{
-        // It will be named "bootx64", because that's the regular path that can
-        // be found by UEFI.
+        // Name expected by UEFI.
         .name = "bootx64",
         .root_module = bootloader_mod,
     });

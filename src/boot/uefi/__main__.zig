@@ -1,5 +1,3 @@
-//! Main bootloader logic.
-
 const std = @import("std");
 const uefi = std.os.uefi;
 const log = std.log.scoped(.bootmain);

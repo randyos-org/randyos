@@ -1,14 +1,14 @@
-# ---> Zig
+# Zig
 .zig-cache/
 zig-out/
 *.o
 zig-pkg/
+.zigversion
 
 # pixi environments
 .pixi/*
 !.pixi/config.toml
 
-systemroot/**
-.zigversion
+sysroot/**
 qemu-monitor-socket
 disk.qcow2

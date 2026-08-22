@@ -1,9 +1,0 @@
-{
-  "embeddingProvider": "custom",
-  "exclude": [
-    "tui_log.txt"
-  ],
-  "indexing": {
-    "skipAutoIndexOnLoad": false
-  }
-}
