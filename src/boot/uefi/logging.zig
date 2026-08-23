@@ -4,13 +4,12 @@
 
 const rstd = @import("rstd");
 const logging = rstd.logging;
-const io_time = rstd.io.time;
 
 pub const logFn = logging.logFn;
 
 /// Call after `io.init()` so log lines get real timestamps instead of -1.
 pub fn initLogging() void {
-    logging.get_time = &io_time.getTimeSeconds;
+    logging.get_time = &rstd.io.getTimeSeconds;
 }
 
 /// After this, log lines fall back to a -1 timestamp; output goes dark

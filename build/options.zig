@@ -1,4 +1,3 @@
-const std = @import("std");
 const buildroot = @import("__root__.zig");
 const rstd = @import("rstd");
 const rstdbuild = rstd.buildutils;
@@ -10,56 +9,26 @@ const Build = rstdbuild.Build;
 const BuildOptions = rstdbuild.BuildOptions;
 const MachineTargetInfo = targets.MachineTargetInfo;
 
-const LoggerScopeIgnore: type = []const []const u8;
+/// Scopes noisy enough to want error-only by default -- see
+/// `rstdbuild.addLogScopeOptions`'s doc comment for the `-Dno-log-scope`/
+/// `-Dlog-scope`/`-Dlog-scope-level` build options this seeds.
+const default_log_scope_levels: []const rstdbuild.ScopeLevel = &.{
+    .{ .scope = "boot:uefi.__main__.bootloader.preinit", .level = .err },
+    .{ .scope = "boot:uefi.graphics", .level = .info },
+    .{ .scope = "boot:uefi.loader.image", .level = .info },
+    .{ .scope = "rstd:_os.uefi.io.dir", .level = .info },
+    .{ .scope = "arch_paging", .level = .err },
+    .{ .scope = "kp_alloc", .level = .err },
+    .{ .scope = "acpi", .level = .err },
+    .{ .scope = "arch_lapic", .level = .err },
+    .{ .scope = "arch_ioapic", .level = .err },
+    .{ .scope = "term_fbcon", .level = .err },
+    .{ .scope = "arch_idt_frame", .level = .err },
+};
 
-pub fn addLogScopeOptions(b: *Build, build_options: *BuildOptions) void {
-    const default_no_log_scopes: LoggerScopeIgnore = &.{
-        "arch_paging",
-        "kp_alloc",
-        "acpi",
-        "arch_lapic",
-        "arch_ioapic",
-        "term_fbcon",
-        "arch_idt_frame",
-    };
-    const no_log_scope_args = b.option(
-        LoggerScopeIgnore,
-        "no-log-scope",
-        "Add a scope to ignore in the logger, on top of the default list (repeatable; pass with no value to clear the list, including defaults)",
-    ) orelse &.{};
-    const log_scope_args = b.option(
-        LoggerScopeIgnore,
-        "log-scope",
-        "Remove a scope from the ignored-scope list, whitelisting it out of the defaults or -Dno-log-scope (repeatable)",
-    ) orelse &.{};
-
-    const reset_no_log_scopes = for (no_log_scope_args) |scope| {
-        if (scope.len == 0) break true;
-    } else false;
-
-    var no_log_scopes: std.ArrayList([]const u8) = .empty;
-    if (!reset_no_log_scopes) try no_log_scopes.appendSlice(b.allocator, default_no_log_scopes);
-    for (no_log_scope_args) |scope| {
-        if (scope.len == 0) continue;
-        try no_log_scopes.append(b.allocator, scope);
-    }
-    for (log_scope_args) |scope| {
-        var i: usize = 0;
-        while (i < no_log_scopes.items.len) {
-            if (std.mem.eql(u8, no_log_scopes.items[i], scope)) {
-                _ = no_log_scopes.orderedRemove(i);
-            } else {
-                i += 1;
-            }
-        }
-    }
-    const logger_scopes_ignore: LoggerScopeIgnore = no_log_scopes.items;
-    build_options.addOption(LoggerScopeIgnore, "logger_scopes_ignore", logger_scopes_ignore);
-}
-
-pub fn addBuildOptions(b: *Build, tgt: RandyOSTarget) *BuildOptions {
+pub fn addBuildOptions(b: *Build, tgt: RandyOSTarget) !*BuildOptions {
     const build_options = rstdbuild.addBuildOptionsModule(b);
-    addLogScopeOptions(b, build_options);
+    try rstdbuild.addLogScopeOptions(b, build_options, default_log_scope_levels);
 
     // const debug_scheduler: bool = b.option(bool, "debug-scheduler", "Print out scheduler debug information") orelse false;
     // options.addOption(bool, "debug_scheduler", debug_scheduler);

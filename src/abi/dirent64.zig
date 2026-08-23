@@ -19,9 +19,6 @@
 //! silently corrupt directory iteration by misreading `d_name` and every
 //! entry after it.
 
-const std = @import("std");
-const log = std.log.scoped(.abi_dirent64);
-
 pub const LinuxDirent64 = extern struct {
     /// Inode number of this directory entry.
     d_ino: u64,

@@ -50,7 +50,6 @@
 
 const sysinfo = @import("builtin");
 const std = @import("std");
-const log = std.log.scoped(.abi_syscall);
 
 comptime {
     switch (sysinfo.cpu.arch) {

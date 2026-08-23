@@ -16,10 +16,10 @@
 const std = @import("std");
 const uefi = std.os.uefi;
 const elf = std.elf;
-const log = std.log.scoped(.bootaddr);
 
 const rstd = @import("rstd");
-const pages = rstd.memory;
+const log = rstd.Logger(@This());
+const pages = rstd.mem;
 const memory = @import("../memory.zig");
 
 /// Errors from planning the kernel load
@@ -73,23 +73,23 @@ pub fn planKernelLoad(
         if (segment_end > max_vaddr_end) max_vaddr_end = segment_end;
     }
     if (!any_load) {
-        log.err("no LOAD segments to size the kernel image from", .{});
+        log.err(@src(), "no LOAD segments to size the kernel image from", .{});
         return error.NoSuitableMemory;
     }
     if (min_vaddr & pages.page_mask != 0) {
-        log.err("kernel link address 0x{x} is not page-aligned", .{min_vaddr});
+        log.err(@src(), "kernel link address 0x{x} is not page-aligned", .{min_vaddr});
         return error.Unaligned;
     }
     if (min_vaddr < min_kernel_load_address) {
         // jump runs under identity mapping; a link addr in legacy low
         // memory could never be honored safely
-        log.err("kernel link address 0x{x} is below the 1M low-memory boundary", .{min_vaddr});
+        log.err(@src(), "kernel link address 0x{x} is below the 1M low-memory boundary", .{min_vaddr});
         return error.NoSuitableMemory;
     }
 
     const required_size = max_vaddr_end - min_vaddr;
     const required_pages = memory.efiSizeToPages(required_size);
-    log.debug("kernel image needs {} bytes ({} pages) at 0x{x}-0x{x}", .{
+    log.debug(@src(), "kernel image needs {} bytes ({} pages) at 0x{x}-0x{x}", .{
         required_size,
         required_pages,
         min_vaddr,
@@ -109,12 +109,12 @@ pub fn planKernelLoad(
         .loader_data,
         required_pages,
     )) |_| {
-        log.debug("destination range is free; loading kernel directly at 0x{x}", .{plan.dest});
+        log.debug(@src(), "destination range is free; loading kernel directly at 0x{x}", .{plan.dest});
         plan.staging = plan.dest;
         zeroImageSpan(plan.staging, required_pages);
         return plan;
     } else |_| {
-        log.debug("destination range not fully free yet; staging elsewhere", .{});
+        log.debug(@src(), "destination range not fully free yet; staging elsewhere", .{});
     }
 
     // reserve free parts of dest so nothing else lands there; failure here
@@ -139,18 +139,18 @@ pub fn planKernelLoad(
             .loader_data,
             required_pages,
         )) |_| {
-            log.debug("staging kernel at 0x{x} ({} pages)", .{ region_start, required_pages });
+            log.debug(@src(), "staging kernel at 0x{x} ({} pages)", .{ region_start, required_pages });
             plan.staging = region_start;
             zeroImageSpan(plan.staging, required_pages);
             return plan;
         } else |err| {
             // map snapshot predates our own allocations, so a candidate
             // can be stale -- move on to the next one
-            log.debug("staging candidate 0x{x} not available ({s}); trying next", .{ region_start, @errorName(err) });
+            log.debug(@src(), "staging candidate 0x{x} not available ({s}); trying next", .{ region_start, @errorName(err) });
         }
     }
 
-    log.err("no conventional memory region big enough to stage the kernel image ({} bytes)", .{required_size});
+    log.err(@src(), "no conventional memory region big enough to stage the kernel image ({} bytes)", .{required_size});
     return error.NoSuitableMemory;
 }
 
@@ -184,9 +184,9 @@ fn reserveDestination(
             .loader_data,
             overlap_pages,
         )) |_| {
-            log.debug("reserved destination sub-range 0x{x}-0x{x}", .{ overlap_start, overlap_end });
+            log.debug(@src(), "reserved destination sub-range 0x{x}-0x{x}", .{ overlap_start, overlap_end });
         } else |err| {
-            log.warn("could not reserve destination sub-range 0x{x}-0x{x} ({s})", .{ overlap_start, overlap_end, @errorName(err) });
+            log.warn(@src(), "could not reserve destination sub-range 0x{x}-0x{x} ({s})", .{ overlap_start, overlap_end, @errorName(err) });
         }
     }
 }

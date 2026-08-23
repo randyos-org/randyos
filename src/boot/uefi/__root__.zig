@@ -1,5 +1,4 @@
 const std = @import("std");
-const log = std.log.scoped(.bootuefi);
 
 const rstd = @import("rstd");
 const rio = rstd.io;

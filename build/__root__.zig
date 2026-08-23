@@ -8,7 +8,7 @@ pub const boot = @import("boot.zig");
 
 const rstdbuild = rstd.buildutils;
 
-pub fn build(b: *rstdbuild.Build) void {
+pub fn build(b: *rstdbuild.Build) !void {
     // standard build setup
     const optimize = rstdbuild.getOptimize(b);
     const docs = rstdbuild.addDocs(b);
@@ -19,10 +19,8 @@ pub fn build(b: *rstdbuild.Build) void {
     qemu.addQemu(b, sysroot_paths);
 
     // build steps
-    const build_options = options.addBuildOptions(b, randyos_target);
+    const build_options = try options.addBuildOptions(b, randyos_target);
     const rstd_module = rstdlib.addRstd(b, docs, build_options, randyos_target.rstd);
     // const abi_mod = modules_mod.addAbi(b, optimize, docs);
-    // _ = exe_mod.addBootldr(b, sysroot.build, optimize, common_mod, abi_mod, docs);
-    // _ = exe_mod.addKernel(b, sysroot.build, optimize, common_mod, abi_mod, docs);
     _ = boot.addBootldr(b, optimize, randyos_target.bootloader, rstd_module, sysroot_paths, docs);
 }

@@ -10,5 +10,3 @@
 //! not gated on `builtin.cpu.arch` -- UEFI runs on x86_64 and aarch64
 //! (Pi 3/4 via pftf) alike. `src/kernel/main.zig`'s `init_fw_driver` just
 //! checks `fw_runtime_ptr` for now; wire this in once driver loading exists.
-const std = @import("std");
-const log = std.log.scoped(.drivers_uefi);

@@ -14,9 +14,6 @@
 //! (32-bit, non-Y2038-safe `tv_sec`); that one is not implemented here since
 //! it is not used by current syscalls.
 
-const std = @import("std");
-const log = std.log.scoped(.abi_timespec);
-
 pub const Timespec = extern struct {
     /// Whole seconds component of the time value.
     tv_sec: i64,

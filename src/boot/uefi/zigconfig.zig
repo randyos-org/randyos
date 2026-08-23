@@ -14,12 +14,7 @@ pub const std_options = std.Options{
 
 /// Routes `std.debug.print`, `std.log`, and the default panic handler
 /// through the UEFI console.
-pub const std_options_debug_io = rstd.zigconfig.std_options_debug_io;
-pub const std_options_cwd = rstd.zigconfig.std_options_cwd;
-pub const os = struct {
-    pub const PATH_MAX = rstd.zigconfig.os.PATH_MAX;
-    pub const NAME_MAX = rstd.zigconfig.os.NAME_MAX;
-    pub const heap = struct {
-        // pub const page_allocator: std.mem.Allocator = std.heap.page_allocator;
-    };
-};
+// pub const std_options_debug_io = rstd.zigconfig.std_options_debug_io;
+// pub const std_options_cwd = rstd.zigconfig.std_options_cwd;
+pub const std_os_options = rstd.zigconfig.std_os_options;
+pub const log_module_name = "boot";

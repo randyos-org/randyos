@@ -8,6 +8,3 @@
 //! controller, interrupts, etc.), which loads U-Boot (provides UEFI).
 //! Chain: iBoot -> m1n1 -> U-Boot -> us. Different 3-stage story from both
 //! uefi/ and rpi/ -- not a retarget of either.
-
-const std = @import("std");
-const log = std.log.scoped(.boot_asahi);

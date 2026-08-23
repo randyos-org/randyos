@@ -9,6 +9,3 @@
 //! needed. Talks to OF's call-method/client interface (memory claim,
 //! device tree walk, boot the ELF) instead of std.os.uefi -- a genuinely
 //! different bootloader, not a re-target.
-
-const std = @import("std");
-const log = std.log.scoped(.boot_ofw);

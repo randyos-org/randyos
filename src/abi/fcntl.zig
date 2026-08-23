@@ -86,8 +86,6 @@
 //! structs-focused pass.
 
 const sysinfo = @import("builtin");
-const std = @import("std");
-const log = std.log.scoped(.abi_fcntl);
 
 /// The `open()` access-mode sub-field occupying bits 0-1 of the flags word
 /// -- a mutually-exclusive mode selector, not independent bits. Doesn't

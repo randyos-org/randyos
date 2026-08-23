@@ -16,8 +16,6 @@
 //! and `pub const Stat` picks the right one via a `builtin.cpu.arch` switch.
 
 const sysinfo = @import("builtin");
-const std = @import("std");
-const log = std.log.scoped(.abi_stat);
 
 /// Linux `struct stat` layout for x86_64.
 ///

@@ -4,7 +4,9 @@
 const std = @import("std");
 const uefi = std.os.uefi;
 const Io = std.Io;
-const log = std.log.scoped(.bootimg);
+
+const rstd = @import("rstd");
+const log = rstd.Logger(@This());
 
 const memory = @import("../memory.zig");
 const elf_image = @import("elf.zig");
@@ -31,9 +33,9 @@ pub fn loadKernelImage(
 ) !void {
     const boot_services = uefi.system_table.boot_services.?;
 
-    log.debug("opening kernel image", .{});
+    log.debug(@src(), "opening kernel image", .{});
     const kernel_img_file = root_dir.openFile(io, kernel_image_path, .{}) catch |err| {
-        log.err("opening kernel image failed: {s}", .{@errorName(err)});
+        log.err(@src(), "opening kernel image failed: {s}", .{@errorName(err)});
         return err;
     };
     defer kernel_img_file.close(io);
@@ -50,9 +52,9 @@ pub fn loadKernelImage(
     const plan = try load_address.planKernelLoad(mm, headers.program_headers);
     plan_out.* = plan;
     if (plan.staging == plan.dest) {
-        log.info("loading kernel at physical address 0x{x}", .{plan.dest});
+        log.info(@src(), "loading kernel at physical address 0x{x}", .{plan.dest});
     } else {
-        log.info("staging kernel at 0x{x}; it moves to 0x{x} after boot services exit", .{ plan.staging, plan.dest });
+        log.info(@src(), "staging kernel at 0x{x}; it moves to 0x{x} after boot services exit", .{ plan.staging, plan.dest });
     }
 
     // load segments, then whatever debug info is alongside them
@@ -82,7 +84,7 @@ pub const LoadedKernel = struct {
 
 /// Load `\kernel.elf` from `root_dir` into memory described by `mm`.
 pub fn loadKernel(io: Io, root_dir: Io.Dir, mm: memory.MemoryMap) !LoadedKernel {
-    log.info("loading kernel image", .{});
+    log.info(@src(), "loading kernel image", .{});
 
     var loaded: LoadedKernel = .{
         .plan = undefined,
@@ -102,11 +104,11 @@ pub fn loadKernel(io: Io, root_dir: Io.Dir, mm: memory.MemoryMap) !LoadedKernel 
         &loaded.dwarf_info,
     ) catch |err| {
         // fatal: fields above are still undefined without a loaded kernel
-        log.err("loading kernel image failed: {s}", .{@errorName(err)});
+        log.err(@src(), "loading kernel image failed: {s}", .{@errorName(err)});
         return err;
     };
-    log.debug("loadKernelImage returned OK", .{});
-    log.debug("kernel entry point is: '0x{x:0>16}'", .{loaded.kernel_entry_point});
-    log.debug("kernel base address is: '0x{x:0>16}'", .{loaded.baseAddress()});
+    log.debug(@src(), "loadKernelImage returned OK", .{});
+    log.debug(@src(), "kernel entry point is: '0x{x:0>16}'", .{loaded.kernel_entry_point});
+    log.debug(@src(), "kernel base address is: '0x{x:0>16}'", .{loaded.baseAddress()});
     return loaded;
 }

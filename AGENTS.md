@@ -17,6 +17,9 @@ RandyOS is a from-scratch, multi-arch OS built with Zig. See `readme.md` for the
 - `zig build monitor` — attach to the QEMU monitor socket via `socat`.
 - There is currently no `zig build test`/`check` step wired up at the repo root (unlike the reference
   trees in `kernel-dev/`). Don't assume `zig build test` works until that's ported.
+- `zig` is not on `PATH` in this environment. The self-built toolchain lives at
+  `C:\scratch\git\zig-build\bin\stage4\bin\zig.exe` (std lib at `C:\scratch\git\zig-build\lib\std`);
+  invoke it by full path.
 
 ## Markdown
 

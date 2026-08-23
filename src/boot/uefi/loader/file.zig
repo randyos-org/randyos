@@ -4,7 +4,9 @@
 const std = @import("std");
 const uefi = std.os.uefi;
 const Io = std.Io;
-const log = std.log.scoped(.bootfile);
+
+const rstd = @import("rstd");
+const log = rstd.Logger(@This());
 
 /// Read exactly `buffer.len` bytes from absolute `position` in `file`. A
 /// short read here means a truncated/corrupt image, not a normal EOF.
@@ -18,11 +20,11 @@ pub fn readFile(
     buffer: []u8,
 ) !void {
     const n = file.readPositionalAll(io, buffer, position) catch |err| {
-        log.err("reading file failed: {s}", .{@errorName(err)});
+        log.err(@src(), "reading file failed: {s}", .{@errorName(err)});
         return err;
     };
     if (n != buffer.len) {
-        log.err("short read: wanted 0x{x} bytes at offset 0x{x}, got 0x{x}", .{ buffer.len, position, n });
+        log.err(@src(), "short read: wanted 0x{x} bytes at offset 0x{x}, got 0x{x}", .{ buffer.len, position, n });
         return error.EndOfStream;
     }
 }
@@ -44,7 +46,7 @@ pub fn readAndAllocate(
     // done, but debug-info sections read through here stay allocated for
     // the kernel to use later
     buffer.* = boot_services.allocatePool(.loader_data, size) catch |err| {
-        log.err("allocating space for file failed: {s}", .{@errorName(err)});
+        log.err(@src(), "allocating space for file failed: {s}", .{@errorName(err)});
         return err;
     };
 

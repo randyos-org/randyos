@@ -38,9 +38,6 @@
 //! does not necessarily match the cache *line* size encoded in
 //! `*_CACHEGEOMETRY`.
 
-const std = @import("std");
-const log = std.log.scoped(.abi_auxv);
-
 pub const AT = enum(u32) {
     /// Terminating entry marking the end of the auxiliary vector.
     AT_NULL = 0,

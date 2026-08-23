@@ -59,8 +59,6 @@
 //! mean the same thing structurally.
 
 const sysinfo = @import("builtin");
-const std = @import("std");
-const log = std.log.scoped(.abi_mman);
 
 // PROT_* -- mmap()/mprotect() protection flags.
 

@@ -11,10 +11,10 @@ const std = @import("std");
 const uefi = std.os.uefi;
 const Io = std.Io;
 const elf = std.elf;
-const log = std.log.scoped(.bootseg);
 
 const rstd = @import("rstd");
-const pages = rstd.memory;
+const log = rstd.Logger(@This());
+const pages = rstd.mem;
 const file_io = @import("file.zig");
 const KernelLoadPlan = @import("loadaddr.zig").KernelLoadPlan;
 
@@ -39,9 +39,9 @@ pub fn loadSegment(
     segment_buffer.ptr = @ptrFromInt(load_address);
     segment_buffer.len = segment_file_size;
 
-    log.debug("reading segment data with file size '0x{x}' to 0x{x}", .{ segment_file_size, load_address });
+    log.debug(@src(), "reading segment data with file size '0x{x}' to 0x{x}", .{ segment_file_size, load_address });
     file_io.readFile(io, file, segment_file_offset, segment_buffer) catch |err| {
-        log.err("reading segment data failed: {s}", .{@errorName(err)});
+        log.err(@src(), "reading segment data failed: {s}", .{@errorName(err)});
         return err;
     };
 }
@@ -61,20 +61,20 @@ pub fn loadProgramSegments(
 
     // no program headers means an empty/invalid kernel
     if (program_headers.len == 0) {
-        log.err("no program segments to load", .{});
+        log.err(@src(), "no program segments to load", .{});
         return error.InvalidParameter;
     }
-    log.debug("loading {} segments", .{program_headers.len});
+    log.debug(@src(), "loading {} segments", .{program_headers.len});
 
     for (program_headers, 0..) |phdr, index| {
         // only LOAD-type segments get loaded
         if (phdr.type == .LOAD) {
-            log.debug("loading program segment {}", .{index});
+            log.debug(@src(), "loading program segment {}", .{index});
 
             // page alignment required; a misaligned segment would share
             // pages with its neighbor
             if (phdr.vaddr & pages.page_mask != 0) {
-                log.err("segment {} vaddr 0x{x} is not page-aligned", .{ index, phdr.vaddr });
+                log.err(@src(), "segment {} vaddr 0x{x} is not page-aligned", .{ index, phdr.vaddr });
                 return error.Unaligned;
             }
 
@@ -88,7 +88,7 @@ pub fn loadProgramSegments(
                 phdr.filesz,
                 load_address,
             ) catch |err| {
-                log.err("loading program segment {} failed: {s}", .{ index, @errorName(err) });
+                log.err(@src(), "loading program segment {} failed: {s}", .{ index, @errorName(err) });
                 return err;
             };
 
@@ -99,7 +99,7 @@ pub fn loadProgramSegments(
 
     // also error if headers existed but none were loadable
     if (n_segments_loaded == 0) {
-        log.err("no loadable program segments found in executable", .{});
+        log.err(@src(), "no loadable program segments found in executable", .{});
         return error.NotFound;
     }
 }

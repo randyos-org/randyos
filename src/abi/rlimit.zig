@@ -17,8 +17,6 @@
 //! four architectures.
 
 const sysinfo = @import("builtin");
-const std = @import("std");
-const log = std.log.scoped(.abi_rlimit);
 
 const Word = switch (sysinfo.cpu.arch) {
     .x86_64, .aarch64 => u64,

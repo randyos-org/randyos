@@ -16,9 +16,6 @@
 //! callers still get a NUL-terminated C string within those 65 bytes, they
 //! just don't get compile-time sentinel enforcement on the type itself.
 
-const std = @import("std");
-const log = std.log.scoped(.abi_utsname);
-
 pub const NewUtsname = extern struct {
     /// Operating system name (e.g. "Linux").
     sysname: [65]u8,

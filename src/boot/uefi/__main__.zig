@@ -1,8 +1,8 @@
 const std = @import("std");
 const uefi = std.os.uefi;
-const log = std.log.scoped(.bootmain);
 
 const rstd = @import("rstd");
+const log = rstd.Logger(@This());
 const rio = rstd.io;
 
 const loader = @import("loader/__root__.zig");
@@ -29,11 +29,18 @@ const BootData = struct {
 /// (unlikely we can do much about them).
 pub fn bootloader() !BootData {
     // init console/logging early, in case of error
-    const io = rio.io_inst.?;
+    const io = rio.io_inst orelse std.Options.debug_io;
     rio.init.?();
     defer rio.stop.?();
 
-    log.debug("pre-init log test", .{});
+    const preinit = struct {
+        const mylog = rstd.Logger(@This());
+
+        pub fn testlog() void {
+            mylog.debug(@src(), "pre-init log test", .{});
+        }
+    };
+    preinit.testlog();
     logging.initLogging();
     defer logging.stopLogging();
 
@@ -46,7 +53,7 @@ pub fn bootloader() !BootData {
 
     // loader needs the memory map to place the kernel once segment sizes
     // are known; reused below for the virtual addr map before exit
-    log.debug("getting memory map to find free addresses", .{});
+    log.debug(@src(), "getting memory map to find free addresses", .{});
     var mm = try memory.fetch(boot_services, 0);
 
     var kernel = try loader.loadKernel(io, root_dir, mm);
@@ -67,7 +74,7 @@ pub fn bootloader() !BootData {
 pub fn main() void {
     const bootdata: BootData = bootloader() catch |err| {
         // should never happen; log error name as a poor-man's stack trace
-        log.err("error occurred during bootloader main function: {s}", .{@errorName(err)});
+        log.err(@src(), "error occurred during bootloader main function: {s}", .{@errorName(err)});
         while (true) {}
     };
 

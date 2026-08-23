@@ -16,8 +16,6 @@
 //! `Number` member.
 
 const sysinfo = @import("builtin");
-const std = @import("std");
-const log = std.log.scoped(.abi_errno);
 
 pub const Number = enum(u16) {
     /// Operation not permitted: the caller lacks the privilege to perform

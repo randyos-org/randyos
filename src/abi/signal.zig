@@ -15,9 +15,6 @@
 //! `SIGIOT`, `SIGPOLL`, and `SIGUNUSED` are C aliases (`#define`d to another
 //! name's value, not distinct numbers).
 
-const std = @import("std");
-const log = std.log.scoped(.abi_signal);
-
 pub const Number = enum(u8) {
     /// Terminal hangup, or death of the controlling process; also
     /// conventionally used to tell a daemon to reload its configuration.

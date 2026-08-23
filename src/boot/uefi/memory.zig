@@ -3,10 +3,10 @@
 
 const std = @import("std");
 const uefi = std.os.uefi;
-const log = std.log.scoped(.bootmem);
 
 const rstd = @import("rstd");
-const pages = rstd.memory;
+const log = rstd.Logger(@This());
+const pages = rstd.mem;
 const efi_page_shift = pages.page_shift;
 const efi_page_mask = pages.page_mask;
 const MemoryRegion = rstd.machine.MemoryRegion;
@@ -43,24 +43,24 @@ pub const MemoryMap = struct {
 /// retry `exitBootServices` (see below).
 pub fn fetch(boot_services: *uefi.tables.BootServices, extra_descriptors: usize) !MemoryMap {
     var info = boot_services.getMemoryMapInfo() catch |err| {
-        log.err("getting memory map info failed: {s}", .{@errorName(err)});
+        log.err(@src(), "getting memory map info failed: {s}", .{@errorName(err)});
         return err;
     };
     const buffer = boot_services.allocatePool(
         .boot_services_data,
         info.descriptor_size * (info.len + extra_descriptors),
     ) catch |err| {
-        log.err("allocating memory map buffer failed: {s}", .{@errorName(err)});
+        log.err(@src(), "allocating memory map buffer failed: {s}", .{@errorName(err)});
         return err;
     };
     // re-read info/key after allocating: the allocation itself changes the
     // map, so the pre-allocation info is already stale by getMemoryMap time
     info = boot_services.getMemoryMapInfo() catch |err| {
-        log.err("getting memory map info failed: {s}", .{@errorName(err)});
+        log.err(@src(), "getting memory map info failed: {s}", .{@errorName(err)});
         return err;
     };
     const map = boot_services.getMemoryMap(buffer) catch |err| {
-        log.err("getting memory map failed: {s}", .{@errorName(err)});
+        log.err(@src(), "getting memory map failed: {s}", .{@errorName(err)});
         return err;
     };
     return .{ .info = info, .buffer = buffer, .map = map };
@@ -72,11 +72,11 @@ pub fn fetch(boot_services: *uefi.tables.BootServices, extra_descriptors: usize)
 pub fn exitBootServices(boot_services: *uefi.tables.BootServices, handle: uefi.Handle, current: *MemoryMap) !void {
     while (true) {
         boot_services.exitBootServices(handle, current.info.key) catch {
-            log.info("getting memory map and trying to exit boot services", .{});
+            log.info(@src(), "getting memory map and trying to exit boot services", .{});
             // free the stale buffer before replacing it, else each retry
             // leaks an allocation (which itself perturbs the map further)
             boot_services.freePool(@alignCast(current.buffer.ptr)) catch |err| {
-                log.warn("freeing stale memory map buffer failed: {s}", .{@errorName(err)});
+                log.warn(@src(), "freeing stale memory map buffer failed: {s}", .{@errorName(err)});
             };
             current.* = try fetch(boot_services, exit_boot_services_retry_padding);
             continue;

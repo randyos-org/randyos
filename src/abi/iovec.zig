@@ -13,9 +13,6 @@
 //! plain `usize` is used directly here -- no separate word-size switch is
 //! needed.
 
-const std = @import("std");
-const log = std.log.scoped(.abi_iovec);
-
 pub const Iovec = extern struct {
     /// Address of the start of this segment's buffer.
     iov_base: usize,

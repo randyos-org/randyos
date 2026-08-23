@@ -1,9 +1,9 @@
 const std = @import("std");
 const uefi = std.os.uefi;
 const epoch = std.time.epoch;
-const log = std.log.scoped(.bootinfo);
 
 const rstd = @import("rstd");
+const log = rstd.Logger(@This());
 const KernelBootInfo = rstd.machine.KernelBootInfo;
 
 pub const memory = @import("memory.zig");
@@ -21,7 +21,7 @@ fn toEpochSeconds(t: uefi.Time) i64 {
 
     var month: u4 = 1;
     while (month < t.month) : (month += 1) {
-        days += epoch.getDaysInMonth(t.year, @enumFromInt(month));
+        days += epoch.getDaysInMonth(t.year, @fromBackingInt(@intCast(month)));
     }
     days += t.day - 1;
 
@@ -61,7 +61,7 @@ pub fn finalizeKernelBootInfo(
     kbi.boot_wall_clock_unix_seconds = if (runtime_services.getTime()) |result|
         toEpochSeconds(result[0])
     else |err| blk: {
-        log.warn("could not read wall-clock time from firmware: {s}", .{@errorName(err)});
+        log.warn(@src(), "could not read wall-clock time from firmware: {s}", .{@errorName(err)});
         break :blk null;
     };
 
@@ -89,7 +89,7 @@ pub fn buildKernelBootInfo(
         .blue_green_red_reserved_8_bit_per_color => .bgr,
         .bit_mask, .blt_only => |pf| {
             const err = error.UnsupportedPixelFormat;
-            log.err("invalid pixel format: {t} ({t})", .{ pf, err });
+            log.err(@src(), "invalid pixel format: {t} ({t})", .{ pf, err });
             return err;
         },
     };

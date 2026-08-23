@@ -7,7 +7,9 @@ const builtin = @import("builtin");
 const uefi = std.os.uefi;
 const Io = std.Io;
 const elf = std.elf;
-const log = std.log.scoped(.bootelf);
+
+const rstd = @import("rstd");
+const log = rstd.Logger(@This());
 
 const file_io = @import("file.zig");
 
@@ -19,10 +21,10 @@ const file_io = @import("file.zig");
 pub fn readHeader(io: Io, file: Io.File) !elf.Header {
     const boot_services = uefi.system_table.boot_services.?;
 
-    log.debug("loading ELF header", .{});
+    log.debug(@src(), "loading ELF header", .{});
     var header_buffer: []u8 = undefined;
     file_io.readAndAllocate(io, file, 0, @sizeOf(elf.Elf64_Ehdr), &header_buffer) catch |err| {
-        log.err("reading ELF header failed: {s}", .{@errorName(err)});
+        log.err(@src(), "reading ELF header failed: {s}", .{@errorName(err)});
         return err;
     };
     defer boot_services.freePool(@alignCast(header_buffer.ptr)) catch {};
@@ -31,26 +33,26 @@ pub fn readHeader(io: Io, file: Io.File) !elf.Header {
     var hdr_reader: std.Io.Reader = .fixed(header_buffer);
     const header = elf.Header.read(&hdr_reader) catch |err| {
         switch (err) {
-            error.InvalidElfMagic => log.err("invalid ELF magic", .{}),
-            error.InvalidElfVersion => log.err("invalid ELF version", .{}),
-            error.InvalidElfEndian => log.err("invalid ELF endianness", .{}),
-            error.InvalidElfClass => log.err("invalid ELF class", .{}),
+            error.InvalidElfMagic => log.err(@src(), "invalid ELF magic", .{}),
+            error.InvalidElfVersion => log.err(@src(), "invalid ELF version", .{}),
+            error.InvalidElfEndian => log.err(@src(), "invalid ELF endianness", .{}),
+            error.InvalidElfClass => log.err(@src(), "invalid ELF class", .{}),
             else => {},
         }
         return err;
     };
-    log.debug("loading ELF header succeeded; entry point is 0x{x}", .{header.entry});
+    log.debug(@src(), "loading ELF header succeeded; entry point is 0x{x}", .{header.entry});
 
     // readProgramAndSectionHeaders below casts raw bytes straight to
     // Elf64.Phdr/Shdr instead of using std.elf's generic iterators -- only
     // sound for a same-toolchain, native-endian ELF64 kernel, so enforce
     // that here rather than silently misreading the tables.
     if (!header.is_64) {
-        log.err("can only load 64-bit binaries", .{});
+        log.err(@src(), "can only load 64-bit binaries", .{});
         return error.Unsupported;
     }
     if (header.endian != builtin.cpu.arch.endian()) {
-        log.err("ELF endianness ({s}) does not match native endianness ({s})", .{ @tagName(header.endian), @tagName(builtin.cpu.arch.endian()) });
+        log.err(@src(), "ELF endianness ({s}) does not match native endianness ({s})", .{ @tagName(header.endian), @tagName(builtin.cpu.arch.endian()) });
         return error.IncompatibleVersion;
     }
     return header;
@@ -74,10 +76,10 @@ pub const ProgramAndSectionHeaders = struct {
 pub fn readProgramAndSectionHeaders(io: Io, file: Io.File, header: elf.Header) !ProgramAndSectionHeaders {
     const boot_services = uefi.system_table.boot_services.?;
 
-    log.debug("loading program headers", .{});
+    log.debug(@src(), "loading program headers", .{});
     var program_headers_buffer: []u8 = &.{};
     file_io.readAndAllocate(io, file, header.phoff, header.phentsize * header.phnum, &program_headers_buffer) catch |err| {
-        log.err("reading ELF program headers failed: {s}", .{@errorName(err)});
+        log.err(@src(), "reading ELF program headers failed: {s}", .{@errorName(err)});
         return err;
     };
     // free this buffer if the section-header read below fails; on success
@@ -86,7 +88,7 @@ pub fn readProgramAndSectionHeaders(io: Io, file: Io.File, header: elf.Header) !
 
     var section_headers_buffer: []u8 = &.{};
     file_io.readAndAllocate(io, file, header.shoff, header.shentsize * header.shnum, &section_headers_buffer) catch |err| {
-        log.err("reading ELF section headers failed: {s}", .{@errorName(err)});
+        log.err(@src(), "reading ELF section headers failed: {s}", .{@errorName(err)});
         return err;
     };
 

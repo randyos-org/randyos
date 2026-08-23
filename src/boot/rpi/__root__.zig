@@ -12,6 +12,3 @@
 //! kernel*.img as a flat binary at a fixed address -- no ELF, no UEFI.
 //! Likely real path: point that slot at U-Boot for extlinux.conf/UEFI
 //! support, rather than a raw flat-binary kernel.
-
-const std = @import("std");
-const log = std.log.scoped(.boot_rpi);

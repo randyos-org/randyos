@@ -2,7 +2,6 @@
 
 const sysinfo = @import("builtin");
 const std = @import("std");
-const log = std.log.scoped(.boot);
 
 const rstd = @import("rstd");
 pub const build_options = rstd.build_options;
@@ -14,9 +13,10 @@ const impl = switch (sysinfo.target.os.tag) {
 
 pub const main = impl.main;
 pub const std_options = impl.zigconfig.std_options;
-pub const std_options_debug_io = impl.zigconfig.std_options_debug_io;
-pub const std_options_cwd: ?fn () std.Io.Dir = if (@hasDecl(impl.zigconfig, "std_options_cwd")) impl.zigconfig.std_options_cwd else null;
-pub const os = impl.zigconfig.os;
+// pub const std_options_debug_io = impl.zigconfig.std_options_debug_io;
+// pub const std_options_cwd: ?fn () std.Io.Dir = if (@hasDecl(impl.zigconfig, "std_options_cwd")) impl.zigconfig.std_options_cwd else null;
+pub const std_os_options = impl.zigconfig.std_os_options;
+pub const log_module_name = impl.zigconfig.log_module_name;
 
 // The only practical uses of this variable are in
 // fallback contexts where std_options_debug_io are not explicitly defined and
