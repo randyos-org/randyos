@@ -5,6 +5,7 @@
     // .minimum_zig_version = "0.17.0-dev.203",
     .dependencies = .{
         .rstd = .{ .path = "vendor/rstd" },
+        .rgui = .{ .path = "vendor/rgui" },
     },
 
     // package hash is computed from files in .paths
