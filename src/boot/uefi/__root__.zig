@@ -10,5 +10,5 @@ pub const graphics = @import("graphics.zig");
 pub const bootinfomod = @import("bootinfo.zig");
 pub const watchdog = @import("watchdog.zig");
 
-pub const zigconfig = @import("zigconfig.zig");
+pub const zigcfg = @import("zigcfg.zig");
 pub const main = @import("__main__.zig").main;

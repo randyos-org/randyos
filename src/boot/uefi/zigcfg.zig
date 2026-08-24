@@ -16,5 +16,5 @@ pub const std_options = std.Options{
 /// through the UEFI console.
 // pub const std_options_debug_io = rstd.zigconfig.std_options_debug_io;
 // pub const std_options_cwd = rstd.zigconfig.std_options_cwd;
-pub const std_os_options = rstd.zigconfig.std_os_options;
+pub const std_os_options = rstd.zigcfg.std_os_options;
 pub const log_module_name = "boot";

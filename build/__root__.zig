@@ -1,4 +1,6 @@
 pub const rstd = @import("rstd");
+pub const zon = @import("../build.zig.zon");
+
 pub const targets = @import("targets.zig");
 pub const sysroot = @import("sysroot.zig");
 pub const qemu = @import("qemu.zig");

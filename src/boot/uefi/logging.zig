@@ -3,7 +3,7 @@
 //! for the log-line prefix is managed here.
 
 const rstd = @import("rstd");
-const logging = rstd.logging;
+const logging = rstd.log;
 
 pub const logFn = logging.logFn;
 

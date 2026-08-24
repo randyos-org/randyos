@@ -1,4 +1,4 @@
 const std = @import("std");
 
-const zigconfig = @import("zigconfig.zig");
-pub const os = zigconfig.os;
+const zigcfg = @import("zigcfg.zig");
+pub const os = zigcfg.os;
