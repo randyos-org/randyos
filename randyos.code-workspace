@@ -126,7 +126,8 @@
         // "args": [
 				// 	"--debug",
 				// ],
-				"program": "zig",
+				// "program": "zig",
+				"program": "${config:zig.path}",
 				"args": [
           "build",
           "run",
