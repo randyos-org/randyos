@@ -15,11 +15,11 @@ pub const QemuCmds = struct {
     debug: *RunStep,
 };
 
-pub fn addQemu(b: *Build, sysroot: SysrootDirs) void {
+pub fn addQemu(b: *Build, sysroot: SysrootDirs) !void {
     const cmds = addQemuCmds(b);
     addOvmfToQemu(b, sysroot, cmds);
     addSysrootToQemu(b, sysroot, cmds);
-    addPersistentDriveToQemu(b, cmds);
+    try addPersistentDriveToQemu(b, cmds);
 
     addMonitorCmd(b);
 }
@@ -158,29 +158,29 @@ fn addQemuCmds(b: *Build) QemuCmds {
 }
 
 fn addOvmfToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
-    const ovmf_code = b.option(Build.LazyPath, "ovmf-code", "The OVMF_CODE file to use");
-    const ovmf_vars = b.option(Build.LazyPath, "ovmf-vars", "The OVMF_VARS file to use");
+    // There are two OVMF files that are needed to run QEMU with UEFI support:
+    // 1. OVMF_CODE: contains static, read-only firmware code
+    // 2. OVMF_VARS: contains variables that may be changed at runtime
+    const ovmf_dep = b.dependency("ovmf", .{});
 
     const ovmf_rw_args = "format=raw,if=pflash,file=";
     const ovmf_ro_args = "readonly=on," ++ ovmf_rw_args;
 
     // note that the destinations here can be any name
-    const srcpath = if (ovmf_code) |src| src else b.path("OVMF.fd");
-    const ovmf_code_path = sysroot.build.addCopyFile(srcpath, "ovmf.fd");
-    const ovmf_code_args = if (ovmf_vars != null) ovmf_ro_args else ovmf_rw_args;
+    const ovmf_code_path = sysroot.build.addCopyFile(ovmf_dep.path("x64/code.fd"), "ovmf.fd");
+    // const ovmf_code_args = if (ovmf_vars != null) ovmf_ro_args else ovmf_rw_args;
+    const ovmf_code_args = ovmf_ro_args;
     inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
         const cmd: *RunStep = @field(qemu_cmds, field_name);
         cmd.addArg("-drive");
         cmd.addPrefixedFileArg(ovmf_code_args, ovmf_code_path);
     }
 
-    if (ovmf_vars) |varspath| {
-        const ovmf_vars_path = sysroot.build.addCopyFile(varspath, "ovmf_vars.fd");
-        inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
-            const cmd: *RunStep = @field(qemu_cmds, field_name);
-            cmd.addArg("-drive");
-            cmd.addPrefixedFileArg(ovmf_rw_args, ovmf_vars_path);
-        }
+    const ovmf_vars_path = sysroot.build.addCopyFile(ovmf_dep.path("x64/vars.fd"), "ovmf_vars.fd");
+    inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+        const cmd: *RunStep = @field(qemu_cmds, field_name);
+        cmd.addArg("-drive");
+        cmd.addPrefixedFileArg(ovmf_rw_args, ovmf_vars_path);
     }
 }
 
@@ -198,10 +198,10 @@ fn addSysrootToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
     }
 }
 
-fn addPersistentDriveToQemu(b: *Build, qemu_cmds: QemuCmds) void {
+fn addPersistentDriveToQemu(b: *Build, qemu_cmds: QemuCmds) !void {
     const drive_args = "format=qcow2,if=virtio,file=";
     const drive_pathstr = "disk.qcow2";
-    const drive_abs_path = b.root.joinString(b.allocator, drive_pathstr) catch @panic("OOM");
+    const drive_abs_path = try b.root.joinString(b.allocator, drive_pathstr);
     const drive_lazypath = b.path(drive_pathstr);
 
     // check if this file exists, if not, create it using the command:

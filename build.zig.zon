@@ -4,6 +4,10 @@
     .version = "0.1.0",
     // .minimum_zig_version = "0.17.0-dev.203",
     .dependencies = .{
+        .ovmf = .{
+            .url = "https://github.com/rust-osdev/ovmf-prebuilt/releases/download/edk2-stable202605-r1/edk2-stable202605-r1-bin.tar.xz",
+            .hash = "N-V-__8AAAA7yAyUqa50PddDh8dD3fVJb8Q8W9ZuaSgDBlJn",
+        },
         .rstd = .{ .path = "vendor/rstd" },
         .rgui = .{ .path = "vendor/rgui" },
     },

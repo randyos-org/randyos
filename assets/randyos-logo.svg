@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 480 220"
+   version="1.1"
+   id="svg50"
+   sodipodi:docname="randyos-logo.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   inkscape:export-filename="randyos-logo.png"
+   inkscape:export-xdpi="384"
+   inkscape:export-ydpi="384"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview50"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="3.7958333"
+     inkscape:cx="132.382"
+     inkscape:cy="109.98902"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="orion-in-R"
+     inkscape:export-bgcolor="#0d0922ff" />
+  <!-- ============================================================
+       RandyOS logo - Venus is the "O"; Orion is superimposed on
+       the capital "R"; "andy" is lowercase; the starfield is the
+       real surrounding sky (Taurus, Aries, Pisces, Cetus), all
+       plotted from J2000 coordinates under ONE shared transform:
+
+         dRA = minutes of RA past 5h00m * 0.25 deg (short way
+               around the 24h wrap), scaled by cos(dec)
+         x'  = 13.8 - dRA          (east left, north up)
+         y'  = 9.93 - dec
+         P   = (39 + 4.32 x', 77 + 4.32 (y' - 2.53))
+         then rotated 6.403 deg CLOCKWISE about Betelgeuse - the
+         exact angle that makes the Betelgeuse-Saiph line vertical
+         - and anchored with Betelgeuse at (42, 77), so both stars
+         sit precisely on the R's stem line (x = 42).
+
+       The R's anatomy follows the stars:
+         - Betelgeuse and Bellatrix are its top-left and top-right
+           points; Saiph sits on the stem line below the base.
+         - The bowl's bottom stroke is NOT horizontal: it leaves
+           the bowl circle at the exact point where the circle's
+           tangent equals the belt's slope (30.47 deg down-west),
+           so curve flows into line with no kink, and Mintaka,
+           Alnilam, and Alnitak all ride the stroke.
+
+       Letterforms use sharp terminals (butt caps, miter joins).
+       Only Orion's stars draw in front of the letters. Off-frame
+       or hidden, but real: Sirius and Procyon east (left) of the
+       frame; Diphda just below the bottom edge; Epsilon Piscium
+       behind Venus; Mira behind the y's arm.
+
+       Designed for dark backgrounds; transparent by default.
+       Feature budget: paths, circles, groups, radial + linear
+       gradients, one clip path. SMIL <animate> elements are
+       optional - delete them and nothing breaks.
+       ============================================================ -->
+  <!-- <rect width="480" height="220" fill="#0B0E1A"/> -->
+  <defs
+     id="defs9">
+    <radialGradient
+       id="venusGrad"
+       cx="0.38"
+       cy="0.34"
+       r="0.85">
+      <stop
+         offset="0"
+         stop-color="#FFF3D6"
+         id="stop1" />
+      <stop
+         offset="0.45"
+         stop-color="#F2CD8A"
+         id="stop2" />
+      <stop
+         offset="0.75"
+         stop-color="#DFA45C"
+         id="stop3" />
+      <stop
+         offset="1"
+         stop-color="#B9793B"
+         id="stop4" />
+    </radialGradient>
+    <linearGradient
+       id="terminator"
+       x1="0"
+       y1="0"
+       x2="1"
+       y2="0">
+      <stop
+         offset="0.55"
+         stop-color="#000000"
+         stop-opacity="0"
+         id="stop5" />
+      <stop
+         offset="1"
+         stop-color="#1A0F08"
+         stop-opacity="0.45"
+         id="stop6" />
+    </linearGradient>
+    <radialGradient
+       id="nebulaGrad"
+       cx="0.5"
+       cy="0.5"
+       r="0.5">
+      <stop
+         offset="0"
+         stop-color="#F4B8C9"
+         stop-opacity="0.8"
+         id="stop7" />
+      <stop
+         offset="0.6"
+         stop-color="#C9A0D6"
+         stop-opacity="0.35"
+         id="stop8" />
+      <stop
+         offset="1"
+         stop-color="#C9A0D6"
+         stop-opacity="0"
+         id="stop9" />
+    </radialGradient>
+    <clipPath
+       id="venusClip">
+      <circle
+         cx="338"
+         cy="110"
+         r="33"
+         id="circle9" />
+    </clipPath>
+  </defs>
+  <!-- ============ Real sky, all BEHIND the wordmark ============ -->
+  <g
+     id="field-stars">
+    <!-- Aldebaran (Alpha Tauri) - the eye of Taurus; orange giant. Orion's lone bright companion on the left -->
+    <path
+       d="M129.9,42.7 L131.5,45.7 L134.5,47.3 L131.5,48.9 L129.9,51.9 L128.3,48.9 L125.3,47.3 L128.3,45.7 Z"
+       fill="#FFB27A"
+       opacity="0.95"
+       id="path9" />
+    <!-- Botein (Delta Arietis) -->
+    <path
+       d="M216.2,40.6 L217,42.2 L218.6,43 L217,43.8 L216.2,45.4 L215.4,43.8 L213.8,43 L215.4,42.2 Z"
+       fill="#FFC08E"
+       opacity="0.7"
+       id="path10" />
+    <!-- Menkar (Alpha Ceti) - the jaw of Cetus; red giant, peering out from inside the d's bowl -->
+    <path
+       d="M225.2,108.8 L226.3,110.9 L228.4,112 L226.3,113.1 L225.2,115.2 L224.1,113.1 L222,112 L224.1,110.9 Z"
+       fill="#FF9E73"
+       opacity="0.8"
+       id="path11" />
+    <!-- Hamal (Alpha Arietis) - brightest of Aries -->
+    <path
+       d="M278.6,30.4 L279.8,32.6 L282,33.8 L279.8,35 L278.6,37.2 L277.4,35 L275.2,33.8 L277.4,32.6 Z"
+       fill="#FFC08E"
+       opacity="0.85"
+       id="path12" />
+    <!-- Sheratan (Beta Arietis) -->
+    <path
+       d="M293.2,44.1 L294.2,45.9 L296,46.9 L294.2,47.9 L293.2,49.7 L292.2,47.9 L290.4,46.9 L292.2,45.9 Z"
+       fill="#E6EDF8"
+       opacity="0.75"
+       id="path13" />
+    <!-- Mira (Omicron Ceti) - the famous pulsating variable; currently hidden behind the y's arm, pulsing unseen -->
+    <path
+       d="M268,144.5 L269.1,146.4 L271,147.5 L269.1,148.6 L268,150.5 L266.9,148.6 L265,147.5 L266.9,146.4 Z"
+       fill="#FF9E80"
+       opacity="0.9"
+       id="path14">
+      <animate
+         attributeName="opacity"
+         values="0.9;0.3;0.9"
+         dur="7s"
+         repeatCount="indefinite" />
+    </path>
+    <!-- Alrescha (Alpha Piscium) - the knot of the fishes' cords -->
+    <path
+       d="M289.3,122.5 L290.2,124.1 L291.8,125 L290.2,125.9 L289.3,127.5 L288.4,125.9 L286.8,125 L288.4,124.1 Z"
+       fill="#DCE5F4"
+       opacity="0.7"
+       id="path15" />
+    <!-- Alpherg (Eta Piscium) -->
+    <path
+       d="M320.4,71.1 L321.3,72.8 L323,73.7 L321.3,74.6 L320.4,76.3 L319.5,74.6 L317.8,73.7 L319.5,72.8 Z"
+       fill="#F6E3A9"
+       opacity="0.7"
+       id="path16" />
+    <!-- Baten Kaitos (Zeta Ceti) - the belly of the whale -->
+    <path
+       d="M291.2,179.5 L292.1,181.2 L293.8,182.1 L292.1,183 L291.2,184.7 L290.3,183 L288.6,182.1 L290.3,181.2 Z"
+       fill="#FFC08E"
+       opacity="0.75"
+       id="path17" />
+    <!-- Tau Ceti - sun-like neighbor 12 light-years out; patron star of science fiction -->
+    <path
+       d="M291.7,203.8 L292.6,205.6 L294.4,206.5 L292.6,207.4 L291.7,209.2 L290.8,207.4 L289,206.5 L290.8,205.6 Z"
+       fill="#F6E3A9"
+       opacity="0.8"
+       id="path18" />
+    <!-- Theta Ceti -->
+    <path
+       d="M322.7,173.8 L323.6,175.4 L325.2,176.3 L323.6,177.2 L322.7,178.8 L321.8,177.2 L320.2,176.3 L321.8,175.4 Z"
+       fill="#FFC08E"
+       opacity="0.7"
+       id="path19" />
+    <!-- Epsilon Piscium - currently OCCULTED by Venus (drawn behind the planet, for the archaeologists) -->
+    <path
+       d="M353,107.6 L353.8,109 L355.2,109.8 L353.8,110.6 L353,112 L352.2,110.6 L350.8,109.8 L352.2,109 Z"
+       fill="#F6E3A9"
+       opacity="0.65"
+       id="path20" />
+    <!-- Iota Ceti -->
+    <path
+       d="M390.5,184.2 L391.4,185.8 L393,186.7 L391.4,187.6 L390.5,189.2 L389.6,187.6 L388,186.7 L389.6,185.8 Z"
+       fill="#FFC08E"
+       opacity="0.7"
+       id="path21" />
+    <!-- Omega Piscium -->
+    <path
+       d="M420.9,119.5 L421.7,121.1 L423.3,121.9 L421.7,122.7 L420.9,124.3 L420.1,122.7 L418.5,121.9 L420.1,121.1 Z"
+       fill="#F1E8CE"
+       opacity="0.7"
+       id="path22" />
+    <!-- Gamma Piscium - holding down the far corner -->
+    <path
+       d="M466.1,140.1 L466.9,141.7 L468.5,142.5 L466.9,143.3 L466.1,144.9 L465.3,143.3 L463.7,142.5 L465.3,141.7 Z"
+       fill="#F6E3A9"
+       opacity="0.7"
+       id="path23" />
+    <!-- The Pleiades (M45), northwest of Orion -->
+    <g
+       id="pleiades"
+       fill="#C6D8F7">
+      <circle
+         cx="179.8"
+         cy="19.9"
+         r="1.0"
+         opacity="0.8"
+         id="circle23" />
+      <!-- Alcyone (Eta Tauri) -->
+      <circle
+         cx="178.2"
+         cy="19.9"
+         r="0.8"
+         opacity="0.8"
+         id="circle24" />
+      <!-- Atlas (27 Tauri) -->
+      <circle
+         cx="182.4"
+         cy="20.2"
+         r="0.8"
+         opacity="0.8"
+         id="circle25" />
+      <!-- Electra (17 Tauri) -->
+      <circle
+         cx="181.5"
+         cy="18.9"
+         r="0.8"
+         opacity="0.8"
+         id="circle26" />
+      <!-- Maia (20 Tauri) -->
+      <circle
+         cx="181.0"
+         cy="20.7"
+         r="0.7"
+         opacity="0.8"
+         id="circle27" />
+      <!-- Merope (23 Tauri) -->
+      <circle
+         cx="182.0"
+         cy="18.6"
+         r="0.7"
+         opacity="0.8"
+         id="circle28" />
+      <!-- Taygeta (19 Tauri) -->
+    </g>
+  </g>
+  <!-- Wordmark: R andy [Venus] S - geometric strokes, no font
+       needed; sharp terminals throughout. Caps R and S; lowercase
+       a n d y. The R's bowl-bottom leaves the bowl tangentially
+       and descends at the belt's exact slope to the stem. -->
+  <g
+     id="wordmark"
+     fill="none"
+     stroke="#E9EEF5"
+     stroke-width="9"
+     stroke-linecap="butt"
+     stroke-linejoin="miter">
+    <path
+       id="ltr-R"
+       d="M42,140 L42,80 L58,80 A15 15 0 0 1 65.61,107.93 L42,121.81 M58,112.40 L76,140" />
+    <g
+       id="ltr-a">
+      <circle
+         cx="112"
+         cy="120"
+         r="20"
+         id="circle29" />
+      <path
+         d="M132,100 L132,140"
+         id="path29" />
+    </g>
+    <path
+       id="ltr-n"
+       d="M148,140 L148,100 M148,117 A17 17 0 0 1 182,117 L182,140" />
+    <g
+       id="ltr-d">
+      <circle
+         cx="218"
+         cy="120"
+         r="20"
+         id="circle30" />
+      <path
+         d="M238,74 L238,140"
+         id="path30" />
+    </g>
+    <path
+       id="ltr-y"
+       d="M254,100 L270,140 M286,100 L262,160" />
+    <path
+       id="ltr-S"
+       d="M416,89 C415,79 389,77 387,92 C385,107 418,112 417,127 C416,142 388,143 386,131" />
+  </g>
+  <!-- ============ Orion, worn by the R (in front) ============ -->
+  <g
+     id="orion-in-R">
+    <!-- M42 (Orion Nebula) glow behind the sword -->
+    <circle
+       cx="56.9"
+       cy="134.3"
+       r="5.5"
+       fill="url(#nebulaGrad)"
+       id="circle36" />
+    <g
+       id="orion-sword"
+       fill="#D7E2F2">
+      <!-- 42 Orionis - sword, northern star -->
+      <path
+         d="M57,129.7 L57.8,131.1 L59.2,131.9 L57.8,132.7 L57,134.1 L56.2,132.7 L54.8,131.9 L56.2,131.1 Z"
+         fill="#D7E2F2"
+         opacity="0.85"
+         id="path36" />
+      <!-- Theta Orionis (Trapezium), embedded in M42 - sword, middle -->
+      <path
+         d="M56.9,131.7 L57.8,133.4 L59.5,134.3 L57.8,135.2 L56.9,136.9 L56,135.2 L54.3,134.3 L56,133.4 Z"
+         fill="#D7E2F2"
+         opacity="0.95"
+         id="path37" />
+      <!-- Iota Orionis (Hatysa) - sword, southern star -->
+      <path
+         d="M56.5,134.1 L57.3,135.7 L58.9,136.5 L57.3,137.3 L56.5,138.9 L55.7,137.3 L54.1,136.5 L55.7,135.7 Z"
+         fill="#D7E2F2"
+         opacity="0.9"
+         id="path38" />
+    </g>
+    <g
+       id="orion-stars">
+      <!-- Meissa (Lambda Orionis) - the hunter's head -->
+      <path
+         d="M64.9,65.4 L66,67.5 L68.1,68.6 L66,69.7 L64.9,71.8 L63.8,69.7 L61.7,68.6 L63.8,67.5 Z"
+         fill="#DDE6F5"
+         opacity="0.9"
+         id="path39" />
+      <!-- Betelgeuse (Alpha Orionis) - shoulder star on the stem's top corner; red supergiant and famous variable, hence the slow pulse -->
+      <path
+         d="M42,71 L44.1,74.9 L48,77 L44.1,79.1 L42,83 L39.9,79.1 L36,77 L39.9,74.9 Z"
+         fill="#FFAD70"
+         id="path40">
+        <animate
+           attributeName="opacity"
+           values="1;0.72;1"
+           dur="9s"
+           repeatCount="indefinite" />
+      </path>
+      <!-- Bellatrix (Gamma Orionis) - shoulder star, the R's top-right point on the bowl's outer arc -->
+      <path
+         d="M73.5,80.3 L75.2,83.4 L78.3,85.1 L75.2,86.8 L73.5,89.9 L71.8,86.8 L68.7,85.1 L71.8,83.4 Z"
+         fill="#AFC8F2"
+         id="path41"
+         style="fill:#a3bff0;fill-opacity:1;stroke:#7061d9;stroke-opacity:0.55182076" />
+      <!-- Mintaka (Delta Orionis) - belt, western end -->
+      <path
+         d="M62.7,108.6 L64.2,111.3 L66.9,112.8 L64.2,114.3 L62.7,117 L61.2,114.3 L58.5,112.8 L61.2,111.3 Z"
+         fill="#B6CDF4"
+         id="path42"
+         style="fill:#a3bff0;fill-opacity:1;stroke:#7061d9;stroke-opacity:0.55182076" />
+      <!-- Alnilam (Epsilon Orionis) - belt, center -->
+      <path
+         d="M57.8,111.8 L59.3,114.7 L62.2,116.2 L59.3,117.7 L57.8,120.6 L56.3,117.7 L53.4,116.2 L56.3,114.7 Z"
+         fill="#BCD1F6"
+         id="path43"
+         style="fill:#a3bff0;fill-opacity:1;stroke:#7061d9;stroke-opacity:0.55182076" />
+      <!-- Alnitak (Zeta Orionis) - belt, eastern end -->
+      <path
+         d="M52.5,114.4 L54,117.3 L56.9,118.8 L54,120.3 L52.5,123.2 L51,120.3 L48.1,118.8 L51,117.3 Z"
+         fill="#BCD1F6"
+         id="path44"
+         style="fill:#a3bff0;fill-opacity:1;stroke:#7061d9;stroke-opacity:0.55182076" />
+      <!-- Saiph (Kappa Orionis) - right foot, directly below Betelgeuse on the stem line -->
+      <path
+         d="M42,146.8 L43.5,149.7 L46.4,151.2 L43.5,152.7 L42,155.6 L40.5,152.7 L37.6,151.2 L40.5,149.7 Z"
+         fill="#B6CDF4"
+         id="path45"
+         style="fill:#82a6e8;fill-opacity:1" />
+      <!-- Rigel (Beta Orionis) - left foot; blue supergiant off the tip of the R's leg -->
+      <path
+         d="M77.8,142.9 L79.9,146.8 L83.8,148.9 L79.9,151 L77.8,154.9 L75.7,151 L71.8,148.9 L75.7,146.8 Z"
+         fill="#9FC0FF"
+         id="path46"
+         style="fill:#6da0ff;fill-opacity:1" />
+    </g>
+  </g>
+  <!-- Venus, standing in for a capital O -->
+  <g
+     id="venus">
+    <circle
+       cx="338"
+       cy="110"
+       r="35.5"
+       fill="none"
+       stroke="#F2CD8A"
+       stroke-width="2.5"
+       opacity="0.28"
+       id="circle46" />
+    <circle
+       cx="338"
+       cy="110"
+       r="33"
+       fill="url(#venusGrad)"
+       id="circle47" />
+    <g
+       id="clouds"
+       clip-path="url(#venusClip)"
+       fill="none"
+       stroke-linecap="round"
+       opacity="0.5">
+      <path
+         d="M302,92 Q329,102.5 374,90.5"
+         stroke="#FFF7E0"
+         stroke-width="4.5"
+         opacity="0.45"
+         id="path47" />
+      <path
+         d="M303.5,108.5 Q338,120.5 372.5,105.5"
+         stroke="#C88A46"
+         stroke-width="5.3"
+         opacity="0.35"
+         id="path48" />
+      <path
+         d="M306.5,126.5 Q336.5,135.5 371,123.5"
+         stroke="#FFF1CE"
+         stroke-width="3.8"
+         opacity="0.35"
+         id="path49" />
+      <path
+         d="m 362.41653,87.473015 q -28.94249,7.837093 -49.53202,-2.32875"
+         stroke="#d89a55"
+         stroke-width="5.51878"
+         opacity="0.3"
+         id="path50"
+         inkscape:transform-center-x="-0.49241769"
+         inkscape:transform-center-y="-0.56406185" />
+    </g>
+    <circle
+       cx="338"
+       cy="110"
+       r="33"
+       fill="url(#terminator)"
+       clip-path="url(#venusClip)"
+       id="circle50" />
+  </g>
+</svg>

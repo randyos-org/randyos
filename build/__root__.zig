@@ -18,7 +18,7 @@ pub fn build(b: *rstdbuild.Build) !void {
 
     // setup qemu runtime
     const sysroot_paths = sysroot.addSysrootDirs(b);
-    qemu.addQemu(b, sysroot_paths);
+    try qemu.addQemu(b, sysroot_paths);
 
     // build steps
     const build_options = try options.addBuildOptions(b, randyos_target);
