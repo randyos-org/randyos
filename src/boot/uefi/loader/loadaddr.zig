@@ -199,11 +199,7 @@ pub fn moveKernelToDestination(plan: KernelLoadPlan) void {
     if (plan.staging == plan.dest) return;
     const src: [*]const u8 = @ptrFromInt(plan.staging);
     const dst: [*]u8 = @ptrFromInt(plan.dest);
-    // shouldn't overlap (staging avoids the destination), but copy in the
-    // safe direction anyway
-    if (plan.dest < plan.staging) {
-        std.mem.copyForwards(u8, dst[0..plan.size], src[0..plan.size]);
-    } else {
-        std.mem.copyBackwards(u8, dst[0..plan.size], src[0..plan.size]);
-    }
+    // shouldn't overlap (staging avoids the destination), but @memmove
+    // handles the overlapping case correctly regardless of direction
+    @memmove(dst[0..plan.size], src[0..plan.size]);
 }

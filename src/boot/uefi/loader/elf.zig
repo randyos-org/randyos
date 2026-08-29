@@ -105,6 +105,6 @@ pub fn getSectionContents(io: Io, file: Io.File, section_header: elf.Elf64.Shdr,
 }
 
 pub fn getSectionName(string_table: []const u8, section_header: elf.Elf64.Shdr) ?[]const u8 {
-    const len = std.mem.indexOf(u8, string_table[section_header.name..], "\x00") orelse return null;
+    const len = std.mem.find(u8, string_table[section_header.name..], "\x00") orelse return null;
     return string_table[section_header.name..][0..len];
 }
