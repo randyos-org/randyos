@@ -241,6 +241,7 @@ finit_module
 flate
 flistxattr
 flock
+forgejo
 fork
 fremovexattr
 fsconfig
@@ -828,6 +829,7 @@ systemd
 Systemd
 systemd-udevd
 tee
+Temml
 termio
 tgkill
 thisreallyprobablydoesntexist

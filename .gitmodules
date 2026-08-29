@@ -7,3 +7,6 @@
 [submodule "src/randyos/gfx/logo"]
 	path = src/randyos/gfx/logo
 	url = https://codeberg.org/randyos/logo.git
+[submodule "www"]
+	path = www
+	url = ./www
