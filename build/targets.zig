@@ -5,8 +5,8 @@ const rstdbuild = rstd.buildutils;
 
 const Build = rstdbuild.Build;
 const TargetQuery = rstdbuild.TargetQuery;
-const Firmware = rstd.machine.Firmware;
-const HardwareInterface = rstd.machine.HardwareInterface;
+const Firmware = rstdbuild.machine.Firmware;
+const HardwareInterface = rstdbuild.machine.HardwareInterface;
 const ResolvedTarget = rstdbuild.ResolvedTarget;
 
 pub const KernelTargets = struct {
