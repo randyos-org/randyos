@@ -170,14 +170,14 @@ fn addOvmfToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
     const ovmf_code_path = sysroot.build.addCopyFile(ovmf_dep.path("x64/code.fd"), "ovmf.fd");
     // const ovmf_code_args = if (ovmf_vars != null) ovmf_ro_args else ovmf_rw_args;
     const ovmf_code_args = ovmf_ro_args;
-    inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+    inline for (comptime @typeInfo(QemuCmds).@"struct".field_names) |field_name| {
         const cmd: *RunStep = @field(qemu_cmds, field_name);
         cmd.addArg("-drive");
         cmd.addPrefixedFileArg(ovmf_code_args, ovmf_code_path);
     }
 
     const ovmf_vars_path = sysroot.build.addCopyFile(ovmf_dep.path("x64/vars.fd"), "ovmf_vars.fd");
-    inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+    inline for (comptime @typeInfo(QemuCmds).@"struct".field_names) |field_name| {
         const cmd: *RunStep = @field(qemu_cmds, field_name);
         cmd.addArg("-drive");
         cmd.addPrefixedFileArg(ovmf_rw_args, ovmf_vars_path);
@@ -187,7 +187,7 @@ fn addOvmfToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
 fn addSysrootToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
     const sysroot_install = sysroot.install;
     const sysroot_path = rstdbuild.installDirLazyPath(b, sysroot_install);
-    inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+    inline for (comptime @typeInfo(QemuCmds).@"struct".field_names) |field_name| {
         const cmd: *RunStep = @field(qemu_cmds, field_name);
         cmd.addArg("-drive");
         cmd.addPrefixedDirectoryArg(
@@ -215,7 +215,7 @@ fn addPersistentDriveToQemu(b: *Build, qemu_cmds: QemuCmds) !void {
         create_drive_step.dependOn(&create_drive_cmd.step);
     }
 
-    inline for (comptime std.meta.fieldNames(QemuCmds)) |field_name| {
+    inline for (comptime @typeInfo(QemuCmds).@"struct".field_names) |field_name| {
         const cmd: *RunStep = @field(qemu_cmds, field_name);
         cmd.addArg("-drive");
         cmd.addPrefixedFileArg(drive_args, drive_lazypath);
