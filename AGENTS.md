@@ -43,6 +43,7 @@ asks for it.
 - When a file's data is mechanically derived from an external source (e.g. Linux syscall tables), the
   doc comment must say where it came from (exact source file, commit/tag) and that it should be
   re-derived rather than hand-edited if it goes stale.
+- Keep comments as short as possible.  Explanations should be brief bordering on terse.  No more than five lines per paragraph on average unless the explanation is truly remarkable to warrant long-windedness.
 
 ## Git
 
