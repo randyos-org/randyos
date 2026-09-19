@@ -995,3 +995,17 @@ Schur
 eigendecomposition
 Marsaglia-polar
 CONJG
+
+BLAS
+OpenBLAS
+asm
+OpenBLAS
+zmm
+EVEX
+haswell
+ymm
+scalarized
+vtable
+OpenBLAS
+OpenBLAS
+axpy

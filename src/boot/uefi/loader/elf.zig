@@ -3,7 +3,7 @@
 //! segments.zig/loadaddr.zig/debug.zig instead.
 
 const std = @import("std");
-const builtin = @import("builtin");
+const sysinfo = @import("builtin");
 const uefi = std.os.uefi;
 const Io = std.Io;
 const elf = std.elf;
@@ -51,8 +51,8 @@ pub fn readHeader(io: Io, file: Io.File) !elf.Header {
         log.err(@src(), "can only load 64-bit binaries", .{});
         return error.Unsupported;
     }
-    if (header.endian != builtin.cpu.arch.endian()) {
-        log.err(@src(), "ELF endianness ({s}) does not match native endianness ({s})", .{ @tagName(header.endian), @tagName(builtin.cpu.arch.endian()) });
+    if (header.endian != sysinfo.cpu.arch.endian()) {
+        log.err(@src(), "ELF endianness ({s}) does not match native endianness ({s})", .{ @tagName(header.endian), @tagName(sysinfo.cpu.arch.endian()) });
         return error.IncompatibleVersion;
     }
     return header;

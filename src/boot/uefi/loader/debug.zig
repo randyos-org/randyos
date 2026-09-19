@@ -3,7 +3,7 @@
 //! `std.debug.Dwarf`.
 
 const std = @import("std");
-const builtin = @import("builtin");
+const sysinfo = @import("builtin");
 const uefi = std.os.uefi;
 const Io = std.Io;
 const elf = std.elf;
@@ -102,7 +102,7 @@ pub fn loadDebugInfo(
             .sections = sections,
         };
         log.debug(@src(), "about to call Dwarf.open", .{});
-        dwarf_info.*.?.open(uefi.pool_allocator, builtin.cpu.arch.endian()) catch |err| {
+        dwarf_info.*.?.open(uefi.pool_allocator, sysinfo.cpu.arch.endian()) catch |err| {
             log.err(@src(), "opening debug info failed: {s}", .{@errorName(err)});
             dwarf_info.* = null;
             return error.LoadError;
