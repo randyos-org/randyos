@@ -59,3 +59,7 @@ asks for it.
 `.cspell.jsonc` drives spell-checking; project-specific words go in
 `.vscode/ltex.dictionary.en-US.txt` rather than being added as inline ignores, unless there's a good
 reason to scope it more narrowly.  Do not add words to the dictionary yourself.
+
+Use American English everywhere (code comments, identifiers, docs, commit messages): `color`,
+`behavior`, `initialize`, `canceled`, `center`, `gray`. Exception: names and text mirroring an
+external source verbatim (e.g. Wayland's `cancelled`, vendored reference docs).
