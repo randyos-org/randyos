@@ -4,16 +4,25 @@
 //!     usbimg mkimg <dir> <out.img>
 //!     usbimg list
 //!     usbimg burn <image> [<disk>] [--yes] [--any-bus]
+//!     usbimg keygen <dir>
+//!     usbimg sign <in.efi> <key.pem> <cert.pem> <out.efi>
 //!
 //! `<disk>` is a disk number on Windows (as in `\\.\PhysicalDriveN`) or a
-//! `/dev/sdX` path on Linux. Without one, `burn` lists candidates and fails.
+//! `/dev/sdX` path on Linux. Without one, `burn` picks the only non-system disk
+//! when there are exactly two (always asking to confirm), else lists the disks and fails.
+//!
+//! `keygen` makes a Secure Boot signing key with `openssl`: `db.key`,
+//! `db.crt` (PEM) and `db.cer` (DER, for enrolling into the firmware's db).
+//! `sign` Authenticode-signs an EFI image with it.
 
 const std = @import("std");
+const rstd = @import("rstd");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const fat = @import("fat.zig");
 const gpt = @import("gpt.zig");
 const rawdisk = @import("rawdisk.zig");
+const authenticode = @import("authenticode.zig");
 
 const mib_sectors = (1 << 20) / gpt.sector;
 /// ESP starts 1 MiB in; the last 1 MiB holds the backup GPT.
@@ -31,7 +40,7 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const io = init.io;
     const args = try init.minimal.args.toSlice(arena);
-    if (args.len < 2) die("usage: usbimg mkimg <dir> <out.img> | list | burn <image> [<disk>] [--yes] [--any-bus]", .{});
+    if (args.len < 2) die("usage: usbimg mkimg | list | burn | keygen | sign (see tools/usbimg/__main__.zig)", .{});
     const cmd = args[1];
     if (std.mem.eql(u8, cmd, "mkimg")) {
         if (args.len != 4) die("usage: usbimg mkimg <dir> <out.img>", .{});
@@ -46,11 +55,23 @@ pub fn main(init: std.process.Init) !void {
             if (std.mem.eql(u8, a, "--yes")) yes = true else if (std.mem.eql(u8, a, "--any-bus")) any_bus = true else try pos.append(arena, a);
         }
         if (pos.items.len == 0 or pos.items.len > 2) die("usage: usbimg burn <image> [<disk>] [--yes] [--any-bus]", .{});
-        if (pos.items.len == 1) {
-            printDisks(try rawdisk.list(arena, io));
+        if (pos.items.len == 2) return burn(arena, io, pos.items[0], pos.items[1], yes, any_bus);
+        // No disk given: only the system disk plus exactly one other is unambiguous.
+        const disks = try rawdisk.list(arena, io);
+        printDisks(disks);
+        const other = if (disks.len == 2 and disks[0].system != disks[1].system)
+            (if (disks[0].system) disks[1] else disks[0])
+        else
             die("no disk given; pick one above (zig build burn -Dusb-disk=<disk>)", .{});
-        }
-        try burn(arena, io, pos.items[0], pos.items[1], yes, any_bus);
+        std.debug.print("usbimg: no disk given; defaulting to disk {s}, the only non-system disk\n", .{other.id});
+        // A guessed target always needs the typed confirmation.
+        try burn(arena, io, pos.items[0], other.id, false, any_bus);
+    } else if (std.mem.eql(u8, cmd, "keygen")) {
+        if (args.len != 3) die("usage: usbimg keygen <dir>", .{});
+        try keygen(arena, io, args[2]);
+    } else if (std.mem.eql(u8, cmd, "sign")) {
+        if (args.len != 6) die("usage: usbimg sign <in.efi> <key.pem> <cert.pem> <out.efi>", .{});
+        try sign(arena, io, args[2], args[3], args[4], args[5]);
     } else die("unknown command '{s}'", .{cmd});
 }
 
@@ -198,7 +219,41 @@ fn burn(arena: Allocator, io: Io, image_path: []const u8, id: []const u8, yes: b
     std.debug.print("\nusbimg: done; disk {s} is ready to boot.\n", .{disk.id});
 }
 
+// Secure Boot
+
+fn keygen(arena: Allocator, io: Io, dir: []const u8) !void {
+    const cwd = Io.Dir.cwd();
+    const key = try std.fs.path.join(arena, &.{ dir, "db.key" });
+    const crt = try std.fs.path.join(arena, &.{ dir, "db.crt" });
+    const cer = try std.fs.path.join(arena, &.{ dir, "db.cer" });
+    if (cwd.access(io, key, .{})) |_| {
+        die("{s} already exists; firmware that enrolled it would reject a new one. Delete {s} to start over.", .{ key, dir });
+    } else |_| {}
+    try cwd.createDirPath(io, dir);
+    // RSA-2048: the size every Secure Boot implementation accepts.
+    var child = std.process.spawn(io, .{ .argv = &.{
+        "openssl", "req",   "-x509", "-newkey",                 "rsa:2048", "-nodes", "-sha256",
+        "-days",   "36500", "-subj", "/CN=RandyOS Secure Boot", "-keyout",  key,      "-out",
+        crt,
+    } }) catch |e| die("cannot run openssl ({t}); it must be on PATH", .{e});
+    const term = try child.wait(io);
+    if (term != .exited or term.exited != 0) die("openssl failed", .{});
+    const pem = try cwd.readFileAlloc(io, crt, arena, .limited(1 << 20));
+    try cwd.writeFile(io, .{ .sub_path = cer, .data = try rstd.crypto.der.fromPem(arena, pem, "CERTIFICATE") });
+    std.debug.print("usbimg: wrote {s}, {s} and {s}; keep {s} private.\n", .{ key, crt, cer, key });
+}
+
+fn sign(arena: Allocator, io: Io, in: []const u8, key_path: []const u8, cert_path: []const u8, out: []const u8) !void {
+    const cwd = Io.Dir.cwd();
+    const key = try authenticode.PrivateKey.fromPem(arena, try cwd.readFileAlloc(io, key_path, arena, .limited(1 << 20)));
+    const cert_pem = try cwd.readFileAlloc(io, cert_path, arena, .limited(1 << 20));
+    const cert = try authenticode.Cert.fromPem(arena, cert_pem);
+    const img = try cwd.readFileAlloc(io, in, arena, .unlimited);
+    try cwd.writeFile(io, .{ .sub_path = out, .data = try authenticode.sign(arena, img, key, cert) });
+}
+
 test {
     _ = fat;
     _ = gpt;
+    _ = authenticode;
 }

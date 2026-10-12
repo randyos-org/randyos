@@ -547,6 +547,7 @@ nanoftp
 nanosleep
 natecraddock
 NDELAY
+ndirs
 NETLINK
 newfstatat
 nflist
@@ -728,6 +729,7 @@ rtnetlink
 RTPRIO
 RTTIME
 RXRSTOR
+sbkeys
 scalarized
 scanline
 sched_get_priority_max
@@ -841,6 +843,7 @@ sphaerophoria
 sphimp
 sphtext
 Spirv
+spki
 splice
 sqrt
 srcs
@@ -929,6 +932,7 @@ urandom
 uretprobe
 uring
 usbimg
+usbimgtool
 uselib
 userfaultfd
 userspace
@@ -1004,3 +1008,5 @@ zmm
 zram
 zutil
 zxdg
+
+Authenticode-signs

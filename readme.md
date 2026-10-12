@@ -48,11 +48,21 @@ All OVMF files used by `zig build qemu` will be copied so that their original ve
 ```bash
 zig build run-usb                   # boot the exact image in QEMU as a USB stick
 zig build usb-list                  # list disks and their bus types
-zig build burn -Dusb-disk=2         # Windows: \.\PhysicalDrive2 (elevated terminal)
+zig build burn -Dusb-disk=2         # Windows: \\.\PhysicalDrive2 (elevated terminal)
 sudo zig build burn -Dusb-disk=/dev/sdb  # Linux
 ```
 
-`burn` refuses the disk holding the running OS and anything not on a USB or SD bus (`-Dusb-any-bus` lifts the latter). It asks you to retype the disk id before erasing (`-Dusb-yes` skips that), and moves the backup GPT to the end of the drive. On Windows it locks and dismounts the drive's volumes itself; on Linux, unmount them first. On the target machine, disable Secure Boot (the bootloader is unsigned) and pick the USB drive from the firmware boot menu.
+`burn` refuses the disk holding the running OS and anything not on a USB or SD bus (`-Dusb-any-bus` lifts the latter). It asks you to retype the disk ID before erasing (`-Dusb-yes` skips that), and moves the backup GPT to the end of the drive. Without `-Dusb-disk`, if the only disks are the system disk and one other, it targets that other disk and always asks you to confirm; otherwise it lists the disks and stops. On Windows it locks and dismounts the drive's volumes itself; on Linux, unmount them first. On the target machine, enroll the Secure Boot key (see below) or disable Secure Boot, and pick the USB drive from the firmware boot menu.
+
+### Secure Boot
+
+RandyOS signs its bootloader with its own key, enrolled into each machine's Secure Boot `db` alongside the existing (Microsoft) keys:
+
+```bash
+zig build sb-keygen   # once: writes sbkeys/db.key, db.crt and db.cer (never commit sbkeys/)
+```
+
+While `sbkeys/db.key` exists, every build Authenticode-signs `bootx64.efi` (`-Dsecure-boot=false` turns that off) and puts `randyos-db.cer` on the ESP. On each target machine, enroll that certificate once: in firmware setup, under Secure Boot key management, append or enroll a `db` entry from file and pick `randyos-db.cer` on the USB drive. Keep the existing keys; replacing them can stop Windows and add-in cards' option ROMs from booting. Regenerating the key means re-enrolling it everywhere.
 
 ### What is OVMF?
 

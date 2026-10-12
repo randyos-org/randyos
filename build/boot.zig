@@ -13,6 +13,7 @@ const Docs = rstdbuild.Docs;
 const CompileStep = rstdbuild.CompileStep;
 
 const SysrootDirs = buildroot.sysroot.SysrootDirs;
+const Signer = buildroot.usb.Signer;
 
 pub fn addBootldr(
     b: *Build,
@@ -20,6 +21,7 @@ pub fn addBootldr(
     target: ResolvedTarget,
     rstdlib: ?*Module,
     sysroot: SysrootDirs,
+    signer: ?Signer,
     docs: Docs,
 ) *CompileStep {
     const bootloader_mod = b.createModule(.{
@@ -37,8 +39,9 @@ pub fn addBootldr(
         .root_module = bootloader_mod,
     });
     b.installArtifact(bootloader_exe);
+    const bin = bootloader_exe.getEmittedBin();
     _ = sysroot.build.addCopyFile(
-        bootloader_exe.getEmittedBin(),
+        if (signer) |s| s.sign(b, bin, bootloader_exe.out_filename) else bin,
         b.pathJoin(&.{
             "efi",
             "boot",

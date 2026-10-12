@@ -2,6 +2,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const rstd = @import("rstd");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
@@ -62,7 +63,7 @@ pub const Target = switch (builtin.os.tag) {
 };
 
 const windows = struct {
-    const w = @import("win32").everything;
+    const w = rstd.win32.everything;
     const HANDLE = w.HANDLE;
 
     /// GENERIC_READ | GENERIC_WRITE; zigwin32's access flags lack the generic bits.
