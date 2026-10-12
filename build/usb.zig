@@ -60,6 +60,9 @@ pub const Signer = struct {
     tool: *CompileStep,
     key: LazyPath,
     cert: LazyPath,
+    /// Fedora's shim and MokManager (shimx64.efi, mmx64.efi), or null to boot
+    /// the loader directly.
+    shim: ?LazyPath,
 
     /// `efi` Authenticode-signed with the Secure Boot key.
     pub fn sign(s: Signer, b: *Build, efi: LazyPath, name: []const u8) LazyPath {
@@ -69,6 +72,19 @@ pub const Signer = struct {
         run.addFileArg(s.key);
         run.addFileArg(s.cert);
         return run.addOutputFileArg(name);
+    }
+
+    /// Signs `efi` and puts it on the ESP: behind shim as grubx64.efi (the
+    /// name shim loads), else as the removable-media default BOOTX64.EFI.
+    pub fn installLoader(s: Signer, b: *Build, sysroot: SysrootDirs, efi: LazyPath) void {
+        const signed = s.sign(b, efi, "loader.efi");
+        const shim = s.shim orelse {
+            _ = sysroot.build.addCopyFile(signed, "efi/boot/bootx64.efi");
+            return;
+        };
+        _ = sysroot.build.addCopyFile(signed, "efi/boot/grubx64.efi");
+        _ = sysroot.build.addCopyFile(shim.path(b, "shimx64.efi"), "efi/boot/bootx64.efi");
+        _ = sysroot.build.addCopyFile(shim.path(b, "mmx64.efi"), "efi/boot/mmx64.efi");
     }
 };
 
@@ -94,5 +110,18 @@ pub fn addSecureBoot(b: *Build, tool: *CompileStep, sysroot: SysrootDirs) !?Sign
         return error.NoSecureBootKey;
     }
     _ = sysroot.build.addCopyFile(b.path(cer), "randyos-db.cer");
-    return .{ .tool = tool, .key = b.path(key), .cert = b.path(cert) };
+
+    // shim + MokManager: machines without our key in db get a prompt to
+    // enroll randyos-db.cer instead of a Secure Boot violation.
+    const use_shim = b.option(bool, "shim", "Boot through Fedora's signed shim, offering MokManager to enroll the key (default: true)") orelse true;
+    const shim: ?LazyPath = if (use_shim) blk: {
+        const run = b.addRunArtifact(tool);
+        run.addArg("shim");
+        run.addDirectoryArg(b.path(key_dir));
+        const out = run.addOutputDirectoryArg("shim");
+        // Checks Fedora for a newer shim on every build.
+        run.has_side_effects = true;
+        break :blk out;
+    } else null;
+    return .{ .tool = tool, .key = b.path(key), .cert = b.path(cert), .shim = shim };
 }

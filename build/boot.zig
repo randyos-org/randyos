@@ -33,6 +33,11 @@ pub fn addBootldr(
         bootloader_mod.addImport("rstd", rstdlib_mod);
     }
 
+    // For the SBAT section shim requires.
+    const boot_options = b.addOptions();
+    boot_options.addOption([]const u8, "version", buildroot.zon.version);
+    bootloader_mod.addOptions("boot_options", boot_options);
+
     const bootloader_exe = b.addExecutable(.{
         // Name expected by UEFI.
         .name = "bootx64",
@@ -40,14 +45,9 @@ pub fn addBootldr(
     });
     b.installArtifact(bootloader_exe);
     const bin = bootloader_exe.getEmittedBin();
-    _ = sysroot.build.addCopyFile(
-        if (signer) |s| s.sign(b, bin, bootloader_exe.out_filename) else bin,
-        b.pathJoin(&.{
-            "efi",
-            "boot",
-            bootloader_exe.out_filename,
-        }),
-    );
+    if (signer) |s| s.installLoader(b, sysroot, bin) else {
+        _ = sysroot.build.addCopyFile(bin, b.pathJoin(&.{ "efi", "boot", bootloader_exe.out_filename }));
+    }
     docs.addCompileStepDocs(b, bootloader_exe, "bootloader");
     return bootloader_exe;
 }

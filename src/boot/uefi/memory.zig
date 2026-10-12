@@ -33,37 +33,45 @@ pub const MemoryMap = struct {
     map: uefi.tables.MemoryMapSlice,
 };
 
-/// Fetch the current UEFI memory map: info, then a matching allocation,
-/// then the map itself.
+/// Minimum spare descriptor slots per fetch; allocating the buffer can split
+/// a free region and grow the map before `getMemoryMap` runs.
+/// Padding is necessary due to memory allocations running MokManager shim
+/// before the actual bootloader.
+const fetch_padding: usize = 4;
+
+/// Fetch the current UEFI memory map: info, then a padded allocation, then
+/// the map itself, retrying with more room if the map outgrew the buffer.
 ///
-/// `extra_descriptors` pads the allocation by this many extra descriptor
-/// slots, since firmware can grow the map between the info call and the
-/// `getMemoryMap` call (any allocation can do it, including this
-/// function's own). Pass 0 for a one-off read, nonzero when about to
+/// `extra_descriptors` adds slots beyond `fetch_padding`, e.g. when about to
 /// retry `exitBootServices` (see below).
 pub fn fetch(boot_services: *uefi.tables.BootServices, extra_descriptors: usize) !MemoryMap {
-    var info = boot_services.getMemoryMapInfo() catch |err| {
-        log.err(@src(), "getting memory map info failed: {s}", .{@errorName(err)});
-        return err;
-    };
-    const buffer = boot_services.allocatePool(
-        .boot_services_data,
-        info.descriptor_size * (info.len + extra_descriptors),
-    ) catch |err| {
-        log.err(@src(), "allocating memory map buffer failed: {s}", .{@errorName(err)});
-        return err;
-    };
-    // re-read info/key after allocating: the allocation itself changes the
-    // map, so the pre-allocation info is already stale by getMemoryMap time
-    info = boot_services.getMemoryMapInfo() catch |err| {
-        log.err(@src(), "getting memory map info failed: {s}", .{@errorName(err)});
-        return err;
-    };
-    const map = boot_services.getMemoryMap(buffer) catch |err| {
-        log.err(@src(), "getting memory map failed: {s}", .{@errorName(err)});
-        return err;
-    };
-    return .{ .info = info, .buffer = buffer, .map = map };
+    var padding = fetch_padding + extra_descriptors;
+    while (true) {
+        const info = boot_services.getMemoryMapInfo() catch |err| {
+            log.err(@src(), "getting memory map info failed: {s}", .{@errorName(err)});
+            return err;
+        };
+        const buffer = boot_services.allocatePool(
+            .boot_services_data,
+            info.descriptor_size * (info.len + padding),
+        ) catch |err| {
+            log.err(@src(), "allocating memory map buffer failed: {s}", .{@errorName(err)});
+            return err;
+        };
+        const map = boot_services.getMemoryMap(buffer) catch |err| switch (err) {
+            error.BufferTooSmall => {
+                boot_services.freePool(@alignCast(buffer.ptr)) catch {};
+                padding *= 2;
+                continue;
+            },
+            else => {
+                log.err(@src(), "getting memory map failed: {s}", .{@errorName(err)});
+                return err;
+            },
+        };
+        // key and length of the map actually returned, not of the size query
+        return .{ .info = map.info, .buffer = buffer, .map = map };
+    }
 }
 
 /// Re-fetch the memory map and retry `exitBootServices` until it succeeds.

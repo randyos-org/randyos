@@ -150,6 +150,39 @@ pub fn sign(arena: Allocator, img: []const u8, key: PrivateKey, cert: Cert) ![]u
     return out;
 }
 
+/// Checks that `img`'s (first) signature covers it exactly and returns the
+/// signer certificate's issuer Name as DER. Does not verify the RSA math or
+/// the chain; firmware does that at boot.
+pub fn signerIssuer(arena: Allocator, img: []const u8) ![]const u8 {
+    const pe = try Pe.parse(arena, img);
+    const at = bytes.readIntLE(u32, img[pe.cert_dir..]);
+    if (bytes.readIntLE(u32, img[pe.cert_dir + 4 ..]) == 0) return error.NotSigned;
+    if (img.len < @as(usize, at) + 8) return error.BadSignature;
+    const wc_len = bytes.readIntLE(u32, img[at..]);
+    if (bytes.readIntLE(u16, img[at + 6 ..]) != 0x0002 or img.len < @as(usize, at) + wc_len) return error.BadSignature;
+
+    const content_info = try der.children(arena, (try (try der.read(img[at + 8 .. at + wc_len])).expect(Tag.seq)).value);
+    if (content_info.len < 2) return error.BadSignature;
+    const signed_data = try der.children(arena, (try (try der.read(content_info[1].value)).expect(Tag.seq)).value);
+    if (signed_data.len < 4) return error.BadSignature;
+    const encap = try der.children(arena, (try signed_data[2].expect(Tag.seq)).value);
+    if (encap.len < 2) return error.BadSignature;
+    const spc = try der.children(arena, (try (try der.read(encap[1].value)).expect(Tag.seq)).value);
+    if (spc.len < 2) return error.BadSignature;
+    const digest_info = try der.children(arena, (try spc[1].expect(Tag.seq)).value);
+    if (digest_info.len < 2) return error.BadSignature;
+    if (!std.mem.eql(u8, (try digest_info[1].expect(Tag.octets)).value, &try pe.digest(img))) return error.DigestMismatch;
+
+    // signerInfos is the last element; issuerAndSerialNumber is its second.
+    const signers = try der.children(arena, (try signed_data[signed_data.len - 1].expect(Tag.set)).value);
+    if (signers.len < 1) return error.BadSignature;
+    const signer = try der.children(arena, (try signers[0].expect(Tag.seq)).value);
+    if (signer.len < 2) return error.BadSignature;
+    const issuer_serial = try der.children(arena, (try signer[1].expect(Tag.seq)).value);
+    if (issuer_serial.len < 1) return error.BadSignature;
+    return (try issuer_serial[0].expect(Tag.seq)).all;
+}
+
 fn sha256Of(data: []const u8) [32]u8 {
     var d: [32]u8 = undefined;
     Sha256.hash(data, &d, .{});

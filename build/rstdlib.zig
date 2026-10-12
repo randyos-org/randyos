@@ -16,9 +16,12 @@ pub fn addRstd(
     docs: ?Docs,
     options: *BuildOptions,
     target: ?ResolvedTarget,
+    /// Picks rstd's BLAS kernel default: the target's core in debug, else all.
+    optimize: OptimizeMode,
 ) !*Module {
     const rstd_dep = b.dependency("rstd", .{
         .target = target,
+        .optimize = optimize,
     });
     const rstd_mod = rstd_dep.module("rstd");
     try rstdbuild.addBuildOptsModToModule(options, rstd_mod);

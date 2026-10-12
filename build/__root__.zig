@@ -27,10 +27,10 @@ pub fn build(b: *rstdbuild.Build) !void {
     // build steps
     // rstd links BLAS objects built for its target, so each consumer gets its own instance.
     const build_options = try options.addBuildOptions(b, randyos_target);
-    const boot_rstd = try rstdlib.addRstd(b, null, build_options, randyos_target.bootloader);
+    const boot_rstd = try rstdlib.addRstd(b, null, build_options, randyos_target.bootloader, optimize);
     _ = boot.addBootldr(b, optimize, randyos_target.bootloader, boot_rstd, sysroot_paths, signer, docs);
 
     // const abi_mod = modules_mod.addAbi(b, optimize, docs);
-    const kernel_rstd = try rstdlib.addRstd(b, docs, build_options, randyos_target.rstd);
+    const kernel_rstd = try rstdlib.addRstd(b, docs, build_options, randyos_target.rstd, optimize);
     _ = kernel_rstd; // until the kernel is built again
 }

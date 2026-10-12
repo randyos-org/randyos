@@ -25,7 +25,9 @@ argv
 ARMEB
 ASLR
 asm
+ASUS
 audiodev
+Authenticode-signs
 autodoc
 auxv
 auxvec
@@ -35,6 +37,7 @@ bind
 BLAS
 blkcnt
 blkrrpart
+Bodhi
 bootdbg
 bootefi
 bootfs
@@ -83,6 +86,7 @@ comptime
 CONJG
 connect
 copy_file_range
+cpio
 creat
 create_module
 creds
@@ -91,6 +95,7 @@ CSPRNG
 ctmp
 culted
 cval
+db
 DCACHEBSIZE
 dcbz
 dcgettext
@@ -368,6 +373,7 @@ gobj
 gobject
 gofmt
 gresource
+grubx
 gterm
 gtty
 Guser
@@ -434,6 +440,7 @@ klogo
 kloop
 kmain
 kmod
+Koji
 kpanic
 kwin
 landlock_add_rule
@@ -487,6 +494,7 @@ MAXIOV
 MAXPHYADDR
 mbind
 mcpu
+mdapi
 mdgen
 membarrier
 memfd_create
@@ -508,6 +516,7 @@ mman
 mmap
 mmory
 modify_ldt
+MokManager
 mount
 mount_setattr
 MOVBE
@@ -549,6 +558,7 @@ natecraddock
 NDELAY
 ndirs
 NETLINK
+newc
 newfstatat
 nflist
 nfsservctl
@@ -729,6 +739,7 @@ rtnetlink
 RTPRIO
 RTTIME
 RXRSTOR
+SBAT
 sbkeys
 scalarized
 scanline
@@ -796,6 +807,7 @@ sfnt
 sgetmask
 Shdr
 shentsize
+shimx
 SHLCK
 shlq
 shmat
@@ -1006,7 +1018,6 @@ ziggify
 zigimg
 zmm
 zram
+zstd
 zutil
 zxdg
-
-Authenticode-signs

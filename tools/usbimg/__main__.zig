@@ -6,6 +6,7 @@
 //!     usbimg burn <image> [<disk>] [--yes] [--any-bus]
 //!     usbimg keygen <dir>
 //!     usbimg sign <in.efi> <key.pem> <cert.pem> <out.efi>
+//!     usbimg shim <cache_dir> <out_dir>
 //!
 //! `<disk>` is a disk number on Windows (as in `\\.\PhysicalDriveN`) or a
 //! `/dev/sdX` path on Linux. Without one, `burn` picks the only non-system disk
@@ -13,7 +14,8 @@
 //!
 //! `keygen` makes a Secure Boot signing key with `openssl`: `db.key`,
 //! `db.crt` (PEM) and `db.cer` (DER, for enrolling into the firmware's db).
-//! `sign` Authenticode-signs an EFI image with it.
+//! `sign` Authenticode-signs an EFI image with it. `shim` keeps Fedora's
+//! signed shim and MokManager cached and current (see shim.zig).
 
 const std = @import("std");
 const rstd = @import("rstd");
@@ -23,6 +25,7 @@ const fat = @import("fat.zig");
 const gpt = @import("gpt.zig");
 const rawdisk = @import("rawdisk.zig");
 const authenticode = @import("authenticode.zig");
+const shim = @import("shim.zig");
 
 const mib_sectors = (1 << 20) / gpt.sector;
 /// ESP starts 1 MiB in; the last 1 MiB holds the backup GPT.
@@ -69,6 +72,9 @@ pub fn main(init: std.process.Init) !void {
     } else if (std.mem.eql(u8, cmd, "keygen")) {
         if (args.len != 3) die("usage: usbimg keygen <dir>", .{});
         try keygen(arena, io, args[2]);
+    } else if (std.mem.eql(u8, cmd, "shim")) {
+        if (args.len != 4) die("usage: usbimg shim <cache_dir> <out_dir>", .{});
+        shim.sync(arena, io, args[2], args[3]) catch |e| die("shim: {t}", .{e});
     } else if (std.mem.eql(u8, cmd, "sign")) {
         if (args.len != 6) die("usage: usbimg sign <in.efi> <key.pem> <cert.pem> <out.efi>", .{});
         try sign(arena, io, args[2], args[3], args[4], args[5]);

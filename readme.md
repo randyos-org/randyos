@@ -62,7 +62,12 @@ RandyOS signs its bootloader with its own key, enrolled into each machine's Secu
 zig build sb-keygen   # once: writes sbkeys/db.key, db.crt and db.cer (never commit sbkeys/)
 ```
 
-While `sbkeys/db.key` exists, every build Authenticode-signs `bootx64.efi` (`-Dsecure-boot=false` turns that off) and puts `randyos-db.cer` on the ESP. On each target machine, enroll that certificate once: in firmware setup, under Secure Boot key management, append or enroll a `db` entry from file and pick `randyos-db.cer` on the USB drive. Keep the existing keys; replacing them can stop Windows and add-in cards' option ROMs from booting. Regenerating the key means re-enrolling it everywhere.
+While `sbkeys/db.key` exists, every build Authenticode-signs the bootloader (`-Dsecure-boot=false` turns that off) and puts `randyos-db.cer` on the ESP. The key has to be enrolled once per machine, one of two ways:
+
+* **MokManager (default).** The stick boots through Fedora's Microsoft-signed [shim](https://github.com/rhboot/shim) (`BOOTX64.EFI`), which loads our bootloader (`grubx64.efi`). On a machine that doesn't know our key yet, shim opens MokManager: choose *Enroll key from disk*, pick `randyos-db.cer`, then *Continue*, *Yes* and *Reboot*. This needs the firmware to trust Microsoft's third-party UEFI CA, which most PCs do.
+* **Firmware `db`.** In firmware setup, under Secure Boot key management, append a `db` entry from file and pick `randyos-db.cer`. On ASUS firmware: *Authorized Signatures (db)* → *Append* → **No** (Yes loads the factory defaults instead) → pick the file → *Public Key Certificate* → *Yes*. Keep the existing keys; replacing them can stop Windows and add-in cards' option ROMs from booting.
+
+Shim and MokManager are cached in `sbkeys/shim/`. Each build checks Fedora for the newest stable `shim-x64` and downloads it from Koji when the cache is missing, outdated or fails its checks; offline, a valid cache is used as is. `-Dshim=false` boots the bootloader directly instead (only the firmware `db` route works then). Regenerating the key means re-enrolling it everywhere.
 
 ### What is OVMF?
 
