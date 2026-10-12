@@ -1,5 +1,6 @@
 //! QEMU run/debug commands, OVMF firmware wiring, attaching the sysroot as
-//! QEMU's FAT boot drive, and the `socat`-based QEMU monitor helper.
+//! QEMU's FAT boot drive (or the USB image as a USB stick), and the
+//! `socat`-based QEMU monitor helper.
 
 const std = @import("std");
 const buildroot = @import("__root__.zig");
@@ -9,16 +10,19 @@ const SysrootDirs = buildroot.sysroot.SysrootDirs;
 
 const Build = rstdbuild.Build;
 const RunStep = rstdbuild.RunStep;
+const LazyPath = rstdbuild.LazyPath;
 
 pub const QemuCmds = struct {
     run: *RunStep,
     debug: *RunStep,
+    run_usb: *RunStep,
 };
 
-pub fn addQemu(b: *Build, sysroot: SysrootDirs) !void {
+pub fn addQemu(b: *Build, sysroot: SysrootDirs, usb_image: LazyPath) !void {
     const cmds = addQemuCmds(b);
-    addOvmfToQemu(b, sysroot, cmds);
+    addOvmfToQemu(b, cmds);
     addSysrootToQemu(b, sysroot, cmds);
+    addUsbImageToQemu(cmds, usb_image);
     try addPersistentDriveToQemu(b, cmds);
 
     addMonitorCmd(b);
@@ -143,9 +147,11 @@ fn addQemuCmds(b: *Build) QemuCmds {
     const cmds = QemuCmds{
         .run = b.addSystemCommand(base_cmd),
         .debug = b.addSystemCommand(base_cmd),
+        .run_usb = b.addSystemCommand(base_cmd),
     };
-    cmds.run.addArgs(base_args);
-    cmds.debug.addArgs(base_args);
+    inline for (comptime @typeInfo(QemuCmds).@"struct".field_names) |field_name| {
+        @field(cmds, field_name).addArgs(base_args);
+    }
     cmds.debug.addArg("-S"); // wait for GDB connection
 
     const run_step = b.step("run", "Run the kernel via QEMU");
@@ -154,10 +160,13 @@ fn addQemuCmds(b: *Build) QemuCmds {
     const debug_step = b.step("debug", "Run the kernel via QEMU, wait for GDB connection");
     debug_step.dependOn(&cmds.debug.step);
 
+    const run_usb_step = b.step("run-usb", "Run QEMU booting the USB image as a USB stick");
+    run_usb_step.dependOn(&cmds.run_usb.step);
+
     return cmds;
 }
 
-fn addOvmfToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
+fn addOvmfToQemu(b: *Build, qemu_cmds: QemuCmds) void {
     // There are two OVMF files that are needed to run QEMU with UEFI support:
     // 1. OVMF_CODE: contains static, read-only firmware code
     // 2. OVMF_VARS: contains variables that may be changed at runtime
@@ -166,8 +175,11 @@ fn addOvmfToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
     const ovmf_rw_args = "format=raw,if=pflash,file=";
     const ovmf_ro_args = "readonly=on," ++ ovmf_rw_args;
 
+    // Kept out of the sysroot so it doesn't end up on the USB image.
+    const ovmf_dir = b.addWriteFiles();
+
     // note that the destinations here can be any name
-    const ovmf_code_path = sysroot.build.addCopyFile(ovmf_dep.path("x64/code.fd"), "ovmf.fd");
+    const ovmf_code_path = ovmf_dir.addCopyFile(ovmf_dep.path("x64/code.fd"), "ovmf.fd");
     // const ovmf_code_args = if (ovmf_vars != null) ovmf_ro_args else ovmf_rw_args;
     const ovmf_code_args = ovmf_ro_args;
     inline for (comptime @typeInfo(QemuCmds).@"struct".field_names) |field_name| {
@@ -176,7 +188,7 @@ fn addOvmfToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
         cmd.addPrefixedFileArg(ovmf_code_args, ovmf_code_path);
     }
 
-    const ovmf_vars_path = sysroot.build.addCopyFile(ovmf_dep.path("x64/vars.fd"), "ovmf_vars.fd");
+    const ovmf_vars_path = ovmf_dir.addCopyFile(ovmf_dep.path("x64/vars.fd"), "ovmf_vars.fd");
     inline for (comptime @typeInfo(QemuCmds).@"struct".field_names) |field_name| {
         const cmd: *RunStep = @field(qemu_cmds, field_name);
         cmd.addArg("-drive");
@@ -187,8 +199,7 @@ fn addOvmfToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
 fn addSysrootToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
     const sysroot_install = sysroot.install;
     const sysroot_path = rstdbuild.installDirLazyPath(b, sysroot_install);
-    inline for (comptime @typeInfo(QemuCmds).@"struct".field_names) |field_name| {
-        const cmd: *RunStep = @field(qemu_cmds, field_name);
+    for ([_]*RunStep{ qemu_cmds.run, qemu_cmds.debug }) |cmd| {
         cmd.addArg("-drive");
         cmd.addPrefixedDirectoryArg(
             "format=raw,index=3,media=disk,file=fat:rw:",
@@ -196,6 +207,14 @@ fn addSysrootToQemu(b: *Build, sysroot: SysrootDirs, qemu_cmds: QemuCmds) void {
         );
         cmd.step.dependOn(&sysroot_install.step);
     }
+}
+
+fn addUsbImageToQemu(qemu_cmds: QemuCmds, usb_image: LazyPath) void {
+    const cmd = qemu_cmds.run_usb;
+    // snapshot=on keeps guest writes out of the image that `burn` uses.
+    cmd.addArg("-drive");
+    cmd.addPrefixedFileArg("if=none,id=usbstick,format=raw,snapshot=on,file=", usb_image);
+    cmd.addArgs(&.{ "-device", "usb-storage,drive=usbstick,bootindex=0" });
 }
 
 fn addPersistentDriveToQemu(b: *Build, qemu_cmds: QemuCmds) !void {

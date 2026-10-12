@@ -1,7 +1,7 @@
-//! The "sysroot": a staging directory the bootloader/kernel binaries and any
-//! extra boot-time files (OVMF, etc.) are copied into, then
-//! installed to `zig-out/sysroot/`. This is also what `zig build run`
-//! attaches to QEMU as the emulated FAT boot drive.
+//! The "sysroot": a staging directory holding exactly the ESP contents (the
+//! bootloader/kernel binaries and other boot-time files), installed to
+//! `zig-out/sysroot/`. `zig build run` attaches it to QEMU as the emulated FAT
+//! boot drive, and `zig build image` packs it into the USB image.
 
 const buildroot = @import("__root__.zig");
 const rstd = @import("rstd");

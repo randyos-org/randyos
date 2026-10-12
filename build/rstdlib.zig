@@ -12,16 +12,18 @@ const Docs = rstdbuild.Docs;
 
 pub fn addRstd(
     b: *Build,
-    docs: Docs,
+    /// Only one instance should build the `rstd` docs.
+    docs: ?Docs,
     options: *BuildOptions,
     target: ?ResolvedTarget,
-) *Module {
+) !*Module {
     const rstd_dep = b.dependency("rstd", .{
         .target = target,
     });
     const rstd_mod = rstd_dep.module("rstd");
-    rstdbuild.addBuildOptsModToModule(options, rstd_mod);
+    try rstdbuild.addBuildOptsModToModule(options, rstd_mod);
 
+    const d = docs orelse return rstd_mod;
     // We want the rstd docs to be built separately from the other packages,
     // so we will make a separate compile step for them and attach the docs.
     // The registered "rstd" module has no target (consumers set their own via
@@ -31,13 +33,13 @@ pub fn addRstd(
         .root_source_file = rstd_dep.builder.path("src/__root__.zig"),
         .target = target,
     });
-    rstdbuild.addBuildOptsModToModule(options, rstd_docs_mod);
+    try rstdbuild.addBuildOptsModToModule(options, rstd_docs_mod);
     // add the standalone rstd build step, just generates an unlinked object file
     const rstd_docs_obj = b.addObject(.{
         .name = "rstd",
         .root_module = rstd_docs_mod,
     });
-    docs.addCompileStepDocs(b, rstd_docs_obj, "rstd");
+    d.addCompileStepDocs(b, rstd_docs_obj, "rstd");
 
     return rstd_mod;
 }

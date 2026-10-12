@@ -39,7 +39,20 @@ zig build
 
 If you have `qemu-system-x86_64` installed, then you can run `zig build qemu` to build and run the kernel. It sets up a directory in the build cache to use as the emulated FAT disk and runs QEMU using it.
 
-All OVMF files used by `zig build qemu` will be copied so that their original versions are not modified. You can access the copied files in the build cache in the same directory used as the FAT boot drive.
+All OVMF files used by `zig build qemu` will be copied so that their original versions are not modified. The copies live in their own build-cache directory, separate from the FAT boot drive.
+
+### Booting real hardware from a USB drive
+
+`zig build image` packs the sysroot into `zig-out/randyos.img`: a GPT disk with one FAT32 EFI System Partition, which UEFI firmware boots via `\EFI\BOOT\BOOTX64.EFI`. The image is built by the host tool in `tools/usbimg/`, so no external disk utilities are needed.
+
+```bash
+zig build run-usb                   # boot the exact image in QEMU as a USB stick
+zig build usb-list                  # list disks and their bus types
+zig build burn -Dusb-disk=2         # Windows: \.\PhysicalDrive2 (elevated terminal)
+sudo zig build burn -Dusb-disk=/dev/sdb  # Linux
+```
+
+`burn` refuses the disk holding the running OS and anything not on a USB or SD bus (`-Dusb-any-bus` lifts the latter). It asks you to retype the disk id before erasing (`-Dusb-yes` skips that), and moves the backup GPT to the end of the drive. On Windows it locks and dismounts the drive's volumes itself; on Linux, unmount them first. On the target machine, disable Secure Boot (the bootloader is unsigned) and pick the USB drive from the firmware boot menu.
 
 ### What is OVMF?
 

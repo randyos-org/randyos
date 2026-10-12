@@ -28,7 +28,7 @@ const default_log_scope_levels: []const rstdbuild.ScopeLevel = &.{
 };
 
 pub fn addBuildOptions(b: *Build, tgt: RandyOSTarget) !*BuildOptions {
-    const build_options = rstdbuild.addBuildOptionsModule(b, @tagName(zon.name), zon.version);
+    const build_options = try rstdbuild.addBuildOptionsModule(b, @tagName(zon.name), zon.version, null);
     try rstdbuild.addLogScopeOptions(b, build_options, default_log_scope_levels);
 
     // const debug_scheduler: bool = b.option(bool, "debug-scheduler", "Print out scheduler debug information") orelse false;

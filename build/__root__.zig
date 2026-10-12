@@ -7,6 +7,7 @@ pub const qemu = @import("qemu.zig");
 pub const options = @import("options.zig");
 pub const rstdlib = @import("rstdlib.zig");
 pub const boot = @import("boot.zig");
+pub const usb = @import("usb.zig");
 
 const rstdbuild = rstd.buildutils;
 
@@ -18,11 +19,16 @@ pub fn build(b: *rstdbuild.Build) !void {
 
     // setup qemu runtime
     const sysroot_paths = sysroot.addSysrootDirs(b);
-    try qemu.addQemu(b, sysroot_paths);
+    const usb_image = usb.addUsb(b, sysroot_paths);
+    try qemu.addQemu(b, sysroot_paths, usb_image);
 
     // build steps
+    // rstd links BLAS objects built for its target, so each consumer gets its own instance.
     const build_options = try options.addBuildOptions(b, randyos_target);
-    const rstd_module = rstdlib.addRstd(b, docs, build_options, randyos_target.rstd);
+    const boot_rstd = try rstdlib.addRstd(b, null, build_options, randyos_target.bootloader);
+    _ = boot.addBootldr(b, optimize, randyos_target.bootloader, boot_rstd, sysroot_paths, docs);
+
     // const abi_mod = modules_mod.addAbi(b, optimize, docs);
-    _ = boot.addBootldr(b, optimize, randyos_target.bootloader, rstd_module, sysroot_paths, docs);
+    const kernel_rstd = try rstdlib.addRstd(b, docs, build_options, randyos_target.rstd);
+    _ = kernel_rstd; // until the kernel is built again
 }
